@@ -1,0 +1,1 @@
+Using normalized data can help the performance and increase accuracy.
