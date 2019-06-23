@@ -4,7 +4,7 @@ from pyspark import SparkContext
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 
-from .cluster import cluster
+from .cluster import _cluster
 from .sequence import sequence
 
 def filter_sublists(input_list, length):
@@ -58,26 +58,21 @@ def all_sublists_with_id(input_list):
     return [y for x in tmp for y in x]  # flatten the list
 
 
-def all_sublists_with_id_length(input_list, loi):
+def _all_sublists_with_id_length(input_list:list, loi:list):
     tmp = []
 
-    if loi[0] < 0:
-        raise Exception('Genex: preprocess: all_sublists_with_id_length: Start can not be 0 in the Length of Interest')
     if loi[1] > len(input_list[1]) + 1:
+        print('Warning: given loi exceeds maximum sequence length, setting end point to sequence length')
         loi[1] = len(input_list[1]) + 1
     else:
         loi[1] += 1  # length offset
-
-    if loi[0] >= loi[1]:
-        raise Exception('Genex: preprocess: all_sublists_with_id_length: Start must be greater than end in the '
-                        'Length of Interest')
 
     for i in range(loi[0], loi[1]):
         tmp.append(list(filter_sublists_with_id_length(input_list, i)))
     return [y for x in tmp for y in x]  # flatten the list
 
 
-def preprocess(input_list: list, loi: tuple, sc: SparkContext, similarity_threshhold: float = 0.1, dist_type: str='eu', normalize: bool=True, del_data: bool = False):
+def gcluster(input_list: list, loi: list, sc: SparkContext, similarity_threshold: float = 0.1, dist_type: str='eu', normalize: bool=True, del_data: bool = False, data_slices:int=16):
     """
 
     :param input_list:
@@ -85,18 +80,37 @@ def preprocess(input_list: list, loi: tuple, sc: SparkContext, similarity_thresh
     :param loi: length of interets, ceiled at maximum length
     :param normalize:
     """
-    input_list = min_max_normalize(input_list)
-    input_rdd = sc.parallelize(input_list, numSlices=16)
+    # inputs validation
+    # validate input exists
+    if len(input_list) == 0:
+        raise Exception('gcluster: nothing in input_list to cluster.')
+    # validate key value pairs
+    try:
+        dict(input_list)  # validate by converting input_list into a dict
+    except (TypeError, ValueError):
+        raise Exception('gcluster: input_list is not key-value pair.')
+    # validate the length of interest
+    if loi[0] <= 0:
+        raise Exception('gcluster: first element of loi must be equal to or greater than 1')
+    if loi[0] >= loi[1]:
+        raise Exception('gcluster: Start must be greater than end in the '
+                        'Length of Interest')
 
-    input_rdd = input_rdd.flatMap(lambda x: all_sublists_with_id_length(x, loi))  # get subsequences of all possible length
+    if similarity_threshold <= 0 or similarity_threshold >= 1:
+        raise Exception('gcluster: similarity_threshold must be greater 0 and less than 1')
+
+    input_list = _min_max_normalize(input_list)
+    input_rdd = sc.parallelize(input_list, numSlices=data_slices)
+
+    input_rdd = input_rdd.flatMap(lambda x: _all_sublists_with_id_length(x, loi))  # get subsequences of all possible length
     input_rdd = input_rdd.groupByKey().mapValues(list)  # group the subsequences by length
 
     # cluster the input
-    input_rdd = input_rdd.map(lambda x: cluster(x, similarity_threshhold, dist_type, del_data))
+    input_rdd = input_rdd.map(lambda x: _cluster(x, similarity_threshold, dist_type, del_data))
     return input_rdd.collect()
 
 
-def min_max_normalize(input_list):
+def _min_max_normalize(input_list):
     scaler = MinMaxScaler(feature_range=(0, 1))
     input_array = np.array(list(map(lambda x: x[1], input_list)))
     input_array_scaled = scaler.fit_transform(input_array)

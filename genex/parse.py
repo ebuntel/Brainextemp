@@ -48,19 +48,22 @@ def get_subsquences(input_list: list):
     return val
 
 
-def generate_source(file_name, features_to_append):
+def generate_source(file_name, feature_num):
     """
     Not doing sub-sequence here
     get the id of time series and data of time series
 
     :param file_name: path to csv file
-    :param features_to_append: a list of feature index to append
+    :param feature_num: number of features that makes up the id
 
     :return: a list of data in [id, [list of data]] format
     """
+
+    features_to_append = list(i for i in range(feature_num))
+
     # List of result
     ts_list = []
-    wrap_in_parantheses = lambda x: "(" + str(x) + ")"
+    # wrap_in_parantheses = lambda x: "(" + str(x) + ")"
 
     with open(file_name, 'r') as f:
         for i, line in enumerate(f):
@@ -75,11 +78,17 @@ def generate_source(file_name, features_to_append):
                     data = remove_trailing_zeros(line.split(",")[:-1])
 
                     # Get feature values for label
-                    label_features = [wrap_in_parantheses(data[index]) for index in
-                                      range(0, len(label_features_index))]
-                    series_label = "_".join(label_features).replace('  ', '-').replace(' ', '-')
+                    # label_features = [wrap_in_parantheses(data[index]) for index in
+                    #                   range(0, len(label_features_index))]
+                    id_list = []
+                    [id_list.append(data[index]) for index in range(0, len(label_features_index))]
+                    # series_label = "_".join(label_features).replace('  ', '-').replace(' ', '-')
 
-                    series_data = list(map(float, data[len(label_features_index):]))
-                    ts_list.append([series_label, series_data])
+                    # check if the number of feature correct by catching 'could not convert string to float' errors
+                    try:
+                        series_data = list(map(float, data[len(label_features_index):]))
+                    except ValueError:
+                        raise Exception('parse: generate_source: wrong number of features')
+                    ts_list.append([tuple(id_list), series_data])
 
     return ts_list

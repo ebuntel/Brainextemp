@@ -233,7 +233,7 @@ def cluster_two_pass(group, length, st, normalized_ts_dict, dist_type='eu'):
     return cluster
 
 
-def cluster(group: list, st: float, dist_type: str = 'eu', del_data: bool= True) -> dict:
+def _cluster(group: list, st: float, dist_type: str = 'eu', del_data: bool= True) -> dict:
     """
     all subsequence in 'group' must be of the same length
     For example:
