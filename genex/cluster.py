@@ -306,8 +306,9 @@ def _cluster(group: list, st: float, dist_type: str = 'eu', del_data: bool= True
     print()
     print('Cluster length: ' + str(length) + '   Done!')
 
-    for value in cluster.values():
-        for ss in value:
-            ss.del_data()
+    if del_data:
+        for value in cluster.values():
+            for ss in value:
+                ss.del_data()
 
     return cluster
