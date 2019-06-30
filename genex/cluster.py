@@ -1,8 +1,5 @@
-import math
 import random
-from fastdtw import fastdtw
 # distance libraries
-from scipy.spatial.distance import euclidean
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
 
@@ -13,8 +10,7 @@ import numpy as np
 
 
 from .data_process import get_data
-from .time_series_obj import TimeSeriesObj
-from .sequence import sequence
+from genex.classes.time_series_obj import TimeSeriesObj
 
 
 def sim_between_seq(seq1, seq2):
@@ -311,4 +307,4 @@ def _cluster(group: list, st: float, dist_type: str = 'eu', del_data: bool= True
             for ss in value:
                 ss.del_data()
 
-    return cluster
+    return length, cluster

@@ -5,35 +5,35 @@ This program implements the algorithm described in these papers:
 http://real.mtak.hu/74287/1/p1595_neamtu_u.pdf
 http://real.mtak.hu/43722/1/p169_neamtu_u.pdf
 https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8509275
-# Parse
+## Parse
 Provides functions that help read csv files. 
 
-## generate_source
+### generate_source
 Reads feature-time-series csv file.
 
     generate_source(file_name, feature_num)
-### Arguments
+#### Arguments
 * file_name: the name of the csv file to read
 * feature_num: the number of components that describe a time series
-### Returns
+#### Returns
 a key-value pair list where key = (tuple) time series id, value is a list of raw data
-### Example
+#### Example
 
     from genex.parse import generate_source
     fn = 'your_data.csv'
     # features: Subject Name, Event Name, Channel Name, Start time, End Time => total of five features
     res_list = generate_source(fn, feature_num = 5)
 
-# Preproces
+## Preproces
 Preprocess input time series to prepare them for applying genex query
-## gcluster
+### do_gcluster
 Pre-process the data by creating clusters.
 
-    genex.preprocess.gcluster(input_list: list, loi: tuple, sc: SparkContext, similarity_threshold: float = 0.1, dist_type: str='eu', normalize: bool=True, del_data: bool = False, data_slices:int=16)
-### Arguments
+    genex.preprocess.do_gcluster(input_list: list, loi: tuple, sc: SparkContext, similarity_threshold: float = 0.1, dist_type: str='eu', normalize: bool=True, del_data: bool = False, data_slices:int=16)
+#### Arguments
 * input_list: list of key-value pairs
 * loi: must be a list of two integers. length of interest
-* sc: the spark context to which the gcluster job will be submitted
+* sc: the spark context to which the do_gcluster job will be submitted
 * similarity_threshold: must be a float between (0, 1), the similarity threshold defined in the Genex method. Generally speaking, larger threshold
 produces fewer and larger cluster.  **Default at 0.1**
 
@@ -47,12 +47,13 @@ the data to help the performance. **Default True**
 recommened to delete the data after clustering to save memory space. The data can always be retrived by the 
 fetch_data method of sequence **Default True**
 
-### Returns
+#### Returns
+Gcluster object that holds the cluster result.
 cluster result as a list of dictionaries. Each dictionary is a sequence cluster of a certain length. The 
 key is the representative sequence and the value is a list of sequences in that sequence and represented by the key sequence.
-### Example
+#### Example
     from pyspark import SparkContext, SparkConf
-    from genex.preprocess import gcluster
+    from genex.preprocess import do_gcluster
     from genex.parse import generate_source
     
     # reads input data
@@ -63,8 +64,49 @@ key is the representative sequence and the value is a list of sequences in that 
     # initialize the spark context
     conf = SparkConf().setMaster("local").setAppName("Genex").set('spark.driver.memory', '16G')
     sc = SparkContext(conf=conf)
-    clusters = gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=True)
+    clusters = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=True)
+## Gcluster
+RReturn by genex.preprocess.do_gcluster. Gcluster is the general form that retains the Genex Cluster information.
+### Attributes
+* data_dict(dict): dictionary object that holds the cluster information
+    * key(integer): length of the sequence in the cluster
+        * value(dict): the clustered sequence of keyed length
+            * key(Sequence): Sequence object that is the representative
+            * value(list): list of Sequence that are represented by the key
+### Methods
+Gcluster has various methods with which the user can retrieve and manipulate the Genex Cluster data.
+#### Slice
+Gcluster supports slicing to retrieve cluster data. Please not that Gcluster slice currently does NOT support stepping in slice.
+##### Example
+    gcluster_obj = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=False)
+calling
 
-# Query
-## gquery
-## bfquery
+    gcluster_obj[75]
+will give the cluster of length 80 as a dictionary. The keys are the representatives and value are lists of Sequence
+ that are represented by the keys
+
+calling 
+
+    gcluster_obj[75]
+    gcluster_obj[75:]
+    gcluster_obj[:75]
+    gcluster_obj[50:75]
+will give the list of cluster of the given slice.
+#### len
+Call  will return the number of cluster dictionaries.
+##### Example
+    gcluster_obj = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=False)
+    print('len of Gcluster: ' + len(gcluster_obj))
+will give    
+    
+    >>> len of Gcluster: 51
+    
+    
+#### get_clusters
+
+## Query
+### gquery
+### bfquery
+
+## Bug Report
+Please report any bug by creating issues.

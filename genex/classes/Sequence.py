@@ -1,7 +1,7 @@
 wrap_in_parantheses = lambda x: "(" + str(x) + ")"
 
 
-class sequence:
+class Sequence:
     def __init__(self, id:str, start:int, end:int):
         self.id = id
         self.start = start
