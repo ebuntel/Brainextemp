@@ -68,11 +68,12 @@ def generate_source(file_name, feature_num):
     with open(file_name, 'r') as f:
         for i, line in enumerate(f):
             if i != 0:
+                # why the last line will be none?
                 features = list(map(lambda x: strip_function(x),
                                     line.strip()[:-1].split(',')))
                 # print(features)
-                label_features_index = [features[feature] for feature in features_to_append]
-                # print(label_features_index)
+                if len(features) > len(features_to_append):
+                    label_features_index = [features[feature] for feature in features_to_append]
 
                 if line != "" and line != "\n":
                     data = remove_trailing_zeros(line.split(",")[:-1])

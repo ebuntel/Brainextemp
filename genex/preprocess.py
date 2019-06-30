@@ -66,7 +66,7 @@ def _all_sublists_with_id_length(input_list:list, loi:list):
     else:
         loi[1] += 1  # length offset
 
-    for i in range(loi[0], loi[1]):
+    for i in range(loi[0], loi[1] - 1):
         tmp.append(list(filter_sublists_with_id_length(input_list, i)))
     return [y for x in tmp for y in x]  # flatten the list
 
