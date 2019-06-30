@@ -73,11 +73,15 @@ def _all_sublists_with_id_length(input_list:list, loi:list):
 
 def do_gcluster(input_list: list, loi: list, sc: SparkContext, similarity_threshold: float = 0.1, dist_type: str= 'eu', normalize: bool=True, del_data: bool = False, data_slices:int=16):
     """
-
     :param input_list:
-    :param sc:
     :param loi: length of interets, ceiled at maximum length
+    :param sc:
+    :param similarity_threshold:
+    :param dist_type:
     :param normalize:
+    :param del_data:
+    :param data_slices:
+    :return:
     """
     # inputs validation
     # validate input exists

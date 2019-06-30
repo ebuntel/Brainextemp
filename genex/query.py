@@ -1,9 +1,23 @@
 # TODO finish implementing query
+from pyspark import SparkContext
 
-def query(mode:str='genex'):
+from .classes import Sequence
+from .classes import Gcluster
+
+
+def query(q: Sequence, gc: Gcluster, loi: list, sc: SparkContext,
+          k:int=1, ex_sameID: bool=False, overlap: float= 1.0, mode:str='genex'):
     """
 
-    :param mode: select query mode, it can be 'genex' or 'bf'
+    :param q: query sequence
+    :param gc: Gcluster in which to query
+    :param loi: list of two integer values, specifying the query range, if set to None, is going to query all length
+    :param sc: spark context on which to run the query operation
+
+    :param k: integer, specifying to return top k matches
+    :param ex_sameID: boolean, whether to include sequences from the time series with the same id as the query sequence
+    :param overlap: float, how much overlapping between queries lookups
+    :param mode: query mode, supported modes are 'genex' and 'bf' (bf = brute force)
     """
     if mode == 'genex':
         gquery()
