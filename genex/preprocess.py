@@ -71,16 +71,20 @@ def _all_sublists_with_id_length(input_list:list, loi:list):
     return [y for x in tmp for y in x]  # flatten the list
 
 
-def do_gcluster(input_list: list, loi: list, sc: SparkContext, similarity_threshold: float = 0.1, dist_type: str= 'eu', normalize: bool=True, del_data: bool = False, data_slices:int=16):
+def do_gcluster(input_list: list, loi: list, sc: SparkContext,
+                similarity_threshold: float = 0.1, dist_type: str= 'eu', normalize: bool=True, del_data: bool = False, data_slices:int=16, isCollect: bool=False):
     """
     :param input_list:
     :param loi: length of interets, ceiled at maximum length
     :param sc:
+
     :param similarity_threshold:
     :param dist_type:
     :param normalize:
     :param del_data:
     :param data_slices:
+    :param isCollect:
+
     :return:
     """
     # inputs validation
@@ -110,7 +114,11 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext, similarity_thresh
 
     # cluster the input
     input_rdd = input_rdd.map(lambda x: _cluster(x, similarity_threshold, dist_type, del_data))
-    return Gcluster(dict(input_rdd.collect()))
+
+    if isCollect:
+        return Gcluster(dict(input_rdd.collect()), collected=True)
+    else:
+        return Gcluster(input_rdd, collected=False)
 
 
 def _min_max_normalize(input_list):
