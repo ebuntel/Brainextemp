@@ -11,7 +11,7 @@ Provides functions that help read csv files.
 ### generate_source
 Reads feature-time-series csv file.
 
-    generate_source(file_name, feature_num)
+    parse.generate_source(file_name, feature_num)
 #### Arguments
 * file_name: the name of the csv file to read
 * feature_num: the number of components that describe a time series
@@ -19,17 +19,18 @@ Reads feature-time-series csv file.
 a key-value pair list where key = (tuple) time series id, value is a list of raw data
 #### Example
 
-    from genex.parse import generate_source
+    from Genex import parse
     fn = 'your_data.csv'
     # features: Subject Name, Event Name, Channel Name, Start time, End Time => total of five features
-    res_list = generate_source(fn, feature_num = 5)
+    res_list = parse.generate_source(fn, feature_num = 5)
 
 ## Preproces
 Preprocess input time series to prepare them for applying genex query
 ### do_gcluster
 Pre-process the data by creating clusters.
-
-    genex.preprocess.do_gcluster(input_list: list, loi: tuple, sc: SparkContext, similarity_threshold: float = 0.1, dist_type: str='eu', normalize: bool=True, del_data: bool = False, data_slices:int=16)
+    
+    from Genex import preprocess
+    preprocess.do_gcluster(input_list: list, loi: tuple, sc: SparkContext, similarity_threshold: float = 0.1, dist_type: str='eu', normalize: bool=True, del_data: bool = False, data_slices:int=16)
 #### Arguments
 * input_list: list of key-value pairs
 * loi: must be a list of two integers. length of interest
@@ -59,18 +60,18 @@ cluster result as a list of dictionaries. Each dictionary is a sequence cluster 
 key is the representative sequence and the value is a list of sequences in that sequence and represented by the key sequence.
 #### Example
     from pyspark import SparkContext, SparkConf
-    from genex.preprocess import do_gcluster
-    from genex.parse import generate_source
-    
+    from Genex import parse
+    from Genex import preprocess
+
     # reads input data
     fn = 'your_data.csv'
     features_to_append = [0, 1, 2, 3, 4]
-    res_list = generate_source(fn, features_to_append)
+    res_list = parse.generate_source(fn, features_to_append)
     
     # initialize the spark context
     conf = SparkConf().setMaster("local").setAppName("Genex").set('spark.driver.memory', '16G')
     sc = SparkContext(conf=conf)
-    clusters = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=True)
+    clusters = preprocess.do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=True)
 ## Gcluster
 RReturn by genex.preprocess.do_gcluster. Gcluster is the general form that retains the Genex Cluster information.
 ### Attributes
@@ -87,18 +88,24 @@ or calling any function that requires the cluster result such as len or slicing.
 Gcluster first.
 #### Example
 The following code will raise exception because Gcluster cannot be sliced if not collected. 
+    
+    from Genex import preprocess
 
     clusters = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=True)
     clusters[75]
 
 To be able to use slice or other functions that needs the cluster result, the user instead do the following
     
+    from Genex import preprocess
+
     clusters = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=True)
     clusters.collect()
     clusters[75]
 
 Or have the result to be collected upon return by setting the isCollect parameter in do_gcluster
     
+    from Genex import preprocess
+
     clusters = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=True, isCollect=True)
     clusters[75]
 
@@ -108,6 +115,9 @@ Or have the result to be collected upon return by setting the isCollect paramete
 
 Gcluster supports slicing to retrieve cluster data. Please not that Gcluster slice currently does NOT support stepping in slice.
 ##### Example
+
+    from Genex import preprocess
+
     gcluster_obj = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=False)
 calling
 
@@ -128,6 +138,9 @@ will give the list of cluster of the given slice.
 
 Call  will return the number of cluster dictionaries.
 ##### Example
+
+    from Genex import preprocess
+
     gcluster_obj = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=False)
     print('len of Gcluster: ' + len(gcluster_obj))
 will give    
