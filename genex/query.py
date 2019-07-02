@@ -1,8 +1,8 @@
 # TODO finish implementing query
 from pyspark import SparkContext
 
-from .classes import Sequence
-from .classes import Gcluster
+from genex.classes import Sequence
+from genex.classes import Gcluster
 
 
 def query(q: Sequence, gc: Gcluster, loi: list, sc: SparkContext,

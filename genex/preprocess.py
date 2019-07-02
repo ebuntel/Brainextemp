@@ -3,8 +3,8 @@ from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 
 from .cluster import _cluster
-from .classes.Gcluster import Gcluster
-from .classes.Sequence import Sequence
+from genex.classes.Gcluster import Gcluster
+from genex.classes.Sequence import Sequence
 
 def filter_sublists(input_list, length):
     """

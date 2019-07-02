@@ -3,14 +3,13 @@ import random
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
 
-from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
 import math
 import numpy as np
 
 
 from .data_process import get_data
-from classes.time_series_obj import TimeSeriesObj
+from genex.classes.time_series_obj import TimeSeriesObj
 
 
 # def sim_between_seq(seq1, seq2):
