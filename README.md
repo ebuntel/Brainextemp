@@ -73,7 +73,7 @@ key is the representative sequence and the value is a list of sequences in that 
     sc = SparkContext(conf=conf)
     clusters = preprocess.do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=True)
 ## Gcluster
-RReturn by genex.preprocess.do_gcluster. Gcluster is the general form that retains the Genex Cluster information.
+Return by genex.preprocess.do_gcluster. Gcluster is the general form that retains the Genex Cluster information.
 ### Attributes
 * data(dict): dictionary object that holds the cluster information
     * key(integer): length of the sequence in the cluster
@@ -167,7 +167,7 @@ gfilter can take up to two types of filter, size and feature. They are:
     * if a str is given: any sequence (other than the representatives) without the given feature str will be filtered out. 
     * if a list or a tuple is provided: similar to the str case, any sequence (other than the representatives) whose 
     features is not in the feature list will be filtered out.
-    * ** It is important to note that filter by feature will not affect the representatives in the clusters**
+    * **It is important to note that filter by feature will not affect the representatives in the clusters**
 ##### Example
     from Genex import preprocess
 
@@ -177,7 +177,7 @@ gfilter can take up to two types of filter, size and feature. They are:
     
     # Filter Example 1
     # only the representative and the sequence with feature 'B-DC4' wii be kept
-    gcluster_obj.gfilter(filter_features = ='B-DC4') 
+    gcluster_obj.gfilter(filter_features ='B-DC4') 
     
     # Filter Example 2
     # first, only the clusters of length 50 and 51 will be kept, 
