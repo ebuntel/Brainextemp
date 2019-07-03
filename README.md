@@ -75,11 +75,15 @@ key is the representative sequence and the value is a list of sequences in that 
 ## Gcluster
 RReturn by genex.preprocess.do_gcluster. Gcluster is the general form that retains the Genex Cluster information.
 ### Attributes
-* data_dict(dict): dictionary object that holds the cluster information
+* data(dict): dictionary object that holds the cluster information
     * key(integer): length of the sequence in the cluster
         * value(dict): the clustered sequence of keyed length
             * key(Sequence): Sequence object that is the representative
             * value(list): list of Sequence that are represented by the key
+            
+* filtered_data: dictionary object that has the same structre as the data. When returned by do_gcluster
+filtered_data will have the same value as the data attribute. If filter is applied on the Gcluster object, the filtered
+_data object will reflect that filter. See Gcluster.Methods.gfilter for more details
 ### Methods
 Gcluster has various methods with which the user can retrieve and manipulate the Genex Cluster data.
 #### Collect
@@ -149,8 +153,41 @@ will give
     
     
 #### gfilter
+gfilter proves a comprehensive method with whcih the users may filter their clustered data by the sequence length and id.
+After filtering, the filtered data will be stored in Gcluster.filtered_data, see Gclustter.attributes.filtered_data for
+more details. Users may then proceed with the filtered_data to explore the clusters or implement custom queries. 
+    Gcluster.gfilter(self, size=None, filter_features=None):
+##### Arguments
+gfilter can take up to two types of filter, size and feature. They are:
+* size: integer or list or tuple, a list or tuple provided must has length of 2
+    * if a integer is provided: any cluster whose length is not the given size will be filtered out.
+    * if a list or a tuple is provided: the provided set will be treat as [start, end], where any cluster whose length is
+    not in between start and end will be filtered out.
+* filter_features: str or list or tuple
+    * if a str is given: any sequence (other than the representatives) without the given feature str will be filtered out. 
+    * if a list or a tuple is provided: similar to the str case, any sequence (other than the representatives) whose 
+    features is not in the feature list will be filtered out.
+    * ** It is important to note that filter by feature will not affect the representatives in the clusters**
+##### Example
+    from Genex import preprocess
 
-Currently filter will not affect the representatives
+    gcluster_obj = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=False)
+    
+    # all the following are valid filter operations, B-DC4, A-DC8 are example features
+    
+    # Filter Example 1
+    # only the representative and the sequence with feature 'B-DC4' wii be kept
+    gcluster_obj.gfilter(filter_features = ='B-DC4') 
+    
+    # Filter Example 2
+    # first, only the clusters of length 50 and 51 will be kept, 
+    # secondly, other than the representatives, sequences without id 'B-DC4' OR 'A-DC8' will be filtered out
+    gcluster_obj.gfilter(size=(50, 51), filter_features = ['B-DC4', 'A-DC8']) 
+    
+    # Filter Example 2
+    # all the clusters whose length is not 50 will be filtered out
+    gcluster_obj.gfilter(size=50)
+
 
 #### get_feature_list
 if size is a list or a tuple, the first number must be smaller than the second

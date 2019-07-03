@@ -6,6 +6,14 @@ from .cluster import _cluster
 from genex.classes.Gcluster import Gcluster
 from genex.classes.Sequence import Sequence
 
+
+def flatten(l):
+    flat_list = []
+    for sublist in l:
+        for item in sublist:
+            flat_list.append(item)
+    return flat_list
+
 def filter_sublists(input_list, length):
     """
 
@@ -62,11 +70,11 @@ def _all_sublists_with_id_length(input_list:list, loi:list):
 
     if loi[1] > len(input_list[1]) + 1:
         print('Warning: given loi exceeds maximum sequence length, setting end point to sequence length')
-        loi[1] = len(input_list[1]) + 1
-    else:
-        loi[1] += 1  # length offset
+        loi[1] = len(input_list[1])# + 1
+    # else:
+    #     loi[1] += 1  # length offset
 
-    for i in range(loi[0], loi[1] - 1):
+    for i in range(loi[0], loi[1]+1):
         tmp.append(list(filter_sublists_with_id_length(input_list, i)))
     return [y for x in tmp for y in x]  # flatten the list
 
@@ -106,6 +114,10 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
     if similarity_threshold <= 0 or similarity_threshold >= 1:
         raise Exception('do_gcluster: similarity_threshold must be greater 0 and less than 1')
 
+
+    # create feature list
+    feature_list = flatten(map(lambda x: x[0], input_list))
+
     input_list = _min_max_normalize(input_list)
     input_rdd = sc.parallelize(input_list, numSlices=data_slices)
 
@@ -116,21 +128,32 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
     input_rdd = input_rdd.map(lambda x: _cluster(x, similarity_threshold, dist_type, del_data))
 
     if isCollect:
-        return Gcluster(dict(input_rdd.collect()), collected=True)
+        return Gcluster(feature_list, dict(input_rdd.collect()), collected=True)
     else:
-        return Gcluster(input_rdd, collected=False)
+        return Gcluster(feature_list, input_rdd, collected=False)
 
+
+def normalize_num(num, max, min):
+    return (num - min) / (max - min)
 
 def _min_max_normalize(input_list):
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    input_array = np.array(list(map(lambda x: x[1], input_list)))
-    input_array_scaled = scaler.fit_transform(input_array)
+    # scaler = MinMaxScaler(feature_range=(0, 1))
+    #
+    #
+    #
+    # input_array = np.array(list(map(lambda x: x[1], input_list)), dtype=np.float64)
+    #
+    # input_array_scaled = scaler.fit_transform(input_array)
 
-    normalize_list = []
+    flattened_list = np.array(flatten(list(map(lambda x: x[1], input_list))))
+    global_max = flattened_list.max()
+    global_min = flattened_list.min()
 
-    for i in range(len(input_list)):
-        normalize_list.append([input_list[i][0], input_array_scaled[i]])
+    normalize_list = map(lambda id_sequence:
+                         [id_sequence[0], list(map(lambda num: normalize_num(num, global_max, global_min), id_sequence[1]))]
+                         , input_list)
 
-    return normalize_list
+
+    return list(normalize_list)
 
 

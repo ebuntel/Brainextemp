@@ -8,8 +8,13 @@ class Gcluster:
             key: Sequence object that is the representative
             value: list of Sequence that are represented by the key
     """
-    def __init__(self, data_dict = None, collected=None):
+    def __init__(self, feature_list, data_dict = None, collected=None):
+        self.feature_list = feature_list
         self.data = data_dict
+
+        self.filtered_data = data_dict
+        self.filters = None
+
         self._collected = collected
 
     def __len__(self):
@@ -67,6 +72,12 @@ class Gcluster:
 
         return rtn
 
+    def __str__(self):
+        if not self._collected:
+            return 'Gluster at ' + str(hex(id(self))) + ' is NOT collected'
+        else:
+            return
+
     def _set_data_dict(self, data_dict: dict):
         self.data = data_dict
 
@@ -78,3 +89,84 @@ class Gcluster:
 
         self.data = dict(self.data.collect())
         self._collected = True
+
+    def gfilter(self, size=None, filter_features=None):
+        """
+
+        :param size: length can be an integer or a tuple or a list of two integers
+        :param filter_features:
+        """
+        # check if ther result has been collected
+        try:
+            assert self._collected
+        except AssertionError:
+            raise Exception('Gluster at ' + str(hex(id(self))) + ' is NOT collected')
+
+        try:  # validate size parameter
+            if size is not None:
+                assert isinstance(size, int) or isinstance(size, list) or isinstance(size, tuple)
+                if isinstance(size, list) or isinstance(size, tuple):
+                    assert len(size) == 2
+                    assert size[0] < size[1]
+                    for item in size:
+                        assert isinstance(item, int)
+
+        except AssertionError:
+            raise Exception('Given size for filtering data is not valid, check filter under Gcluster in the '
+                            'documentation for more details')
+
+        try:  # validate filter_features parameter
+            if filter_features is not None:
+                assert isinstance(filter_features, list) or isinstance(filter_features, tuple) or isinstance(filter_features, str)
+                if isinstance(filter_features, list) or isinstance(filter_features, tuple):
+                    assert len(filter_features) != 0
+                    for feature in filter_features:
+                        assert feature in self.feature_list
+                elif isinstance(filter_features, str):
+                    assert filter_features in self.feature_list
+        except AssertionError:
+            raise Exception('Given filter_features(s) for filtering data is not valid, filter_features for filtering '
+                            'must contain at least one '
+                            'filter_features and provided filter_features must be presented in the dataset')
+
+        self.filters = (size, filter_features)  # update self filters
+        # filter the data by size
+        if isinstance(size, int):
+            self.filtered_data = dict(filter(lambda x: x[0] == size, list(self.data.items())))
+        elif isinstance(size, list) or isinstance(size, tuple):
+            self.filtered_data = dict(filter(lambda x: x[0] in range(size[0], size[1] +1), list(self.data.items())))
+
+        if isinstance(filter_features, str):
+            self.filtered_data = dict(map(lambda seq_size_cluster:
+                         (seq_size_cluster[0],
+                           dict(map(lambda repr_cluster:
+                                    (repr_cluster[0], # the representative of the cluster
+                                     list(filter(
+                                         lambda cluster_seq:
+                                         (filter_features in cluster_seq.id) or repr_cluster[0] == cluster_seq,
+                                         repr_cluster[1] # list that contains all the seqence in the cluster
+
+                                     ))), seq_size_cluster[1].items()))), self.data.items()))
+        # todo implement && filter
+        elif isinstance(filter_features, list):
+            self.filtered_data = dict(map(lambda seq_size_cluster:
+                         (seq_size_cluster[0],
+                          dict(map(lambda repr_cluster:
+                                   (repr_cluster[0],  # the representative of the cluster
+                                    list(filter(
+                                        lambda cluster_seq:
+                                        (any([i for i in filter_features if i in cluster_seq.id])) or repr_cluster[0] == cluster_seq,
+                                        repr_cluster[1]  # list that contains all the seqence in the cluster
+
+                                    ))), seq_size_cluster[1].items()))), self.data.items()))
+
+    def get_feature_list(self):
+        return self.feature_list
+
+    # methods to retrieve the actual data
+    def get_representatives(self, filter = False):
+        d = list(self.filtered_data if filter else self.data.items())
+        e = map(lambda x: [x[0], list(x[1].keys())], d)
+
+        return dict(e)
+
