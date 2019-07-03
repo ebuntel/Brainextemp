@@ -3,7 +3,6 @@ import random
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
 
-from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
 import math
 import numpy as np
@@ -13,17 +12,16 @@ from .data_process import get_data
 from genex.classes.time_series_obj import TimeSeriesObj
 
 
-def sim_between_seq(seq1, seq2):
-    """
-    calculate the similarity between sequence 1 and sequence 2 using DTW
-
-    TODO customizable distance type using Scipy
-    :param seq1:
-    :param seq2:
-    :return float: return the similarity between sequence 1 and sequence 2
-    """
-    return fastdtw(seq1, seq2, dist=euclidean)[0]  # fastdtw returns a tuple with the first item being the distance
-    # and the second is the shortest path
+# def sim_between_seq(seq1, seq2):
+#     """
+#     calculate the similarity between sequence 1 and sequence 2 using DTW
+#
+#     :param seq1:
+#     :param seq2:
+#     :return float: return the similarity between sequence 1 and sequence 2
+#     """
+#     return fastdtw(seq1, seq2, dist=euclidean)[0]  # fastdtw returns a tuple with the first item being the distance
+#     # and the second is the shortest path
 
 
 
@@ -44,49 +42,48 @@ def randomize(arr):
     return arr
 
 
-def clusterer_legacy(groups, st):
-    """
-    construct similarity clusters
-    Look at clusters of all length, not using Distributed system
-
-    This is a Legacy function, not used anymore
-    TODO give the option of only creating similarity clusters of given length or length range
-    :param dict groups: [key = length, value = array of sebsequences of the length]
-        For example:
-        [[1,4,2],[6,1,4],[1,2,3],[3,2,1]] is a valid 'subsequences'
-    :param float st: similarity threshold
-    :return: dict clusters: [key = representatives, value = similarity cluster: array of sebsequences]
-    """
-    clusters = []
-    for group_len in groups.keys():
-
-        processing_groups = groups[group_len]
-        processing_groups = randomize(
-            processing_groups)  # randomize the sequence in the group to remove data-related bias
-
-        for sequence in processing_groups:  # the subsequence that is going to form or be put in a similarity clustyer
-            if not clusters.keys():  # if there is no item in the similarity clusters
-                clusters[sequence] = [sequence]  # put the first sequence as the representative of the first cluster
-            else:
-                minSim = math.inf
-                minRprst = None  # TODO MinRprst should not be None, catch None exception!
-
-                for rprst in clusters.keys():  # iterate though all the similarity groups, rprst = representative
-                    dist = sim_between_seq(sequence, rprst)
-                    if dist < minSim:
-                        minSim = dist
-                        minRprst = rprst
-
-                if minSim <= math.sqrt(group_len) * st / 2:  # if the calculated min similarity is smaller than the
-                    # similarity threshold, put subsequence in the similarity cluster keyed by the min representative
-                    clusters[minRprst].append(sequence)
-                else:  # if the minSim is greater than the similarity threshold, we create a new similarity group
-                    # with this sequence being its representative
-                    if sequence in clusters.keys():
-                        raise Exception('cluster_operations: clusterer_legacy: Trying to create new similarity cluster '
-                                        'due to exceeding similarity threshold, target sequence is already a '
-                                        'representative(key) in clusters. The sequence isz: ' + str(sequence))
-                    clusters[sequence] = [sequence]
+# def clusterer_legacy(groups, st):
+#     """
+#     construct similarity clusters
+#     Look at clusters of all length, not using Distributed system
+#
+#     This is a Legacy function, not used anymore
+#     :param dict groups: [key = length, value = array of sebsequences of the length]
+#         For example:
+#         [[1,4,2],[6,1,4],[1,2,3],[3,2,1]] is a valid 'subsequences'
+#     :param float st: similarity threshold
+#     :return: dict clusters: [key = representatives, value = similarity cluster: array of sebsequences]
+#     """
+#     clusters = []
+#     for group_len in groups.keys():
+#
+#         processing_groups = groups[group_len]
+#         processing_groups = randomize(
+#             processing_groups)  # randomize the sequence in the group to remove data-related bias
+#
+#         for sequence in processing_groups:  # the subsequence that is going to form or be put in a similarity clustyer
+#             if not clusters.keys():  # if there is no item in the similarity clusters
+#                 clusters[sequence] = [sequence]  # put the first sequence as the representative of the first cluster
+#             else:
+#                 minSim = math.inf
+#                 minRprst = None
+#
+#                 for rprst in clusters.keys():  # iterate though all the similarity groups, rprst = representative
+#                     dist = sim_between_seq(sequence, rprst)
+#                     if dist < minSim:
+#                         minSim = dist
+#                         minRprst = rprst
+#
+#                 if minSim <= math.sqrt(group_len) * st / 2:  # if the calculated min similarity is smaller than the
+#                     # similarity threshold, put subsequence in the similarity cluster keyed by the min representative
+#                     clusters[minRprst].append(sequence)
+#                 else:  # if the minSim is greater than the similarity threshold, we create a new similarity group
+#                     # with this sequence being its representative
+#                     if sequence in clusters.keys():
+#                         raise Exception('cluster_operations: clusterer_legacy: Trying to create new similarity cluster '
+#                                         'due to exceeding similarity threshold, target sequence is already a '
+#                                         'representative(key) in clusters. The sequence isz: ' + str(sequence))
+#                     clusters[sequence] = [sequence]
 
 
 def cluster_two_pass(group, length, st, normalized_ts_dict, dist_type='eu'):
@@ -149,7 +146,7 @@ def cluster_two_pass(group, length, st, normalized_ts_dict, dist_type='eu'):
             # put the first sequence as the representative of the first cluster
         else:
             minSim = math.inf
-            minRprst = None  # TODO MinRprst should not be None, catch None exception!
+            minRprst = None
             # rprst is a time_series obj
             for rprst in list(cluster.keys()):  # iterate though all the similarity clusters, rprst = representative
                 # ss is also a time_series obj
@@ -260,7 +257,7 @@ def _cluster(group: list, st: float, dist_type: str = 'eu', del_data: bool= True
             cluster[ss] = [ss]
         else:
             minSim = math.inf
-            minRprst = None  # TODO MinRprst should not be None, catch None exception!
+            minRprst = None
             # rprst is a time_series obj
             for rprst in list(cluster.keys()):  # iterate though all the similarity clusters, rprst = representative
                 # ss is also a time_series obj

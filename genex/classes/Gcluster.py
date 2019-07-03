@@ -10,13 +10,13 @@ class Gcluster:
     """
     def __init__(self, data_dict = None, collected=None):
         self.data = data_dict
-        self.collected = collected
+        self._collected = collected
 
     def __len__(self):
         try:
-            assert self.collected
+            assert self._collected
         except AssertionError:
-            raise Exception('Gcluster must be collected before retrieving items, use gcluster.collect()')
+            raise Exception('Gcluster must be _collected before retrieving items, use gcluster.collect()')
         try:
             return len(self.data.keys())
         except AttributeError as error:
@@ -24,9 +24,9 @@ class Gcluster:
 
     def __getitem__(self, sliced:slice):
         try:
-            assert self.collected
+            assert self._collected
         except AssertionError:
-            raise Exception('Gcluster must be collected before retrieving items, use gcluster.collect()')
+            raise Exception('Gcluster must be _collected before retrieving items, use gcluster.collect()')
 
         if isinstance(sliced, int):
             try:
@@ -72,9 +72,9 @@ class Gcluster:
 
     def collect(self):
         try:
-            assert not self.collected
+            assert not self._collected
         except AssertionError:
-            raise Exception('Gcluster is already collected')
+            raise Exception('Gcluster is already _collected')
 
         self.data = dict(self.data.collect())
-        self.collected = True
+        self._collected = True

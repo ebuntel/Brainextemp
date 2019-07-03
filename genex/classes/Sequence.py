@@ -22,7 +22,6 @@ class Sequence:
         self.data = None
 
     def get_data(self):
-        # TODO what to do after trimming the data
         return self.data
 
     def set_data(self, data):
