@@ -148,7 +148,17 @@ will give
     >>> len of Gcluster: 51
     
     
-#### get_clusters
+#### gfilter
+
+Currently filter will not affect the representatives
+
+#### get_feature_list
+if size is a list or a tuple, the first number must be smaller than the second
+
+#### get_representatives
+
+
+## Visualize
 
 ## Query
 ### gquery
