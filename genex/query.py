@@ -5,12 +5,14 @@ import os
 import math
 from pyspark import SparkContext
 
+# from genex.cluster import sim_between_seq
 from genex.cluster import sim_between_seq
 from genex.data_process import get_data_for_timeSeriesObj
 from genex.parse import strip_function, remove_trailing_zeros
+from genex.preprocess import _min_max_normalize
 from .classes import Sequence
 from .classes import Gcluster
-
+import numpy as np
 
 def query(q: Sequence, gc: Gcluster, loi: list, sc: SparkContext,
           k:int=1, ex_sameID: bool=False, overlap: float= 1.0, mode:str='genex'):
@@ -57,45 +59,102 @@ def get_query_sequence_from_file(file: str):
 
 
 
-def gquery(q: Sequence, gc: Gcluster, loi: list, sc: SparkContext,
-          k:int=1, ex_sameID: bool=False, overlap: float= 1.0):
+def gquery(query_list: list, gc_data: dict, loi: list, input_list: list,
+          k:int=1, ex_sameID: bool=False, overlap: float= 1.0, ):
+    """
+    Because Gcluster object doesn't have map property, we have to use dict as input
+    :param file:
+    :param gc_data:
+    :param loi:
+    :param input_list:
+    :param k:
+    :param ex_sameID:
+    :param overlap:
+    :return:
+    """
     # get query from id, start, end point
     # get query from csv file
     #
 
-    query_result = custom_query_operation(sc, normalized_ts_dict, time_series_dict, res_list, cluster_rdd,
-                                          exclude_same_id, SAVED_DATASET_DIR,
-                                          loi, gp_project, querying_range, k, sequence)
-    print()
+    # query_list = []
+    # query_set = get_query_from_csv_with_id(file)
+    # print(query_set)
+    # for cur_query in query_set:
+    #     query_list.append(get_query_from_sequence(cur_query[0], int(cur_query[1]), int(cur_query[2]), input_list))
+    # print(query_list)
+
+    return custom_query(query_list, loi, gc_data, k, input_list)
+
 
 
 def bfquery():
     print()
 
+#
+# def custom_query_operation(q: Sequence, gc: Gcluster, loi: list, sc: SparkContext,
+#           k:int=1, ex_sameID: bool=False, overlap: float= 1.0):
+#
+#     query_result = filter_rdd_back.repartition(16).map(
+#         lambda clusters: custom_query(q, loi, gc, k,
+#                                       global_time_series_dict.value, ))
+#     # changed here
+#     # plot_query_result(query_sequence, query_result, global_time_series_dict.value)
+#     return query_result
+def get_query_from_csv_with_id(file):
+    query_set = []
+    with open(file, 'r') as f:
+        for line in f:
+            cur_query = line.strip().split(',')
+            if len(cur_query) != 7:
+                break
+            id = tuple(cur_query[0:5])
+            start = cur_query[5]
+            end = cur_query[6]
+            query_set.append([id, start, end])
 
-def custom_query_operation(q: Sequence, gc: Gcluster, loi: list, sc: SparkContext,
-          k:int=1, ex_sameID: bool=False, overlap: float= 1.0):
+    return query_set
 
-    query_result = filter_rdd_back.repartition(16).map(
-        lambda clusters: custom_query(q, loi, gc, k,
-                                      global_time_series_dict.value, ))
-    # changed here
-    # plot_query_result(query_sequence, query_result, global_time_series_dict.value)
-    return query_result
 
-def custom_query(query_sequences, query_range, cluster, k, time_series_dict):
+def get_query_from_sequence(id: tuple, start: int, end: int, input_list: list):
     """
 
-    :param query_sequences: list of list: the list of sequences to be queried
-    :param cluster: dict[key = representative, value = list of timeSeriesObj] -> representative is timeSeriesObj
-                    the sequences in the cluster are all of the SAME length
-    :param k: int
-    :return list of time series objects: best k matches. Again note they are all of the SAME length
+    :param id:
+    :param start:
+    :param end:
+    :param input_list:
+    :return: a list
     """
+    try:
+        input_dict = dict(input_list)  # validate by converting input_list into a dict
+    except (TypeError, ValueError):
+        raise Exception('sequence: fetch_data: input_list is not key-value pair.')
 
-    # iterate through all the representatives to find which cluster to look at
-    # try :
+    return input_dict[id][start: end]
+
+
+
+
+def custom_query(query_sequences: list, loi: list, Gcluster_data:dict, k : int, input_list:list):
+    # """
     #
+    # :param query_sequences: list of list: the list of sequences to be queried
+    # :param cluster: dict[key = representative, value = list of timeSeriesObj] -> representative is timeSeriesObj
+    #                 the sequences in the cluster are all of the SAME length
+    # :param k: int
+    # :return list of time series objects: best k matches. Again note they are all of the SAME length
+    # """
+    """
+
+    :param query_sequences:
+    :param query_range:
+    :param Gcluster_data:
+    :param k:
+    :param input_list:
+    :return:
+    """
+
+    # get query from csv file which contains lists of list of query actual data
+    # get query from csv file which contains lists of tuple of id, start, endpoint
     query_result = dict()
     if not isinstance(query_sequences, list) or len(query_sequences) == 0:
         raise ValueError("query sequence must be a list and not empty")
@@ -105,44 +164,54 @@ def custom_query(query_sequences, query_range, cluster, k, time_series_dict):
         print("query is a list of list")
         for cur_query in query_sequences:
             if isinstance(cur_query, list):
-                query_result[cur_query_number] = get_most_k_sim(cur_query, query_range, cluster, k, time_series_dict)
-                return query_result
+                query_result[cur_query_number] = get_most_k_sim(cur_query, loi, Gcluster_data, k, input_list)
+                cur_query_number += 1
+        return query_result
     else:
-        return get_most_k_sim(query_sequences, query_range, cluster, k, time_series_dict)
+        return get_most_k_sim(query_sequences, loi, Gcluster_data, k, input_list)
 
 
-def get_most_k_sim(query_sequence: list, query_range, Gcluster, k, time_series_dict):
+def get_most_k_sim(query_sequence: list, loi: list, Gcluster_data : dict, k, input_list:list):
+    """
+
+    :param query_sequence:
+    :param query_range:
+    :param Gcluster_data:
+    :param k:
+    :param input_list:
+    :return:
+    """
+
     min_rprs = None  # the representative that is closest to the query distance
     min_dist = math.inf
     target_cluster = []
-    
-    for cur_rprs in Gcluster.values().keys():
-        heap = []
-        # TODO do we want to get raw data here, or set the raw in timeSeriesObj before calling query (no parsing)
-        if (cur_rprs.end - cur_rprs.start) in range(query_range[0], query_range[1] + 1):
-            # modify here, not use get data from objects, use values
-            cur_dist = sim_between_seq(query_sequence, cur_rprs.data)
+    print("length of gcluster data is " + str(len(Gcluster_data[1])))
+    for cur_rprs_seq in Gcluster_data[1].keys():
 
+        # TODO do we want to get raw data here, or set the raw in timeSeriesObj before calling query (no parsing)
+        if (cur_rprs_seq.end - cur_rprs_seq.start + 1) in range(loi[0], loi[1] + 1):
+            # modify here, not use get data from objects, use values
+            cur_dist = sim_between_seq(query_sequence, cur_rprs_seq.fetch_data(input_list))
             if cur_dist < min_dist:
-                min_rprs = cur_rprs
+                min_rprs = cur_rprs_seq
                 min_dist = cur_dist
         else:
-            continue
+            break
 
     if min_rprs:
-        print('min representative is ' + min_rprs.id)
-
-        print("Querying Cluster of length: " + str(len(get_data_for_timeSeriesObj(min_rprs, time_series_dict))))
-        target_cluster = Gcluster[min_rprs]
+        print('min representative is ' + min_rprs.__str__())
+        print('min dist' + str(min_dist))
+        # print("Querying Cluster of length: " + str(len(get_data_for_timeSeriesObj(min_rprs, time_series_dict))))
+        target_cluster = Gcluster_data[1].get(min_rprs)
         print('len of cluster is ' + str(len(target_cluster)))
-        print("sorting")
-
+        # print("sorting")
+        #
         target_cluster.sort(key=lambda cluster_sequence: sim_between_seq(query_sequence,
-                                                                         get_data_for_timeSeriesObj(cluster_sequence,
-                                                                                                    time_series_dict)))
+                                                                         cluster_sequence.data))
         k = int(k)
         return target_cluster[0:k]  # return the k most similar sequences
-
+    else:
+        return None
 
 
 

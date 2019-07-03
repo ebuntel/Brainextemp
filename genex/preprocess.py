@@ -118,7 +118,7 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
     # create feature list
     feature_list = flatten(map(lambda x: x[0], input_list))
 
-    input_list = _min_max_normalize(input_list)
+    # input_list = _min_max_normalize(input_list)
     input_rdd = sc.parallelize(input_list, numSlices=data_slices)
 
     input_rdd = input_rdd.flatMap(lambda x: _all_sublists_with_id_length(x, loi))  # get subsequences of all possible length

@@ -1,1 +1,2 @@
-def plot_cluster
+def plot_cluster():
+    pass
