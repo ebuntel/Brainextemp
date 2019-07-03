@@ -48,7 +48,9 @@ the data to help the performance. **Default True**
 recommened to delete the data after clustering to save memory space. The data can always be retrived by the 
 fetch_data method of sequence **Default True**
 * is_collect: boolean whether to collect the RDD as the final result. **Default False**
-    
+* data_slices: the number of slices with which the input data will be chopped up. The default value works well
+on smaller data sets (# row < 20, average length < 400). If Pyspark starts to give **maximum task size warnings**. Try 
+increase the number of slices (recommended to be a power of 2) **Default 16**
 
 #### Returns
 Depending on Gcluster object that holds the cluster result.
