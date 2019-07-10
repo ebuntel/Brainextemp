@@ -1,5 +1,7 @@
 import math
 
+from .classes.Sequence import Sequence
+
 
 def strip_function(x: str):
     """
@@ -93,3 +95,20 @@ def generate_source(file_name, feature_num):
                     ts_list.append([tuple(id_list), series_data])
 
     return ts_list
+
+
+def generate_query(file_name: str, feature_num: int):
+    query_set = []
+    with open(file_name, 'r') as f:
+        for line in f:
+            cur_query = line.strip().split(',')
+
+            try:
+                assert len(cur_query) == feature_num + 2
+                features = tuple(cur_query[0:feature_num])
+                start = int(cur_query[feature_num])
+                end = int(cur_query[feature_num+1])
+                query_set.append(Sequence(features, start, end))
+            except ValueError and AssertionError as e:
+                print('Invalid Query csv, please refer to get_query_csv in README')
+    return query_set

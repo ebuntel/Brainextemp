@@ -100,19 +100,7 @@ def bfquery():
 #     # changed here
 #     # plot_query_result(query_sequence, query_result, global_time_series_dict.value)
 #     return query_result
-def get_query_from_csv_with_id(file):
-    query_set = []
-    with open(file, 'r') as f:
-        for line in f:
-            cur_query = line.strip().split(',')
-            if len(cur_query) != 7:
-                break
-            id = tuple(cur_query[0:5])
-            start = cur_query[5]
-            end = cur_query[6]
-            query_set.append([id, start, end])
 
-    return query_set
 
 
 def get_query_from_sequence(id: tuple, start: int, end: int, input_list: list):

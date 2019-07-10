@@ -12,7 +12,7 @@ from .data_process import get_data
 from genex.classes.time_series_obj import TimeSeriesObj
 
 
-def sim_between_seq(seq1, seq2):
+def sim_between_seq(seq1, seq2, dist_type: str = 'eu'):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
@@ -20,7 +20,14 @@ def sim_between_seq(seq1, seq2):
     :param seq2:
     :return float: return the similarity between sequence 1 and sequence 2
     """
-    return fastdtw(seq1, seq2, dist=euclidean)[0]  # fastdtw returns a tuple with the first item being the distance
+    if dist_type == 'eu':
+        return fastdtw(seq1, seq2, dist=euclidean)[0]  # fastdtw returns a tuple with the first item being the distance
+    if dist_type == 'ma':
+        return fastdtw(seq1, seq2, dist=cityblock)[0]
+    if dist_type == 'mi':
+        return fastdtw(seq1, seq2, dist=minkowski)[0]
+    else:
+        raise Exception("sim_between_seq: cluster: invalid distance type: " + dist_type)
     # and the second is the shortest path
 
 
