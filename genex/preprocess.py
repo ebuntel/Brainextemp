@@ -80,7 +80,7 @@ def _all_sublists_with_id_length(input_list:list, loi:list):
 
 
 def do_gcluster(input_list: list, loi: list, sc: SparkContext,
-                similarity_threshold: float = 0.1, dist_type: str= 'eu', normalize: bool=True, del_data: bool = False, data_slices:int=16, isCollect: bool=False):
+                similarity_threshold: float = 0.1, dist_type: str= 'eu', normalize: bool=True, del_data: bool = False, data_slices:int=16, is_collect: bool=True, log_level:int =1):
     """
     :param input_list:
     :param loi: length of interets, ceiled at maximum length
@@ -91,7 +91,7 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
     :param normalize:
     :param del_data:
     :param data_slices:
-    :param isCollect:
+    :param is_collect:
 
     :return:
     """
@@ -114,6 +114,11 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
     if similarity_threshold <= 0 or similarity_threshold >= 1:
         raise Exception('do_gcluster: similarity_threshold must be greater 0 and less than 1')
 
+    normalized_input_list, global_max, global_min = _min_max_normalize(input_list)
+
+    # is normalization if enable, replace the input list with normalized input list
+    if normalize:
+        input_list = normalized_input_list
 
     # create feature list
     feature_list = flatten(map(lambda x: x[0], input_list))
@@ -125,12 +130,12 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
     input_rdd = input_rdd.groupByKey().mapValues(list)  # group the subsequences by length
 
     # cluster the input
-    input_rdd = input_rdd.map(lambda x: _cluster(x, similarity_threshold, dist_type, del_data))
+    input_rdd = input_rdd.map(lambda x: _cluster(x, st=similarity_threshold, log_level=log_level, dist_type=dist_type, del_data=del_data))
 
-    if isCollect:
-        return Gcluster(feature_list, dict(input_rdd.collect()), collected=True)
+    if is_collect:
+        return Gcluster(feature_list, dict(input_rdd.collect()), collected=True, global_max=global_max, global_min=global_min)
     else:
-        return Gcluster(feature_list, input_rdd, collected=False)
+        return Gcluster(feature_list, input_rdd, collected=False, global_max=global_max, global_min=global_min)
 
 
 def normalize_num(num, max, min):
@@ -154,6 +159,6 @@ def _min_max_normalize(input_list):
                          , input_list)
 
 
-    return list(normalize_list)
+    return list(normalize_list), global_max, global_min
 
 

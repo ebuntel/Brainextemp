@@ -8,7 +8,9 @@ class Gcluster:
             key: Sequence object that is the representative
             value: list of Sequence that are represented by the key
     """
-    def __init__(self, feature_list, data_dict = None, collected=None):
+
+    def __init__(self, feature_list, data_dict=None, collected: bool = None, global_max: float = None,
+                 global_min: float = None):
         self.feature_list = feature_list
         self.data = data_dict
 
@@ -16,6 +18,9 @@ class Gcluster:
         self.filters = None
 
         self._collected = collected
+
+        self.global_max = global_max
+        self.global_min = global_min
 
     def __len__(self):
         try:
@@ -27,7 +32,7 @@ class Gcluster:
         except AttributeError as error:
             raise Exception('Gcluster data not set')
 
-    def __getitem__(self, sliced:slice):
+    def __getitem__(self, sliced: slice):
         try:
             assert self._collected
         except AssertionError:
@@ -59,7 +64,7 @@ class Gcluster:
         rtn = []
 
         if sliced.start is not None and sliced.stop is not None:
-            for i in range(sliced.start, sliced.stop+1):
+            for i in range(sliced.start, sliced.stop + 1):
                 rtn.append(self.data[i])
 
         elif sliced.start is None and sliced.stop is not None:
@@ -117,7 +122,8 @@ class Gcluster:
 
         try:  # validate filter_features parameter
             if filter_features is not None:
-                assert isinstance(filter_features, list) or isinstance(filter_features, tuple) or isinstance(filter_features, str)
+                assert isinstance(filter_features, list) or isinstance(filter_features, tuple) or isinstance(
+                    filter_features, str)
                 if isinstance(filter_features, list) or isinstance(filter_features, tuple):
                     assert len(filter_features) != 0
                     for feature in filter_features:
@@ -134,39 +140,44 @@ class Gcluster:
         if isinstance(size, int):
             self.filtered_data = dict(filter(lambda x: x[0] == size, list(self.data.items())))
         elif isinstance(size, list) or isinstance(size, tuple):
-            self.filtered_data = dict(filter(lambda x: x[0] in range(size[0], size[1] +1), list(self.data.items())))
+            self.filtered_data = dict(filter(lambda x: x[0] in range(size[0], size[1] + 1), list(self.data.items())))
 
         if isinstance(filter_features, str):
             self.filtered_data = dict(map(lambda seq_size_cluster:
-                         (seq_size_cluster[0],
-                           dict(map(lambda repr_cluster:
-                                    (repr_cluster[0], # the representative of the cluster
-                                     list(filter(
-                                         lambda cluster_seq:
-                                         (filter_features in cluster_seq.id) or repr_cluster[0] == cluster_seq,
-                                         repr_cluster[1] # list that contains all the seqence in the cluster
+                                          (seq_size_cluster[0],
+                                           dict(map(lambda repr_cluster:
+                                                    (repr_cluster[0],  # the representative of the cluster
+                                                     list(filter(
+                                                         lambda cluster_seq:
+                                                         (filter_features in cluster_seq.id) or repr_cluster[
+                                                             0] == cluster_seq,
+                                                         repr_cluster[1]
+                                                         # list that contains all the seqence in the cluster
 
-                                     ))), seq_size_cluster[1].items()))), self.data.items()))
+                                                     ))), seq_size_cluster[1].items()))), self.filtered_data.items()))
+            # feature filter is applied on data that has already been filtered by size
         # todo implement && filter
         elif isinstance(filter_features, list):
             self.filtered_data = dict(map(lambda seq_size_cluster:
-                         (seq_size_cluster[0],
-                          dict(map(lambda repr_cluster:
-                                   (repr_cluster[0],  # the representative of the cluster
-                                    list(filter(
-                                        lambda cluster_seq:
-                                        (any([i for i in filter_features if i in cluster_seq.id])) or repr_cluster[0] == cluster_seq,
-                                        repr_cluster[1]  # list that contains all the seqence in the cluster
+                                          (seq_size_cluster[0],
+                                           dict(map(lambda repr_cluster:
+                                                    (repr_cluster[0],  # the representative of the cluster
+                                                     list(filter(
+                                                         lambda cluster_seq:
+                                                         (any([i for i in filter_features if i in cluster_seq.id])) or
+                                                         repr_cluster[0] == cluster_seq,
+                                                         repr_cluster[1]
+                                                         # list that contains all the seqence in the cluster
 
-                                    ))), seq_size_cluster[1].items()))), self.data.items()))
+                                                     ))), seq_size_cluster[1].items()))), self.filtered_data.items()))
+            # feature filter is applied on data that has already been filtered by size
 
     def get_feature_list(self):
         return self.feature_list
 
     # methods to retrieve the actual data
-    def get_representatives(self, filter = False):
+    def get_representatives(self, filter=False):
         d = list(self.filtered_data if filter else self.data.items())
         e = map(lambda x: [x[0], list(x[1].keys())], d)
 
         return dict(e)
-

@@ -5,6 +5,11 @@ This program implements the algorithm described in these papers:
 http://real.mtak.hu/74287/1/p1595_neamtu_u.pdf
 http://real.mtak.hu/43722/1/p169_neamtu_u.pdf
 https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8509275
+
+## Recent Updates
+* log level in do_gcluster
+* global_min and global_max saved to Gcluster
+
 ## Parse
 Provides functions that help read csv files. 
 
@@ -19,18 +24,18 @@ Reads feature-time-series csv file.
 a key-value pair list where key = (tuple) time series id, value is a list of raw data
 #### Example
 
-    from Genex import parse
+    from genex import parse
     fn = 'your_data.csv'
     # features: Subject Name, Event Name, Channel Name, Start time, End Time => total of five features
     res_list = parse.generate_source(fn, feature_num = 5)
 
-## Preproces
+## Preprocess
 Preprocess input time series to prepare them for applying genex query
 ### do_gcluster
 Pre-process the data by creating clusters.
     
-    from Genex import preprocess
-    preprocess.do_gcluster(input_list: list, loi: tuple, sc: SparkContext, similarity_threshold: float = 0.1, dist_type: str='eu', normalize: bool=True, del_data: bool = False, data_slices:int=16)
+    from genex import preprocess
+    preprocess.do_gcluster(input_list: list, loi: tuple, sc: SparkContext, similarity_threshold: float = 0.1, dist_type: str='eu', normalize: bool=True, del_data: bool = False, data_slices:int=16, log_level:int=1)
 #### Arguments
 * input_list: list of key-value pairs
 * loi: must be a list of two integers. length of interest
@@ -47,7 +52,8 @@ the data to help the performance. **Default True**
 * del_data: boolean whether to delete the raw data from the sequence object created when clustering. It is generally 
 recommened to delete the data after clustering to save memory space. The data can always be retrived by the 
 fetch_data method of sequence **Default True**
-* is_collect: boolean whether to collect the RDD as the final result. **Default False**
+* is_collect: boolean whether to collect the RDD as the final result. **Default True**
+* log_level: integer value, if set to 1 (default), the program will print out the progress during clustering. **Default 1**
     
 
 #### Returns
@@ -60,8 +66,8 @@ cluster result as a list of dictionaries. Each dictionary is a sequence cluster 
 key is the representative sequence and the value is a list of sequences in that sequence and represented by the key sequence.
 #### Example
     from pyspark import SparkContext, SparkConf
-    from Genex import parse
-    from Genex import preprocess
+    from genex import parse
+    from genex import preprocess
 
     # reads input data
     fn = 'your_data.csv'
@@ -84,6 +90,9 @@ Return by genex.preprocess.do_gcluster. Gcluster is the general form that retain
 * filtered_data: dictionary object that has the same structre as the data. When returned by do_gcluster
 filtered_data will have the same value as the data attribute. If filter is applied on the Gcluster object, the filtered
 _data object will reflect that filter. See Gcluster.Methods.gfilter for more details
+* global_max: the maximum value in the dataset
+* global_min: the minimal value in the dataset
+
 ### Methods
 Gcluster has various methods with which the user can retrieve and manipulate the Genex Cluster data.
 #### Collect
@@ -93,14 +102,14 @@ Gcluster first.
 #### Example
 The following code will raise exception because Gcluster cannot be sliced if not collected. 
     
-    from Genex import preprocess
+    from genex import preprocess
 
     clusters = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=True)
     clusters[75]
 
 To be able to use slice or other functions that needs the cluster result, the user instead do the following
     
-    from Genex import preprocess
+    from genex import preprocess
 
     clusters = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=True)
     clusters.collect()
@@ -108,7 +117,7 @@ To be able to use slice or other functions that needs the cluster result, the us
 
 Or have the result to be collected upon return by setting the isCollect parameter in do_gcluster
     
-    from Genex import preprocess
+    from genex import preprocess
 
     clusters = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=True, isCollect=True)
     clusters[75]
@@ -120,21 +129,21 @@ Or have the result to be collected upon return by setting the isCollect paramete
 Gcluster supports slicing to retrieve cluster data. Please not that Gcluster slice currently does NOT support stepping in slice.
 ##### Example
 
-    from Genex import preprocess
+    from genex import preprocess
 
-    gcluster_obj = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=False)
+    clusters = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=False)
 calling
 
-    gcluster_obj[75]
+    clusters[75]
 will give the cluster of length 80 as a dictionary. The keys are the representatives and value are lists of Sequence
  that are represented by the keys
 
 calling 
 
-    gcluster_obj[75]
-    gcluster_obj[75:]
-    gcluster_obj[:75]
-    gcluster_obj[50:75]
+    clusters[75]
+    clusters[75:]
+    clusters[:75]
+    clusters[50:75]
 will give the list of cluster of the given slice.
 
 #### len
@@ -143,9 +152,9 @@ will give the list of cluster of the given slice.
 Call  will return the number of cluster dictionaries.
 ##### Example
 
-    from Genex import preprocess
+    from genex import preprocess
 
-    gcluster_obj = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=False)
+    clusters = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=False)
     print('len of Gcluster: ' + len(gcluster_obj))
 will give    
     
@@ -169,24 +178,24 @@ gfilter can take up to two types of filter, size and feature. They are:
     features is not in the feature list will be filtered out.
     * **It is important to note that filter by feature will not affect the representatives in the clusters**
 ##### Example
-    from Genex import preprocess
+    from genex import preprocess
 
-    gcluster_obj = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=False)
+    clusters = do_gcluster(input_list=res_list, loi=[50, 100], sc=sc, del_data=False)
     
     # all the following are valid filter operations, B-DC4, A-DC8 are example features
     
     # Filter Example 1
     # only the representative and the sequence with feature 'B-DC4' wii be kept
-    gcluster_obj.gfilter(filter_features ='B-DC4') 
+    clusters.gfilter(filter_features ='B-DC4') 
     
     # Filter Example 2
     # first, only the clusters of length 50 and 51 will be kept, 
     # secondly, other than the representatives, sequences without id 'B-DC4' OR 'A-DC8' will be filtered out
-    gcluster_obj.gfilter(size=(50, 51), filter_features = ['B-DC4', 'A-DC8']) 
+    clusters.gfilter(size=(50, 51), filter_features = ['B-DC4', 'A-DC8']) 
     
     # Filter Example 2
     # all the clusters whose length is not 50 will be filtered out
-    gcluster_obj.gfilter(size=50)
+    clusters.gfilter(size=50)
 
 
 #### get_feature_list

@@ -3,7 +3,6 @@ import random
 from fastdtw import fastdtw
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
-
 from scipy.spatial.distance import euclidean
 import math
 import numpy as np
@@ -227,7 +226,7 @@ def cluster_two_pass(group, length, st, normalized_ts_dict, dist_type='eu'):
     return cluster
 
 
-def _cluster(group: list, st: float, dist_type: str = 'eu', del_data: bool= True) -> dict:
+def _cluster(group: list, st: float, log_level: int, dist_type: str = 'eu', del_data: bool= True) -> dict:
     """
     all subsequence in 'group' must be of the same length
     For example:
@@ -253,7 +252,14 @@ def _cluster(group: list, st: float, dist_type: str = 'eu', del_data: bool= True
     subsequences = randomize(subsequences)
 
     delimiter = '_'
+
+    count = 0
+
     for ss in subsequences:
+        if log_level == 1:
+            print('Cluster length: ' + str(length) + ':   ' + str(count + 1) + '/' + str(len(group[1])))
+            count += 1
+
         if not cluster.keys():
             cluster[ss] = [ss]
         else:
