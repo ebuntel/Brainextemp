@@ -7,9 +7,9 @@ def get_data(tid, time_series_dict, start=None, end=None):
     :param id:
     :param start:
     :param end:
-    :param timeSeries: raw time series data
+    :param timeSeries: raw time series clusters
 
-    :return list: return a sub-sequence indexed by id, start point and end point in data
+    :return list: return a sub-sequence indexed by id, start point and end point in clusters
     """
     # TODO should we make timeSeries a dic as well as a list (for distributed computing)
 

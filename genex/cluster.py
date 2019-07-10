@@ -59,7 +59,7 @@ def randomize(arr):
 #
 #         processing_groups = groups[group_len]
 #         processing_groups = randomize(
-#             processing_groups)  # randomize the sequence in the group to remove data-related bias
+#             processing_groups)  # randomize the sequence in the group to remove clusters-related bias
 #
 #         for sequence in processing_groups:  # the subsequence that is going to form or be put in a similarity clustyer
 #             if not clusters.keys():  # if there is no item in the similarity clusters
@@ -104,7 +104,7 @@ def cluster_two_pass(group, length, st, normalized_ts_dict, dist_type='eu'):
     # get all seubsequences from ts_dict
     # at one time
     # ???or maybe during group operation
-    # During group operation is better, because the data will be too large if
+    # During group operation is better, because the clusters will be too large if
     # we retrieve all of it
 
     ssequences = []
@@ -126,7 +126,7 @@ def cluster_two_pass(group, length, st, normalized_ts_dict, dist_type='eu'):
         if time_series.end_point - time_series.start_point != length:
             raise Exception("cluster_operations: clusterer: group length dismatch, len = " + str(length))
 
-    # randomize the sequence in the group to remove data-related bias
+    # randomize the sequence in the group to remove clusters-related bias
     ssequences = randomize(ssequences)
 
     delimiter = '_'
@@ -248,7 +248,7 @@ def _cluster(group: list, st: float, log_level: int, dist_type: str = 'eu', del_
 
     # print("Clustering length of: " + str(length) + ", number of subsequences is " + str(len(group[1])))
 
-    # randomize the sequence in the group to remove data-related bias
+    # randomize the sequence in the group to remove clusters-related bias
     subsequences = randomize(subsequences)
 
     delimiter = '_'

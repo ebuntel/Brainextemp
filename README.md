@@ -83,7 +83,7 @@ key is the representative sequence and the value is a list of sequences in that 
 ## Gcluster
 Return by genex.preprocess.do_gcluster. Gcluster is the general form that retains the Genex Cluster information.
 ### Attributes
-* data(dict): dictionary object that holds the cluster information
+* clusters(dict): dictionary object that holds the cluster information
     * key(integer): length of the sequence in the cluster
         * value(dict): the clustered sequence of keyed length
             * key(Sequence): Sequence object that is the representative

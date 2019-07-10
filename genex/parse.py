@@ -14,8 +14,8 @@ def strip_function(x: str):
 def remove_trailing_zeros(input_list: list):
     """
     remove trailing zeros
-    :param input_list: list of data
-    :return: data after removing trailing zeros
+    :param input_list: list of clusters
+    :return: clusters after removing trailing zeros
     """
     index = len(input_list) - 1
     for i in range(len(input_list) - 1, -1, -1):
@@ -30,7 +30,7 @@ def remove_trailing_zeros(input_list: list):
 def get_subsquences(input_list: list):
     """
     user defined function for mapping for spark
-    :param input_list: input list, has two rows, the first row is ID, the second is a list of data
+    :param input_list: input list, has two rows, the first row is ID, the second is a list of clusters
     :return:    val: a list of a list of value [length, id, start_point, end_point]
     """
     id = input_list[0]
@@ -51,12 +51,12 @@ def get_subsquences(input_list: list):
 def generate_source(file_name, feature_num):
     """
     Not doing sub-sequence here
-    get the id of time series and data of time series
+    get the id of time series and clusters of time series
 
     :param file_name: path to csv file
     :param feature_num: number of features that makes up the id
 
-    :return: a list of data in [id, [list of data]] format
+    :return: a list of clusters in [id, [list of clusters]] format
     """
 
     features_to_append = list(i for i in range(feature_num))
@@ -79,7 +79,7 @@ def generate_source(file_name, feature_num):
                     data = remove_trailing_zeros(line.split(",")[:-1])
 
                     # Get feature values for label
-                    # label_features = [wrap_in_parantheses(data[index]) for index in
+                    # label_features = [wrap_in_parantheses(clusters[index]) for index in
                     #                   range(0, len(label_features_index))]
                     id_list = []
                     [id_list.append(data[index]) for index in range(0, len(label_features_index))]

@@ -17,9 +17,9 @@ def flatten(l):
 def filter_sublists(input_list, length):
     """
 
-    :param input_list: list of raw data
+    :param input_list: list of raw clusters
     :param length:
-    :return: generator object with each entry being [start, end, [data]]
+    :return: generator object with each entry being [start, end, [clusters]]
     """
     if length > len(input_list):
         length = len(input_list)
@@ -30,7 +30,7 @@ def filter_sublists(input_list, length):
 def filter_sublists_with_id(input_list, length):
     """
 
-    :param input_list: [id, start, end, list of raw data]
+    :param input_list: [id, start, end, list of raw clusters]
     :param length:
     """
     if length > len(input_list[1]):
@@ -42,7 +42,7 @@ def filter_sublists_with_id(input_list, length):
 def filter_sublists_with_id_length(input_list, length):
     """
 
-    :param input_list: [id, start, end, list of raw data]
+    :param input_list: [id, start, end, list of raw clusters]
     :param length:
     """
     if length > len(input_list[1]):
@@ -133,13 +133,13 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
     input_rdd = input_rdd.map(lambda x: _cluster(x, st=similarity_threshold, log_level=log_level, dist_type=dist_type, del_data=del_data))
 
     if is_collect:
-        return Gcluster(feature_list, dict(input_rdd.collect()), collected=True, global_max=global_max, global_min=global_min)
+        return Gcluster(feature_list=feature_list, cluster_dict=dict(input_rdd.collect()), collected=True, global_max=global_max, global_min=global_min)
     else:
-        return Gcluster(feature_list, input_rdd, collected=False, global_max=global_max, global_min=global_min)
+        return Gcluster(feature_list=feature_list, cluster_dict=input_rdd, collected=False, global_max=global_max, global_min=global_min)
 
 
-def normalize_num(num, max, min):
-    return (num - min) / (max - min)
+def normalize_num(num, global_max, global_min):
+    return (num - global_min) / (global_max - global_min)
 
 def _min_max_normalize(input_list):
     # scaler = MinMaxScaler(feature_range=(0, 1))
