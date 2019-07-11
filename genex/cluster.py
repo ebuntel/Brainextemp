@@ -4,6 +4,8 @@ from fastdtw import fastdtw
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
 from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import chebyshev
+
 import math
 import numpy as np
 
@@ -12,7 +14,7 @@ from .data_process import get_data
 from genex.classes.time_series_obj import TimeSeriesObj
 
 
-def sim_between_seq(seq1, seq2):
+def sim_between_seq(seq1, seq2, dist_type: str = 'eu'):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
@@ -20,7 +22,17 @@ def sim_between_seq(seq1, seq2):
     :param seq2:
     :return float: return the similarity between sequence 1 and sequence 2
     """
-    return fastdtw(seq1, seq2, dist=euclidean)[0]  # fastdtw returns a tuple with the first item being the distance
+    if dist_type == 'eu':
+        return fastdtw(seq1, seq2, dist=euclidean)[0]  # fastdtw returns a tuple with the first item being the distance
+    if dist_type == 'ma':
+        return fastdtw(seq1, seq2, dist=cityblock)[0]
+    if dist_type == 'mi':
+        return fastdtw(seq1, seq2, dist=minkowski)[0]
+    if dist_type == 'ch':
+        return fastdtw(seq1, seq2, dist=chebyshev)[0]
+
+    else:
+        raise Exception("sim_between_seq: cluster: invalid distance type: " + dist_type)
     # and the second is the shortest path
 
 
@@ -59,7 +71,7 @@ def randomize(arr):
 #
 #         processing_groups = groups[group_len]
 #         processing_groups = randomize(
-#             processing_groups)  # randomize the sequence in the group to remove data-related bias
+#             processing_groups)  # randomize the sequence in the group to remove clusters-related bias
 #
 #         for sequence in processing_groups:  # the subsequence that is going to form or be put in a similarity clustyer
 #             if not clusters.keys():  # if there is no item in the similarity clusters
@@ -104,7 +116,7 @@ def cluster_two_pass(group, length, st, normalized_ts_dict, dist_type='eu'):
     # get all seubsequences from ts_dict
     # at one time
     # ???or maybe during group operation
-    # During group operation is better, because the data will be too large if
+    # During group operation is better, because the clusters will be too large if
     # we retrieve all of it
 
     ssequences = []
@@ -126,7 +138,7 @@ def cluster_two_pass(group, length, st, normalized_ts_dict, dist_type='eu'):
         if time_series.end_point - time_series.start_point != length:
             raise Exception("cluster_operations: clusterer: group length dismatch, len = " + str(length))
 
-    # randomize the sequence in the group to remove data-related bias
+    # randomize the sequence in the group to remove clusters-related bias
     ssequences = randomize(ssequences)
 
     delimiter = '_'
@@ -205,6 +217,9 @@ def cluster_two_pass(group, length, st, normalized_ts_dict, dist_type='eu'):
                     dist = cityblock(np.asarray(wss_raw_data), np.asarray(rprst_raw_data))
                 elif dist_type == 'mi':
                     dist = minkowski(np.asarray(wss_raw_data), np.asarray(rprst_raw_data))
+                elif dist_type == 'ch':
+                    dist = chebyshev(np.asarray(wss_raw_data), np.asarray(rprst_raw_data))
+
                 else:
                     raise Exception("cluster_operations: cluster: invalid distance type: " + dist_type)
 
@@ -248,7 +263,7 @@ def _cluster(group: list, st: float, log_level: int, dist_type: str = 'eu', del_
 
     # print("Clustering length of: " + str(length) + ", number of subsequences is " + str(len(group[1])))
 
-    # randomize the sequence in the group to remove data-related bias
+    # randomize the sequence in the group to remove clusters-related bias
     subsequences = randomize(subsequences)
 
     delimiter = '_'
@@ -278,6 +293,8 @@ def _cluster(group: list, st: float, log_level: int, dist_type: str = 'eu', del_
                     dist = cityblock(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
                 elif dist_type == 'mi':
                     dist = minkowski(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                elif dist_type == 'ch':
+                    dist = chebyshev(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
                 else:
                     raise Exception("cluster_operations: cluster: invalid distance type: " + dist_type)
 

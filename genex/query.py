@@ -100,19 +100,7 @@ def bfquery():
 #     # changed here
 #     # plot_query_result(query_sequence, query_result, global_time_series_dict.value)
 #     return query_result
-def get_query_from_csv_with_id(file):
-    query_set = []
-    with open(file, 'r') as f:
-        for line in f:
-            cur_query = line.strip().split(',')
-            if len(cur_query) != 7:
-                break
-            id = tuple(cur_query[0:5])
-            start = cur_query[5]
-            end = cur_query[6]
-            query_set.append([id, start, end])
 
-    return query_set
 
 
 def get_query_from_sequence(id: tuple, start: int, end: int, input_list: list):
@@ -153,7 +141,7 @@ def custom_query(query_sequences: list, loi: list, Gcluster_data:dict, k : int, 
     :return:
     """
 
-    # get query from csv file which contains lists of list of query actual data
+    # get query from csv file which contains lists of list of query actual clusters
     # get query from csv file which contains lists of tuple of id, start, endpoint
     query_result = dict()
     if not isinstance(query_sequences, list) or len(query_sequences) == 0:
@@ -185,12 +173,12 @@ def get_most_k_sim(query_sequence: list, loi: list, Gcluster_data : dict, k, inp
     min_rprs = None  # the representative that is closest to the query distance
     min_dist = math.inf
     target_cluster = []
-    print("length of gcluster data is " + str(len(Gcluster_data[1])))
+    print("length of gcluster clusters is " + str(len(Gcluster_data[1])))
     for cur_rprs_seq in Gcluster_data[1].keys():
 
-        # TODO do we want to get raw data here, or set the raw in timeSeriesObj before calling query (no parsing)
+        # TODO do we want to get raw clusters here, or set the raw in timeSeriesObj before calling query (no parsing)
         if (cur_rprs_seq.end - cur_rprs_seq.start + 1) in range(loi[0], loi[1] + 1):
-            # modify here, not use get data from objects, use values
+            # modify here, not use get clusters from objects, use values
             cur_dist = sim_between_seq(query_sequence, cur_rprs_seq.fetch_data(input_list))
             if cur_dist < min_dist:
                 min_rprs = cur_rprs_seq

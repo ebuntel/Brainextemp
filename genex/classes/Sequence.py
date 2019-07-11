@@ -2,12 +2,8 @@ wrap_in_parantheses = lambda x: "(" + str(x) + ")"
 
 
 class Sequence:
-    def __init__(self, id:str, start:int, end:int):
-        self.id = id
-        self.start = start
-        self.end = end
 
-    def __init__(self, id:str, start:int, end:int, data:list):
+    def __init__(self, id: str, start: int, end: int, data: list = None):
         self.id = id
         self.start = start
         self.end = end
@@ -18,6 +14,15 @@ class Sequence:
         id = "_".join(label_features).replace('  ', '-').replace(' ', '-')
         return id + ': (' + str(self.start) + ':' + str(self.end) + ')'
 
+    def __len__(self):
+        return self.end - self.start + 1
+
+    def __hash__(self):
+        return hash((self.id, self.start, self.end))
+
+    def __eq__(self, other):
+        return (self.id, self.start, self.end) == (other.id, other.start, other.end)
+
     def del_data(self):
         self.data = None
 
@@ -27,7 +32,7 @@ class Sequence:
     def set_data(self, data):
         self.data = data
 
-    def fetch_data(self, input_list):
+    def fetch_data(self, input_list, save_data: bool= False):
         # TODO not tested
         try:
             input_dict = dict(input_list)  # validate by converting input_list into a dict

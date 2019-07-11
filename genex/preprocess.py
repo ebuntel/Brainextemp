@@ -14,12 +14,13 @@ def flatten(l):
             flat_list.append(item)
     return flat_list
 
+
 def filter_sublists(input_list, length):
     """
 
-    :param input_list: list of raw data
+    :param input_list: list of raw clusters
     :param length:
-    :return: generator object with each entry being [start, end, [data]]
+    :return: generator object with each entry being [start, end, [clusters]]
     """
     if length > len(input_list):
         length = len(input_list)
@@ -30,7 +31,7 @@ def filter_sublists(input_list, length):
 def filter_sublists_with_id(input_list, length):
     """
 
-    :param input_list: [id, start, end, list of raw data]
+    :param input_list: [id, start, end, list of raw clusters]
     :param length:
     """
     if length > len(input_list[1]):
@@ -42,7 +43,7 @@ def filter_sublists_with_id(input_list, length):
 def filter_sublists_with_id_length(input_list, length):
     """
 
-    :param input_list: [id, start, end, list of raw data]
+    :param input_list: [id, start, end, list of raw clusters]
     :param length:
     """
     if length > len(input_list[1]):
@@ -65,22 +66,23 @@ def all_sublists_with_id(input_list):
     return [y for x in tmp for y in x]  # flatten the list
 
 
-def _all_sublists_with_id_length(input_list:list, loi:list):
+def _all_sublists_with_id_length(input_list: list, loi: list):
     tmp = []
 
     if loi[1] > len(input_list[1]) + 1:
         print('Warning: given loi exceeds maximum sequence length, setting end point to sequence length')
-        loi[1] = len(input_list[1])# + 1
+        loi[1] = len(input_list[1])  # + 1
     # else:
     #     loi[1] += 1  # length offset
 
-    for i in range(loi[0], loi[1]+1):
+    for i in range(loi[0], loi[1] + 1):
         tmp.append(list(filter_sublists_with_id_length(input_list, i)))
     return [y for x in tmp for y in x]  # flatten the list
 
 
 def do_gcluster(input_list: list, loi: list, sc: SparkContext,
-                similarity_threshold: float = 0.1, dist_type: str= 'eu', normalize: bool=True, del_data: bool = False, data_slices:int=16, is_collect: bool=True, log_level:int =1):
+                similarity_threshold: float = 0.1, dist_type: str = 'eu', normalize: bool = True,
+                del_data: bool = False, data_slices: int = 16, is_collect: bool = True, log_level: int = 1):
     """
     :param input_list:
     :param loi: length of interets, ceiled at maximum length
@@ -126,20 +128,30 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
     # input_list = _min_max_normalize(input_list)
     input_rdd = sc.parallelize(input_list, numSlices=data_slices)
 
-    input_rdd = input_rdd.flatMap(lambda x: _all_sublists_with_id_length(x, loi))  # get subsequences of all possible length
+    input_rdd = input_rdd.flatMap(
+        lambda x: _all_sublists_with_id_length(x, loi))  # get subsequences of all possible length
     input_rdd = input_rdd.groupByKey().mapValues(list)  # group the subsequences by length
 
     # cluster the input
-    input_rdd = input_rdd.map(lambda x: _cluster(x, st=similarity_threshold, log_level=log_level, dist_type=dist_type, del_data=del_data))
+    input_rdd = input_rdd.map(
+        lambda x: _cluster(x, st=similarity_threshold, log_level=log_level, dist_type=dist_type, del_data=del_data))
 
     if is_collect:
-        return Gcluster(feature_list, dict(input_rdd.collect()), collected=True, global_max=global_max, global_min=global_min)
+        return Gcluster(feature_list=feature_list,
+                        data=input_list, norm_data=normalized_input_list,
+                        cluster_dict=dict(input_rdd.collect()), collected=True,
+                        # this two attribute are different based on is_collect set to true or false
+                        global_max=global_max, global_min=global_min)
     else:
-        return Gcluster(feature_list, input_rdd, collected=False, global_max=global_max, global_min=global_min)
+        return Gcluster(feature_list=feature_list,
+                        data=input_list, norm_data=normalized_input_list,
+                        cluster_dict=input_rdd, collected=False,
+                        global_max=global_max, global_min=global_min)
 
 
-def normalize_num(num, max, min):
-    return (num - min) / (max - min)
+def normalize_num(num, global_max, global_min):
+    return (num - global_min) / (global_max - global_min)
+
 
 def _min_max_normalize(input_list):
     # scaler = MinMaxScaler(feature_range=(0, 1))
@@ -155,10 +167,8 @@ def _min_max_normalize(input_list):
     global_min = flattened_list.min()
 
     normalize_list = map(lambda id_sequence:
-                         [id_sequence[0], list(map(lambda num: normalize_num(num, global_max, global_min), id_sequence[1]))]
+                         [id_sequence[0],
+                          list(map(lambda num: normalize_num(num, global_max, global_min), id_sequence[1]))]
                          , input_list)
 
-
     return list(normalize_list), global_max, global_min
-
-
