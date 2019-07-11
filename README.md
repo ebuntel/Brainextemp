@@ -53,6 +53,7 @@ produces fewer and larger cluster.  **Default at 0.1**
     * 'eu': Euclidean distance **Default**
     * 'ma': Manhattan (city-block) distance
     * 'mi': Minkowski distance
+    * 'ch': chebyshev distance
 * normalize: boolean whether to normalize the data in clustering calculations. It is general recommended to normalize
 the data to help the performance. **Default True**
 * del_data: boolean whether to delete the raw data from the sequence object created when clustering. It is generally 
@@ -250,12 +251,13 @@ be queries.
     * 'eu': Euclidean distance **Default**
     * 'ma': Manhattan (city-block) distance
     * 'mi': Minkowski distance
+    * 'ch': chebyshev distance
 * data_slices: the number of slices with which the input data will be chopped up. The default value works well
 on smaller data sets (# row < 20, average length < 400). If Pyspark starts to give **maximum task size warnings**. Try 
 increase the number of slices (recommended to be a power of 2) **Default 32**
 * ex_sameID: boolean. Whether to exclude sequences with the same id as the query sequence from the result.
 * overlap: float value, must be between 0.0 and 1.0. The query result will exclude sequences whose mutual overlapping factor
-exceeds the given value.
+exceeds the given value. 1 and 0
 #### Returns
 a list of key-value pairs. If k is greater than 1, the returning query result is sorted from closest match to the furthest.
 value: the matching sequence

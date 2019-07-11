@@ -4,6 +4,8 @@ from fastdtw import fastdtw
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
 from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import chebyshev
+
 import math
 import numpy as np
 
@@ -26,6 +28,9 @@ def sim_between_seq(seq1, seq2, dist_type: str = 'eu'):
         return fastdtw(seq1, seq2, dist=cityblock)[0]
     if dist_type == 'mi':
         return fastdtw(seq1, seq2, dist=minkowski)[0]
+    if dist_type == 'ch':
+        return fastdtw(seq1, seq2, dist=chebyshev)[0]
+
     else:
         raise Exception("sim_between_seq: cluster: invalid distance type: " + dist_type)
     # and the second is the shortest path
@@ -212,6 +217,9 @@ def cluster_two_pass(group, length, st, normalized_ts_dict, dist_type='eu'):
                     dist = cityblock(np.asarray(wss_raw_data), np.asarray(rprst_raw_data))
                 elif dist_type == 'mi':
                     dist = minkowski(np.asarray(wss_raw_data), np.asarray(rprst_raw_data))
+                elif dist_type == 'ch':
+                    dist = chebyshev(np.asarray(wss_raw_data), np.asarray(rprst_raw_data))
+
                 else:
                     raise Exception("cluster_operations: cluster: invalid distance type: " + dist_type)
 
@@ -285,6 +293,8 @@ def _cluster(group: list, st: float, log_level: int, dist_type: str = 'eu', del_
                     dist = cityblock(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
                 elif dist_type == 'mi':
                     dist = minkowski(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                elif dist_type == 'ch':
+                    dist = chebyshev(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
                 else:
                     raise Exception("cluster_operations: cluster: invalid distance type: " + dist_type)
 
