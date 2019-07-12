@@ -1,5 +1,4 @@
 from pyspark import SparkContext
-from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 
 from .cluster import _cluster
