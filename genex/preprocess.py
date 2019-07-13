@@ -137,13 +137,13 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
 
     if is_collect:
         return Gcluster(feature_list=feature_list,
-                        data=input_list, norm_data=normalized_input_list,
+                        data=input_list, norm_data=normalized_input_list, st=similarity_threshold,
                         cluster_dict=dict(input_rdd.collect()), collected=True,
                         # this two attribute are different based on is_collect set to true or false
                         global_max=global_max, global_min=global_min)
     else:
         return Gcluster(feature_list=feature_list,
-                        data=input_list, norm_data=normalized_input_list,
+                        data=input_list, norm_data=normalized_input_list, st=similarity_threshold,
                         cluster_dict=input_rdd, collected=False,
                         global_max=global_max, global_min=global_min)
 

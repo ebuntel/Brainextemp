@@ -11,7 +11,19 @@ https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8509275
 [Jump to the section: Arguments for do_gcluster](#Arguments-for-do_gcluster)
 * generate_query in parse
 * gquery in gcluster
+* Merge Cluster (documentation pending)
 
+## Requirments
+The Genex Package implements the following libraries:
+* numpy
+* fastdtw
+* scipy
+* pyspark-stubs
+* psutil
+
+User may install all of them with this pip command:
+    
+    pip install numpy fastdtw scipy pyspark-stubs psutil
 
 ## Parse
 Provides functions that help read csv files. 

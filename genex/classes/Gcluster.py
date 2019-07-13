@@ -16,19 +16,20 @@ class Gcluster:
             value: list of Sequence that are represented by the key
     """
 
-    def __init__(self, feature_list, data, norm_data, cluster_dict=None, collected: bool = None,
+    def __init__(self, feature_list, data, norm_data, st: float, cluster_dict=None, collected: bool = None,
                  global_max: float = None,
                  global_min: float = None):
         self.feature_list = feature_list
         self.data = data
         self.norm_data = norm_data
+        self.st = st
 
         self.clusters = cluster_dict
 
         self.filtered_clusters = cluster_dict
         self.filters = None
 
-        self._collected = collected
+        self.collected = collected
 
         self.global_max = global_max
         self.global_min = global_min
@@ -37,7 +38,7 @@ class Gcluster:
 
     def __len__(self):
         try:
-            assert self._collected
+            assert self.collected
         except AssertionError:
             raise Exception('Gcluster must be _collected before retrieving items, use gcluster.collect()')
         try:
@@ -47,7 +48,7 @@ class Gcluster:
 
     def __getitem__(self, sliced: slice):
         try:
-            assert self._collected
+            assert self.collected
         except AssertionError:
             raise Exception('Gcluster must be _collected before retrieving items, use gcluster.collect()')
 
@@ -91,7 +92,7 @@ class Gcluster:
         return rtn
 
     def __str__(self):
-        if not self._collected:
+        if not self.collected:
             return 'Gluster at ' + str(hex(id(self))) + ' is NOT collected'
         else:
             return
@@ -101,12 +102,12 @@ class Gcluster:
 
     def collect(self):
         try:
-            assert not self._collected
+            assert not self.collected
         except AssertionError:
             raise Exception('Gcluster is already _collected')
 
         self.clusters = dict(self.clusters.collect())
-        self._collected = True
+        self.collected = True
 
     def gfilter(self, size=None, filter_features=None):
         """
@@ -116,7 +117,7 @@ class Gcluster:
         """
         # check if ther result has been collected
         try:
-            assert self._collected
+            assert self.collected
         except AssertionError:
             raise Exception('Gluster at ' + str(hex(id(self))) + ' is NOT collected')
 
@@ -200,7 +201,7 @@ class Gcluster:
         """
         # check if ther result has been collected
         try:
-            assert self._collected
+            assert self.collected
         except AssertionError:
             raise Exception('Gluster at ' + str(hex(id(self))) + ' is NOT collected')
 
