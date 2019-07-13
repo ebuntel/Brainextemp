@@ -1,5 +1,4 @@
 from pyspark import SparkContext
-from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 
 from .cluster import _cluster
@@ -113,6 +112,14 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
         raise Exception('do_gcluster: Start must be greater than end in the '
                         'Length of Interest')
 
+
+    # validate the data length
+    all_ts = list(map(lambda x: x[1], input_list))
+    try:
+        assert not all(loi[1] > len(ts) for ts in all_ts)
+    except AssertionError as ae:
+        raise Exception('Given loi exceeds all input time series length')
+
     if similarity_threshold <= 0 or similarity_threshold >= 1:
         raise Exception('do_gcluster: similarity_threshold must be greater 0 and less than 1')
 
@@ -138,13 +145,13 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
 
     if is_collect:
         return Gcluster(feature_list=feature_list,
-                        data=input_list, norm_data=normalized_input_list,
+                        data=input_list, norm_data=normalized_input_list, st=similarity_threshold,
                         cluster_dict=dict(input_rdd.collect()), collected=True,
                         # this two attribute are different based on is_collect set to true or false
                         global_max=global_max, global_min=global_min)
     else:
         return Gcluster(feature_list=feature_list,
-                        data=input_list, norm_data=normalized_input_list,
+                        data=input_list, norm_data=normalized_input_list, st=similarity_threshold,
                         cluster_dict=input_rdd, collected=False,
                         global_max=global_max, global_min=global_min)
 

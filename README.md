@@ -11,7 +11,19 @@ https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8509275
 [Jump to the section: Arguments for do_gcluster](#Arguments-for-do_gcluster)
 * generate_query in parse
 * gquery in gcluster
+* Merge Cluster (documentation pending)
 
+## Requirments
+The Genex Package implements the following libraries:
+* numpy
+* fastdtw
+* scipy
+* pyspark-stubs
+* psutil
+
+User may install all of them with this pip command:
+    
+    pip install numpy fastdtw scipy pyspark-stubs psutil
 
 ## Parse
 Provides functions that help read csv files. 
@@ -33,7 +45,8 @@ a key-value pair list where key = (tuple) time series id, value is a list of raw
     res_list = parse.generate_source(fn, feature_num = 5)
 
 ### generate_query
-
+    from genex.parse import generate_query
+    generate_query(fn='query_example.csv', feature_num=5)
 
 ## Preprocess
 Preprocess input time series to prepare them for applying genex query
@@ -263,7 +276,7 @@ a list of key-value pairs. If k is greater than 1, the returning query result is
 value: the matching sequence
 key: distance from the query sequence to the matching sequence
 #### Example
-
+    
     query_result = c.gquery(query_sequences[0],
                             sc=sc, loi=[50, 55],
                             foi=['B-DC4', 'A-DC8'],
