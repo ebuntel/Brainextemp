@@ -5,7 +5,6 @@ from pyspark import SparkContext, SparkConf
 import datetime
 
 fn = 'SART2018_HbO.csv'
-dist = 'eu'
 
 res_list = generate_source(fn, feature_num=5)
 
@@ -107,3 +106,18 @@ c_19_82_ch = do_gcluster(input_list=res_list, loi=[19, 82], sc=sc, similarity_th
                          data_slices=1024, log_level=1)
 c_19_82_ch_end_time = datetime.datetime.now()
 
+# Query ###################################################################################################
+from genex.parse import generate_query
+
+query_set = generate_query(file_name='queries.csv', feature_num=5)
+query_results_ch = {}
+
+for query in query_set:
+    query_results_ch[query] = query_result = c.gquery(query,
+                                                      sc=sc, loi=[147, 274],
+                                                      k=5, dist_type='ch',
+                                                      data_slices=2048,
+                                                      ex_sameID=True,
+                                                      overlap=0.75)
+
+# Count the labels ########################################################################################
