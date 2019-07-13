@@ -1,7 +1,7 @@
-from .classes import Gcluster
+from .classes.Gcluster import Gcluster
 
 
-def merge_gcluster(gclusters):
+def merge_gclusters(gclusters):
     # gclusters validation
     try:
         iterator = iter(gclusters)
@@ -10,7 +10,7 @@ def merge_gcluster(gclusters):
 
     try:
         for gc in gclusters:
-            assert type(gc) == Gcluster
+            assert type(gc) is Gcluster
             assert gc.collected is True
     except AssertionError as ae:
         raise Exception('Object in the given list must all be Gclusters and have been collected.')

@@ -112,6 +112,14 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
         raise Exception('do_gcluster: Start must be greater than end in the '
                         'Length of Interest')
 
+
+    # validate the data length
+    all_ts = list(map(lambda x: x[1], input_list))
+    try:
+        assert not all(loi[1] > len(ts) for ts in all_ts)
+    except AssertionError as ae:
+        raise Exception('Given loi exceeds all input time series length')
+
     if similarity_threshold <= 0 or similarity_threshold >= 1:
         raise Exception('do_gcluster: similarity_threshold must be greater 0 and less than 1')
 

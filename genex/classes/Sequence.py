@@ -32,14 +32,21 @@ class Sequence:
     def set_data(self, data):
         self.data = data
 
-    def fetch_data(self, input_list, save_data: bool= False):
+    def fetch_data(self, input_list, save_data: bool = False):
         # TODO not tested
         try:
             input_dict = dict(input_list)  # validate by converting input_list into a dict
         except (TypeError, ValueError):
             raise Exception('sequence: fetch_data: input_list is not key-value pair.')
 
-        return input_dict[self.id][self.start: self.end]
+        try:
+            return input_dict[self.id][self.start: self.end]
+        except KeyError and IndexError as e:
+            print(self)
+            if type(e) is KeyError:
+                raise Exception('Given data list does not have a sequence with this sequence id')
+            elif type(e) is IndexError:
+                raise Exception('This sequence is out of bound with given data list')
 
     def _check_feature(self, features):
         """
