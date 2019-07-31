@@ -9,7 +9,7 @@ from pyspark import SparkContext
 from genex.cluster import sim_between_seq
 from genex.data_process import get_data_for_timeSeriesObj
 from genex.parse import strip_function, remove_trailing_zeros
-from genex.preprocess import _min_max_normalize
+from genex.preprocess import min_max_normalize
 from .classes import Sequence
 from .classes import Gcluster
 import numpy as np
