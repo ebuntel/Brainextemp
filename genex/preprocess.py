@@ -1,3 +1,4 @@
+import math
 from pyspark import SparkContext
 import numpy as np
 
@@ -68,15 +69,36 @@ def all_sublists_with_id(input_list):
 def all_sublists_with_id_length(input_list: list, loi: list):
     tmp = []
     if len(loi) == 1:
-        loi.append(len(input_list[1]))
-    else:
-        if loi[1] > len(input_list[1]) + 1:
-            print('Warning: given loi exceeds maximum sequence length, setting end point to sequence length')
-            loi[1] = len(input_list[1])  # + 1
+        loi.append(math.inf)
+
+    if loi[1] > len(input_list[1]) + 1:
+        print('Warning: given loi exceeds maximum sequence length, setting end point to sequence length')
+        loi[1] = len(input_list[1])  # + 1
 
     for i in range(loi[0], loi[1] + 1):
         tmp.append(list(filter_sublists_with_id_length(input_list, i)))
     return [y for x in tmp for y in x]  # flatten the list
+
+
+def group_inputs(input_lists: list, loi: list):
+
+    result = []
+
+    for input_list in input_lists:
+
+        tmp = []
+        if len(loi) == 1:
+            loi.append(math.inf)
+
+        if loi[1] > len(input_list[1]) + 1:
+            print('Warning: given loi exceeds maximum sequence length, setting end point to sequence length')
+            loi[1] = len(input_list[1])  # + 1
+
+        for i in range(loi[0], loi[1] + 1):
+            tmp.append(list(filter_sublists_with_id_length(input_list, i)))
+        result.append([y for x in tmp for y in x]) # flatten the list
+
+    return result
 
 
 def do_gcluster(input_list: list, loi: list, sc: SparkContext,
