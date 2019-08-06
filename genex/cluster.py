@@ -9,7 +9,6 @@ from scipy.spatial.distance import chebyshev
 import math
 import numpy as np
 
-
 from .data_process import get_data
 
 
@@ -33,8 +32,6 @@ def sim_between_seq(seq1, seq2, dist_type: str = 'eu'):
     else:
         raise Exception("sim_between_seq: cluster: invalid distance type: " + dist_type)
     # and the second is the shortest path
-
-
 
 
 def randomize(arr):
@@ -241,26 +238,33 @@ def randomize(arr):
 #                     cluster_count += 1
 #     return cluster
 
+from itertools import groupby
 
-def filter_cluster(groups: list, loi: list, st: float, log_level: int = 1, dist_type: str = 'eu', del_data: bool= True) -> list:
+
+def filter_cluster(groups: list, st: float, log_level: int = 1, dist_type: str = 'eu',
+                   del_data: bool = True) -> list:
     result = []
-
-    for i in range(loi[0], loi[1] + 1):
-        print(i)
-        grp = list(filter(lambda x: x[0] == i, groups))  # get the cluster of a specific length
-
-        length = i
-
-        grp = list(map(lambda x: x[1], grp))  # remove the sequence length
-
-
-        tmp = cluster_with_filter(grp, st, length)
-        result.append(tmp)
+    groups = sorted(groups, key=lambda x: x[0])  # need to sort for the groupby to work properly
+    for seq_len, grp in groupby(groups, lambda x: x[0]):
+        grp = list(map(lambda x: x[1], grp))  # only keeps the sequence from (seq_len, sequence)
+        result.append(cluster_with_filter(grp, st, seq_len))
+    # for i in range(loi[0], loi[1] + 1):
+    #     print(i)
+    #     grp = list(filter(lambda x: x[0] == i, groups))  # get the cluster of a specific length
+    #
+    #     length = i
+    #
+    #     grp = list(map(lambda x: x[1], grp))  # remove the sequence length
+    #
+    #
+    #     tmp = cluster_with_filter(grp, st, length)
+    #     result.append(tmp)
 
     return result
 
 
-def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: int = 1, dist_type: str = 'eu', del_data: bool= True) -> dict:
+def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: int = 1, dist_type: str = 'eu',
+                        del_data: bool = True) -> dict:
     """
     all subsequence in 'group' must be of the same length
     For example:
@@ -291,7 +295,7 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
 
     for ss in subsequences:
         if log_level == 1:
-            print('Cluster length: ' + str(length) + ':   ' + str(count + 1) + '/' + str(len(group)))
+            print('Cluster length: ' + str(length) + ':   ' + str(count + 1) + '/' + str(len(group)) + ' Num clusters: ' + str(len(cluster)))
             count += 1
 
         if not cluster.keys():
@@ -350,8 +354,7 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
     return length, cluster
 
 
-
-def _cluster(group: list, st: float, log_level: int = 1, dist_type: str = 'eu', del_data: bool= True) -> dict:
+def _cluster(group: list, st: float, log_level: int = 1, dist_type: str = 'eu', del_data: bool = True) -> dict:
     """
     all subsequence in 'group' must be of the same length
     For example:
