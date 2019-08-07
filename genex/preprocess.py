@@ -1,3 +1,4 @@
+import math
 from pyspark import SparkContext
 import numpy as np
 
@@ -65,18 +66,39 @@ def all_sublists_with_id(input_list):
     return [y for x in tmp for y in x]  # flatten the list
 
 
-def _all_sublists_with_id_length(input_list: list, loi: list):
+def all_sublists_with_id_length(input_list: list, loi: list):
     tmp = []
+    if len(loi) == 1:
+        loi.append(math.inf)
 
     if loi[1] > len(input_list[1]) + 1:
         print('Warning: given loi exceeds maximum sequence length, setting end point to sequence length')
         loi[1] = len(input_list[1])  # + 1
-    # else:
-    #     loi[1] += 1  # length offset
 
     for i in range(loi[0], loi[1] + 1):
         tmp.append(list(filter_sublists_with_id_length(input_list, i)))
     return [y for x in tmp for y in x]  # flatten the list
+
+
+def group_inputs(input_lists: list, loi: list):
+
+    result = []
+
+    for input_list in input_lists:
+
+        tmp = []
+        if len(loi) == 1:
+            loi.append(math.inf)
+
+        if loi[1] > len(input_list[1]) + 1:
+            print('Warning: given loi exceeds maximum sequence length, setting end point to sequence length')
+            loi[1] = len(input_list[1])  # + 1
+
+        for i in range(loi[0], loi[1] + 1):
+            tmp.append(list(filter_sublists_with_id_length(input_list, i)))
+        result.append([y for x in tmp for y in x]) # flatten the list
+
+    return result
 
 
 def do_gcluster(input_list: list, loi: list, sc: SparkContext,
@@ -123,7 +145,7 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
     if similarity_threshold <= 0 or similarity_threshold >= 1:
         raise Exception('do_gcluster: similarity_threshold must be greater 0 and less than 1')
 
-    normalized_input_list, global_max, global_min = _min_max_normalize(input_list)
+    normalized_input_list, global_max, global_min = min_max_normalize(input_list)
 
     # is normalization if enable, replace the input list with normalized input list
     if normalize:
@@ -136,7 +158,7 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext,
     input_rdd = sc.parallelize(input_list, numSlices=data_slices)
 
     input_rdd = input_rdd.flatMap(
-        lambda x: _all_sublists_with_id_length(x, loi))  # get subsequences of all possible length
+        lambda x: all_sublists_with_id_length(x, loi))  # get subsequences of all possible length
     input_rdd = input_rdd.groupByKey().mapValues(list)  # group the subsequences by length
 
     # cluster the input
@@ -160,7 +182,7 @@ def normalize_num(num, global_max, global_min):
     return (num - global_min) / (global_max - global_min)
 
 
-def _min_max_normalize(input_list):
+def min_max_normalize(input_list):
     # scaler = MinMaxScaler(feature_range=(0, 1))
     #
     #

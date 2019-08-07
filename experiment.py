@@ -11,8 +11,8 @@ res_list = generate_source(fn, feature_num=5)
 # initialize the spark context
 conf = SparkConf(). \
     setMaster("local[*]"). \
-    setAppName("Genex").set('spark.driver.memory', '64G'). \
-    set('spark.driver.maxResultSize', '64G')
+    setAppName("Genex").set('spark.driver.memory', '32G'). \
+    set('spark.driver.maxResultSize', '32G')
 
 sc = SparkContext(conf=conf)
 

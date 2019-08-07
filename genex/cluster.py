@@ -9,7 +9,6 @@ from scipy.spatial.distance import chebyshev
 import math
 import numpy as np
 
-
 from .data_process import get_data
 
 
@@ -35,8 +34,6 @@ def sim_between_seq(seq1, seq2, dist_type: str = 'eu'):
     # and the second is the shortest path
 
 
-
-
 def randomize(arr):
     """
     Apply the randomize in place algorithm to the given array
@@ -44,6 +41,8 @@ def randomize(arr):
     :param array arr: the arr to randomly permute
     :return: the random;uy permuted array
     """
+    if len(arr) == 0:
+        return arr
     for i in range(len(arr) - 1, 0, -1):
         # Pick a random index from 0 to i
         j = random.randint(0, i)
@@ -239,8 +238,123 @@ def randomize(arr):
 #                     cluster_count += 1
 #     return cluster
 
+from itertools import groupby
 
-def _cluster(group: list, st: float, log_level: int, dist_type: str = 'eu', del_data: bool= True) -> dict:
+
+def filter_cluster(groups: list, st: float, log_level: int = 1, dist_type: str = 'eu',
+                   del_data: bool = True) -> list:
+    result = []
+    groups = sorted(groups, key=lambda x: x[0])  # need to sort for the groupby to work properly
+    for seq_len, grp in groupby(groups, lambda x: x[0]):
+        grp = list(map(lambda x: x[1], grp))  # only keeps the sequence from (seq_len, sequence)
+        result.append(cluster_with_filter(grp, st, seq_len))
+    # for i in range(loi[0], loi[1] + 1):
+    #     print(i)
+    #     grp = list(filter(lambda x: x[0] == i, groups))  # get the cluster of a specific length
+    #
+    #     length = i
+    #
+    #     grp = list(map(lambda x: x[1], grp))  # remove the sequence length
+    #
+    #
+    #     tmp = cluster_with_filter(grp, st, length)
+    #     result.append(tmp)
+
+    return result
+
+
+def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: int = 1, dist_type: str = 'eu',
+                        del_data: bool = True) -> dict:
+    """
+    all subsequence in 'group' must be of the same length
+    For example:
+    [[1,4,2],[6,1,4],[1,2,3],[3,2,1]] is a valid 'sub-sequences'
+
+    :param group: list of sebsequences of a specific length, entry = sequence object
+    :param int length: the length of the group to be clustered
+    :param float st: similarity threshold to determine whether a sub-sequence
+    :param float global_min: used for minmax normalization
+    :param float global_min: used for minmax normalization
+    :param dist_type: distance types including eu = euclidean, ma = mahalanobis, mi = minkowski
+    belongs to a group
+
+    :return a dictionary of clusters
+    """
+    cluster = dict()
+    length = sequence_len
+    subsequences = group
+
+    # print("Clustering length of: " + str(length) + ", number of subsequences is " + str(len(group[1])))
+
+    # randomize the sequence in the group to remove clusters-related bias
+    subsequences = randomize(subsequences)
+
+    delimiter = '_'
+
+    count = 0
+
+    for ss in subsequences:
+        if log_level == 1:
+            print('Cluster length: ' + str(length) + ':   ' + str(count + 1) + '/' + str(len(group)) + ' Num clusters: ' + str(len(cluster)))
+            count += 1
+
+        if not cluster.keys():
+            cluster[ss] = [ss]
+        else:
+            minSim = math.inf
+            minRprst = None
+            # rprst is a time_series obj
+            for rprst in list(cluster.keys()):  # iterate though all the similarity clusters, rprst = representative
+                # ss is also a time_series obj
+                ss_raw_data = ss.get_data()
+                rprst_raw_data = rprst.get_data()
+
+                # check the distance type
+                if dist_type == 'eu':
+                    dist = euclidean(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                elif dist_type == 'ma':
+                    dist = cityblock(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                elif dist_type == 'mi':
+                    dist = minkowski(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                elif dist_type == 'ch':
+                    dist = chebyshev(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                else:
+                    raise Exception("cluster_operations: cluster: invalid distance type: " + dist_type)
+
+                # update the minimal similarity
+                if dist < minSim:
+                    minSim = dist
+                    minRprst = rprst
+            sim = math.sqrt(length) * st / 2
+            if minSim <= sim:  # if the calculated min similarity is smaller than the
+                # similarity threshold, put subsequence in the similarity cluster keyed by the min representative
+                cluster[minRprst].append(ss)
+
+            else:
+                # if the minSim is greater than the similarity threshold, we create a new similarity group
+                # with this sequence being its representative
+                # if ss in cluster.keys():
+                #     # should skip
+                #     continue
+                #     # raise Exception('cluster_operations: clusterer: Trying to create new similarity cluster '
+                #     #                 'due to exceeding similarity threshold, target sequence is already a '
+                #     #                 'representative(key) in cluster. The sequence isz: ' + ss.toString())
+
+                if ss not in cluster.keys():
+                    cluster[ss] = [ss]
+
+    print()
+    print('Cluster length: ' + str(length) + '   Done!')
+
+    if del_data:
+        for value in cluster.values():
+            for ss in value:
+                ss.del_data()
+
+    return length, cluster
+
+
+def _cluster(group: list, st: float, log_level: int = 1, dist_type: str = 'eu', del_data: bool = True) -> dict:
     """
     all subsequence in 'group' must be of the same length
     For example:

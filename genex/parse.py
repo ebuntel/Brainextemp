@@ -49,7 +49,6 @@ def get_subsquences(input_list: list):
 
     return val
 
-
 def generate_source(file_name, feature_num):
     """
     Not doing sub-sequence here

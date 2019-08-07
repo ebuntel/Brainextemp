@@ -50,20 +50,25 @@ def merge_gclusters(gclusters):
                     global_max=global_max_list[0], global_min=global_min_list[0])
 
 
-def cluster_count(gclusters: Gcluster, sc:SparkContext=None, data_slices=32):
+def cluster_count(gc: Gcluster, sc:SparkContext=None, data_slices=32):
+    # try:
+    #     for gc in gc:
+    #         assert type(gc) is Gcluster
+    #         assert gc.collected is True
+    # except AssertionError as ae:
+    #     raise Exception('Object in the given list must all be Gclusters and have been collected.')
+
     try:
-        for gc in gclusters:
-            assert type(gc) is Gcluster
-            assert gc.collected is True
+        assert type(gc) is Gcluster
     except AssertionError as ae:
-        raise Exception('Object in the given list must all be Gclusters and have been collected.')
+        raise Exception('Object is not Gcluster')
 
     if sc:
-        clusters_rdd = sc.parallelize(gclusters.clusters.items(), numSlices=data_slices)
+        clusters_rdd = sc.parallelize(gc.clusters.items(), numSlices=data_slices)
         clusters_count = clusters_rdd.map(lambda x: (x[0], len(x[1]))).collect()
         return clusters_count
     else:
-        return {k: len(v) for k, v in gclusters.clusters.items()}
+        return {k: len(v) for k, v in gc.clusters.items()}
 
 
 def gquery(gcluster: Gcluster, query_sequence: Sequence, sc: SparkContext,
