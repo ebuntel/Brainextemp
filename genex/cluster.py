@@ -20,7 +20,7 @@ def sim_between_seq(seq1, seq2, dist_type: str = 'eu'):
     :param seq2:
     :return float: return the similarity between sequence 1 and sequence 2
     """
-    if dist_type == 'eu':
+    if dist_type == 'eu':  #TODO trillion optimizaiton here
         return fastdtw(seq1, seq2, dist=euclidean)[0]  # fastdtw returns a tuple with the first item being the distance
     if dist_type == 'ma':
         return fastdtw(seq1, seq2, dist=cityblock)[0]
