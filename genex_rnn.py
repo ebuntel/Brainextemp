@@ -47,7 +47,7 @@ regressiveClassifier.add((Dense(units=1, activation='sigmoid')))
 
 regressiveClassifier.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-history = regressiveClassifier.fit(X_train, Y_train, validation_data=(X_test, Y_test), shuffle=True, epochs=500, batch_size=512)
+history = regressiveClassifier.fit(X_train, Y_train, validation_data=(X_test, Y_test), shuffle=True, epochs=100, batch_size=512)
 
 # plot train history
 
