@@ -1,5 +1,8 @@
+import csv
 import random
 # distance libraries
+import time
+
 from fastdtw import fastdtw
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
@@ -342,9 +345,17 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
 
                 if ss not in cluster.keys():
                     cluster[ss] = [ss]
-
+    lst = []
     print()
-    print('Cluster length: ' + str(length) + '   Done!')
+    print('Cluster length: ' + str(length) + '   Done!----------------------------------------------')
+    cluster_log = 'Cluster length: ' + str(length) + '   Done!'
+    lst.append(cluster_log)
+    lst.append(time.time())
+    with open('results_log.csv', 'a') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(lst)
+    csvfile.close()
+    lst = []
 
     if del_data:
         for value in cluster.values():

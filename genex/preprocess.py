@@ -2,7 +2,7 @@ import math
 from pyspark import SparkContext
 import numpy as np
 
-from .cluster import _cluster
+from genex.cluster import _cluster
 from genex.classes.Gcluster import Gcluster
 from genex.classes.Sequence import Sequence
 
