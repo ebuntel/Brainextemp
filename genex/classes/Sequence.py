@@ -3,7 +3,7 @@ wrap_in_parantheses = lambda x: "(" + str(x) + ")"
 
 class Sequence:
 
-    def __init__(self, id: str, start: int, end: int, data: list = None):
+    def __init__(self, id: tuple, start: int, end: int, data: list = None):
         self.id = id
         self.start = start
         self.end = end
@@ -27,6 +27,17 @@ class Sequence:
         return True
 
     def __ge__(self, other):
+        return True
+
+    def __lt__(self, other):
+        return True
+
+    # return comparison
+    def __ne__(self, other):
+        return True
+
+    # return comparison
+    def __gt__(self, other):
         return True
 
     def del_data(self):

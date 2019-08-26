@@ -161,10 +161,10 @@ for query in query_set:
     plt.plot(query.fetch_data(input_list), color='cyan', linewidth=3.0, label='Query Sequence' + str(query.id))
     lst.append(query.id)
     for seq in best_matches:
-        l = seq[2].id
+        l = seq[1].id
         lst.append(l)
         lst.append(seq[0])
-        plt.plot(seq[2].fetch_data(input_list), label=str(l) + str(seq[0]))
+        plt.plot(seq[1].fetch_data(input_list), label=str(l) + str(seq[0]))
     lst.append(qtime)
     with open('results_Genex_HbO_aaj.csv', 'a') as csvfile:
         writer = csv.writer(csvfile)
