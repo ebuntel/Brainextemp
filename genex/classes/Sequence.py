@@ -23,6 +23,12 @@ class Sequence:
     def __eq__(self, other):
         return (self.id, self.start, self.end) == (other.id, other.start, other.end)
 
+    def __le__(self, other):
+        return True
+
+    def __ge__(self, other):
+        return True
+
     def del_data(self):
         self.data = None
 
