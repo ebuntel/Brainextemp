@@ -1,3 +1,4 @@
+import _ucrdtw
 import csv
 import random
 # distance libraries
@@ -24,7 +25,16 @@ def sim_between_seq(seq1, seq2, dist_type: str = 'eu'):
     :return float: return the similarity between sequence 1 and sequence 2
     """
     if dist_type == 'eu':  #TODO trillion optimizaiton here
-        return fastdtw(seq1, seq2, dist=euclidean)[0]  # fastdtw returns a tuple with the first item being the distance
+        dist = fastdtw(seq1, seq2, dist=euclidean)[0]
+        # print("distance using fastdtw is " + dist)
+        return dist  # fastdtw returns a tuple with the first item being the distance
+
+    if dist_type == 'eu_ucr':
+
+        loc, dist = _ucrdtw.ucrdtw(seq1, seq2, 0.05, False)
+        # print("distance using ucrdtw is " + str(dist))
+
+        return dist
     if dist_type == 'ma':
         return fastdtw(seq1, seq2, dist=cityblock)[0]
     if dist_type == 'mi':

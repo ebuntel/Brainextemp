@@ -58,7 +58,7 @@ file.write('Cluster time is :' + ctime)
 file.close()
 
 
-def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dist_type: str = 'eu', loi=None):
+def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dist_type: str = 'eu_ucr', loi=None):
     q = q.value
     normalized_input = normalized_input.value
 
