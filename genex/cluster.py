@@ -250,7 +250,7 @@ def filter_cluster(groups: list, st: float, log_level: int = 1, dist_type: str =
     groups = sorted(groups, key=lambda x: x[0])  # need to sort for the groupby to work properly
     for seq_len, grp in groupby(groups, lambda x: x[0]):
         grp = list(map(lambda x: x[1], grp))  # only keeps the sequence from (seq_len, sequence)
-        result.append(cluster_with_filter(grp, st, seq_len))
+        result.append(cluster_with_filter(grp, st, seq_len, dist_type=dist_type))
     # for i in range(loi[0], loi[1] + 1):
     #     print(i)
     #     grp = list(filter(lambda x: x[0] == i, groups))  # get the cluster of a specific length
