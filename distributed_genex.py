@@ -1,6 +1,7 @@
 import math
 import csv
-from genex.parse import generate_source
+
+import genex.database.genex_database as gxdb
 from genex.preprocess import min_max_normalize
 from genex.utils import normalize_sequence
 import heapq
@@ -8,11 +9,9 @@ import time
 from genex.cluster import sim_between_seq
 import matplotlib.pyplot as plt
 
-fn = 'SART2018_HbO_40.csv'
+fn = 'SART2018_1-100.csv'
 
-input_list = generate_source(fn, feature_num=5)
-# input_list = input_list[:51]
-
+input_list = gxdb.from_csv(fn, feature_num=5)
 
 normalized_input_list, global_max, global_min = min_max_normalize(input_list)
 

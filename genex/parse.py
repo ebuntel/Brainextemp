@@ -1,4 +1,5 @@
 import math
+import pandas as pd
 
 from .classes.Sequence import Sequence
 
@@ -48,6 +49,7 @@ def get_subsquences(input_list: list):
                 val.append([j, id, i, i + j])
 
     return val
+
 
 def generate_source(file_name, feature_num):
     """

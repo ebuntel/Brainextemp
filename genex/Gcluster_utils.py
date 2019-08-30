@@ -2,7 +2,7 @@ import heapq
 
 from .classes.Sequence import Sequence
 from .cluster import sim_between_seq
-from .classes.Gcluster import Gcluster
+from genex.database.genex_database import genex_database
 from pyspark import SparkContext
 
 def merge_gclusters(gclusters):
@@ -14,7 +14,7 @@ def merge_gclusters(gclusters):
 
     try:
         for gc in gclusters:
-            assert type(gc) is Gcluster
+            assert type(gc) is genex_database
             assert gc.collected is True
     except AssertionError as ae:
         raise Exception('Object in the given list must all be Gclusters and have been collected.')
@@ -43,14 +43,14 @@ def merge_gclusters(gclusters):
     for gc in gclusters:
         merged_clusters.update(gc.clusters)
 
-    return Gcluster(feature_list=all_feature_lists[0],
-                    data=data_list[0], norm_data=norm_data_list[0], st=st_list[0],
-                    cluster_dict=merged_clusters, collected=True,
-                    # this two attribute are different based on is_collect set to true or false
-                    global_max=global_max_list[0], global_min=global_min_list[0])
+    return genex_database(feature_list=all_feature_lists[0],
+                          data=data_list[0], norm_data=norm_data_list[0], st=st_list[0],
+                          cluster_dict=merged_clusters, collected=True,
+                          # this two attribute are different based on is_collect set to true or false
+                          global_max=global_max_list[0], global_min=global_min_list[0])
 
 
-def cluster_count(gc: Gcluster, sc:SparkContext=None, data_slices=32):
+def cluster_count(gc: genex_database, sc:SparkContext=None, data_slices=32):
     # try:
     #     for gc in gc:
     #         assert type(gc) is Gcluster
@@ -59,7 +59,7 @@ def cluster_count(gc: Gcluster, sc:SparkContext=None, data_slices=32):
     #     raise Exception('Object in the given list must all be Gclusters and have been collected.')
 
     try:
-        assert type(gc) is Gcluster
+        assert type(gc) is genex_database
     except AssertionError as ae:
         raise Exception('Object is not Gcluster')
 
@@ -71,7 +71,7 @@ def cluster_count(gc: Gcluster, sc:SparkContext=None, data_slices=32):
         return {k: len(v) for k, v in gc.clusters.items()}
 
 
-def gquery(gcluster: Gcluster, query_sequence: Sequence, sc: SparkContext,
+def gquery(gcluster: genex_database, query_sequence: Sequence, sc: SparkContext,
            loi=None, foi=None, k: int = 1, dist_type: str = 'eu', data_slices: int = 32,
            ex_sameID: bool = False, overlap: float = 0.0):
     # TODO update gquery so that it can utilize past query result to do new queries

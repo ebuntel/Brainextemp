@@ -3,7 +3,7 @@ from pyspark import SparkContext
 import numpy as np
 
 from genex.cluster import _cluster, filter_cluster
-from genex.classes.Gcluster import Gcluster
+from genex.database.genex_database import genex_database
 from genex.classes.Sequence import Sequence
 
 
@@ -201,16 +201,16 @@ def do_gcluster_legacy(input_list: list, loi: list, sc: SparkContext,
         lambda x: _cluster(x, st=similarity_threshold, log_level=log_level, dist_type=dist_type, del_data=del_data))
 
     if is_collect:
-        return Gcluster(feature_list=feature_list,
-                        data=input_list, norm_data=normalized_input_list, st=similarity_threshold,
-                        cluster_dict=dict(input_rdd.collect()), collected=True,
-                        # this two attribute are different based on is_collect set to true or false
-                        global_max=global_max, global_min=global_min)
+        return genex_database(feature_list=feature_list,
+                              data=input_list, norm_data=normalized_input_list, st=similarity_threshold,
+                              cluster_dict=dict(input_rdd.collect()), collected=True,
+                              # this two attribute are different based on is_collect set to true or false
+                              global_max=global_max, global_min=global_min)
     else:
-        return Gcluster(feature_list=feature_list,
-                        data=input_list, norm_data=normalized_input_list, st=similarity_threshold,
-                        cluster_dict=input_rdd, collected=False,
-                        global_max=global_max, global_min=global_min)
+        return genex_database(feature_list=feature_list,
+                              data=input_list, norm_data=normalized_input_list, st=similarity_threshold,
+                              cluster_dict=input_rdd, collected=False,
+                              global_max=global_max, global_min=global_min)
 
 
 def normalize_num(num, global_max, global_min):

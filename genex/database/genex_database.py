@@ -1,13 +1,41 @@
 import heapq
 from pyspark import SparkContext
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
 
-from .Sequence import Sequence
-from ..cluster import sim_between_seq
+from genex.classes.Sequence import Sequence
+from genex.cluster import sim_between_seq
 
 
-class Gcluster:
+def from_csv(file_name, feature_num:int):
     """
-    Genex Clusters Object
+    build a genex_database object from given csv,
+    Note: if time series are of different length, shorter sequences will be post padded to the length
+    of the longest sequence in the dataset
+    :param file_name:
+    :return:
+    """
+    df = pd.read_csv(file_name).fillna(0)
+
+    # prepare to minmax normalize the data columns
+    time_series = df.iloc[:, feature_num:].values
+    num_time_series = len(time_series)
+    time_series_reshaped = time_series.reshape(-1, 1)
+
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    time_series_reshaped_normalized = scaler.fit_transform(time_series_reshaped)
+    time_series_normalized = time_series_reshaped_normalized.reshape(num_time_series, -1)
+    df.iloc[:, feature_num:] = time_series_normalized
+    # build genex_database
+    rtn = genex_database(data=df, data_norm=time_series_normalized)
+
+    return df
+
+
+class genex_database:
+    """
+    Genex Database
 
     clusters: dictionary object that holds the cluster information
         key(integer): length of the sequence in the cluster
@@ -16,10 +44,18 @@ class Gcluster:
             value: list of Sequence that are represented by the key
     """
 
-    def __init__(self, feature_list, data, norm_data, st: float, cluster_dict=None, collected: bool = None,
+
+    def build(self, sc: SparkContext):
+
+        return
+
+    def normalize(self, sequence):
+        return
+
+
+    def __init__(self, data, norm_data, st: float, cluster_dict=None, collected: bool = None,
                  global_max: float = None,
                  global_min: float = None):
-        self.feature_list = feature_list
         self.data = data
         self.norm_data = norm_data
         self.st = st
