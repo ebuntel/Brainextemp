@@ -44,7 +44,7 @@ def merge_gclusters(gclusters):
         merged_clusters.update(gc.clusters)
 
     return genex_database(feature_list=all_feature_lists[0],
-                          data=data_list[0], norm_data=norm_data_list[0], st=st_list[0],
+                          data=data_list[0], data_normalized=norm_data_list[0], st=st_list[0],
                           cluster_dict=merged_clusters, collected=True,
                           # this two attribute are different based on is_collect set to true or false
                           global_max=global_max_list[0], global_min=global_min_list[0])
