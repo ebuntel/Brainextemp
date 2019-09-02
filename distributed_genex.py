@@ -1,18 +1,21 @@
 import math
 import csv
+from genex.parse import generate_source
+from genex.Gcluster_utils import _isOverlap
 
 import genex.database.genex_database as gxdb
 from genex.preprocess import min_max_normalize
 from genex.utils import normalize_sequence
+
 import heapq
 import time
 from genex.cluster import sim_between_seq
 import matplotlib.pyplot as plt
 
-fn = 'SART2018_1-100.csv'
+fn = 'SART2018_HbO_40.csv'
 
-input_list = gxdb.from_csv(fn, feature_num=5)
-
+input_list = generate_source(fn, feature_num=5)
+input_list = input_list[:24]
 normalized_input_list, global_max, global_min = min_max_normalize(input_list)
 
 from pyspark import SparkContext, SparkConf
@@ -32,7 +35,7 @@ from genex.preprocess import all_sublists_with_id_length
 
 gstart_time = time.time()
 group_rdd = input_rdd.flatMap(
-    lambda x: all_sublists_with_id_length(x, [150, 190]))
+    lambda x: all_sublists_with_id_length(x, [260]))
 partition_group = group_rdd.glom().collect()
 gend_time = time.time()
 gtime = gend_time - gstart_time
@@ -57,7 +60,8 @@ file.write('Cluster time is :' + ctime)
 file.close()
 
 
-def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dist_type: str = 'eu_ucr', loi=None):
+def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dist_type: str = 'eu_ucr', loi=None,
+                            exclude_same_id: bool=False, overlap: float=None):
     q = q.value
     normalized_input = normalized_input.value
 
@@ -66,7 +70,7 @@ def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dis
     else:
         cluster_dict = dict(cluster)
     # get the seq length of the query, start query in the cluster that has the same length as the query
-    querying_clusterSeq_len = len(q)
+    querying_clustera_seq_and_len = len(q)
 
     # get the seq length Range of the partition
     try:
@@ -76,22 +80,28 @@ def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dis
 
     # if given query is longer than the longest cluster sequence,
     # set starting clusterSeq length to be of the same length as the longest sequence in the partition
-    querying_clusterSeq_len = max(min(querying_clusterSeq_len, len_range[1]), len_range[0])
+    querying_clustera_seq_and_len = max(min(querying_clustera_seq_and_len, len_range[1]), len_range[0])
 
     query_result = []
     # temperoray variable that decides whether to look up or down when a cluster of a specific length is exhausted
 
     while len(cluster_dict) > 0:
-        target_cluster = cluster_dict[querying_clusterSeq_len]
+        target_cluster = cluster_dict[querying_clustera_seq_and_len]
         target_cluster_reprs = target_cluster.keys()
         target_cluster_reprs = list(
-            map(lambda rpr: [sim_between_seq(rpr.fetch_data(normalized_input), q.data, dist_type=dist_type),
-                             rpr], target_cluster_reprs))
+            map(lambda rpr: [sim_between_seq(rpr.fetch_data(normalized_input), q.data, dist_type=dist_type), rpr],
+                target_cluster_reprs))
+        # add a counter to avoid comparing a Sequence object with another Sequence object
         heapq.heapify(target_cluster_reprs)
 
         while len(target_cluster_reprs) > 0:
             querying_repr = heapq.heappop(target_cluster_reprs)
             querying_cluster = target_cluster[querying_repr[1]]
+
+            # filter by id
+            if exclude_same_id:
+                querying_cluster = (x for x in querying_cluster if x.id != q.id)
+
             querying_cluster = list(
                 map(lambda cluster_seq: [
                     sim_between_seq(cluster_seq.fetch_data(normalized_input), q.data, dist_type=dist_type),
@@ -99,21 +109,31 @@ def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dis
                     querying_cluster))
             heapq.heapify(querying_cluster)
 
-            for seq in querying_cluster:
-                if seq[0] < st:
-                    query_result.append((seq[0], seq[1]))
+            for cur_match in querying_cluster:
+                if cur_match[0] < st:
+
+                    #if not any(_isOverlap(cur_match[1], prev_match[1], overlap) for prev_match in
+                              # query_result):  # check for overlap against all the matches so far
+                     #   print('Adding to querying result')
+                    query_result.append((cur_match[0], cur_match[1]))
+                    #else:
+                     #   print('Overlapped, not adding to query result')
+
                     if (len(query_result)) >= k:
                         return query_result
 
-        cluster_dict.pop(querying_clusterSeq_len)  # remove this len-cluster just queried
+        cluster_dict.pop(querying_clustera_seq_and_len)  # remove this len-cluster just queried
 
         # find the next closest sequence length
-        querying_clusterSeq_len = min(list(cluster_dict.keys()), key=lambda x: abs(x - querying_clusterSeq_len))
-
+        if len(cluster_dict) != 0:
+            querying_clustera_seq_and_len = min(list(cluster_dict.keys()),
+                                                key=lambda x: abs(x - querying_clustera_seq_and_len))
+        else:
+            break
     return query_result
 
 
-from genex.parse import generate_query
+from genex.parse import generate_query, generate_source
 
 # generate the query sets
 query_set = generate_query(file_name='queries_test.csv', feature_num=5)
@@ -144,7 +164,8 @@ for query in query_set:
     query_rdd = cluster_rdd.mapPartitions(
         lambda x:
         query_cluster_partition(cluster=x, q=query_bc, st=query_st, k=best_k,
-                                normalized_input=normalized_input_list_bc)).cache()
+                                normalized_input=normalized_input_list_bc, dist_type='eu_ucr',
+                                exclude_same_id=True, overlap=None)).cache()
     query_partition = query_rdd.glom().collect()
     qend_time = time.time()
     qtime = qend_time - qstart_time
@@ -165,7 +186,7 @@ for query in query_set:
         lst.append(seq[0])
         plt.plot(seq[1].fetch_data(input_list), label=str(l) + str(seq[0]))
     lst.append(qtime)
-    with open('results_Genex_HbO_aaj.csv', 'a') as csvfile:
+    with open('results_Genex_HbO_ucr.csv', 'a') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(lst)
     csvfile.close()
