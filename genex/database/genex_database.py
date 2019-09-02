@@ -41,6 +41,12 @@ def from_csv(file_name, feature_num: int):
     return rtn
 
 
+def _validate_inputs(args):
+    print(args)
+
+    return
+
+
 class genex_database:
     """
     Genex Database
@@ -53,16 +59,11 @@ class genex_database:
 
     def __init__(self, **kwargs):
         self.data = kwargs['data']
-        self.data_normalized = kwargs['normalized']
-        self.scale_func = kwargs['scale_funct']
+        self.data_normalized = kwargs['data_normalized']
+        self.scale_func = kwargs['scale_func']
 
-    def build(self, sc: SparkContext, similarity_threshold: float, dist_type: str = 'eu', verbose: int = 1, **kwargs):
-        self._validate_inputs(kwargs)
-        return
-
-    def _validate_inputs(self, **kwargs):
-        print(kwargs)
-
+    def build(self, sc: SparkContext, similarity_threshold: float, dist_type: str = 'eu', verbose: int = 1):
+        _validate_inputs(locals())
         return
 
     def __len__(self):

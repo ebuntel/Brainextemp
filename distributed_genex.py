@@ -20,7 +20,7 @@ normalized_input_list, global_max, global_min = min_max_normalize(input_list)
 
 from pyspark import SparkContext, SparkConf
 
-num_cores = 8
+num_cores = 12
 
 conf = SparkConf(). \
     setMaster("local[" + str(num_cores) + "]"). \
