@@ -3,3 +3,6 @@ fastdtw
 scipy
 pyspark-stubs
 psutil
+pyspark
+pandas
+ucrdtw
