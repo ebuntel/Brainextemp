@@ -64,7 +64,8 @@ class genex_database:
 
     def build(self, sc: SparkContext, similarity_threshold: float, dist_type: str = 'eu', verbose: int = 1):
         _validate_inputs(locals())
-        return
+
+
 
     def __len__(self):
         try:
