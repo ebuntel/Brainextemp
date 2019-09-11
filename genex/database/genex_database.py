@@ -6,11 +6,11 @@ from pyspark import SparkContext, StorageLevel
 from pyspark.sql import SQLContext
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
 import shutil
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, filter_cluster
 from genex.preprocess import all_sublists_with_id_length
+from genex.utils import scale
 
 
 
@@ -25,23 +25,11 @@ def from_csv(file_name, feature_num: int):
     df = pd.read_csv(file_name).fillna(0)
 
     # prepare to minmax normalize the data columns
-    def scale(ts_df):
-        time_series = ts_df.iloc[:, feature_num:].values
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        num_time_series = len(time_series)
-        time_series = time_series.reshape(-1, 1)
-        time_series = scaler.fit_transform(time_series)
-        time_series = time_series.reshape(num_time_series, -1)
 
-        df_normalized = ts_df.copy()
-        df_normalized.iloc[:, feature_num:] = time_series
-
-        return df_normalized
-
-    df_normalized = scale(df)
+    df_normalized, scaler = scale(df, feature_num)
 
     # return genex_database
-    rtn = genex_database(data=df, data_normalized=df_normalized, scale_func=scale)
+    rtn = genex_database(data=df, data_normalized=df_normalized, scaler=scaler)
 
     return rtn
 
@@ -65,7 +53,8 @@ class genex_database:
     def __init__(self, **kwargs):
         self.data = kwargs['data']
         self.data_normalized = kwargs['data_normalized']
-        self.scale_func = kwargs['scale_func']
+        self.scaler = kwargs['scaler']
+
 
     def build(self, sc: SparkContext, similarity_threshold: float, dist_type: str = 'eu', verbose: int = 1):
         _validate_inputs(locals())
@@ -94,12 +83,13 @@ class genex_database:
 
         # Cluster the data with Gcluster
         cluster_rdd = group_rdd.mapPartitions(lambda x: filter_cluster(groups=x, st=similarity_threshold, log_level=1),
-                                              preservesPartitioning=False)
+                                              preservesPartitioning=False).cache()
 
-        cluster_rdd.first()
+        # collect the result, use first save memory
+        cluster_rdd.collect()
 
-        sl = StorageLevel(True, True, False, False, 1)
-        self.data_normalized_clustered = cluster_rdd.persist(storageLevel=sl)
+        # sl = StorageLevel(True, True, False, False, 1)
+        self.data_normalized_clusted = cluster_rdd
 
 
     def save(self, folder_name: str):
@@ -108,15 +98,15 @@ class genex_database:
         if os.path.exists(path):
             shutil.rmtree(path)
 
-        self.data_normalized_clustered.saveAsTextFile(path + '/clustered_data')
+        self.data_normalized_clusted.saveAsTextFile(path + '/clusted_data')  # TODO this won't load back
         self.data.to_csv(path + '/data.csv')
         self.data_normalized.to_csv(path + '/data_normalized.csv')
 
         with open(path + '/conf.json', 'w') as f:
             json.dump(self.conf, f, indent=4)
 
-        # with open(path + '/functions.txt', 'w') as t:
-        #     pickle.dump(self.scale_func, t)
+        with open(path + '/scaler.p', 'wb') as scaler_pickle:
+            pickle.dump(self.scaler, scaler_pickle)
 
     def from_db(self):
         pass
