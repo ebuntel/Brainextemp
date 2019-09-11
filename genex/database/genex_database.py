@@ -25,7 +25,6 @@ def from_csv(file_name, feature_num: int):
     df = pd.read_csv(file_name).fillna(0)
 
     # prepare to minmax normalize the data columns
-
     def scale(ts_df):
         time_series = ts_df.iloc[:, feature_num:].values
         scaler = MinMaxScaler(feature_range=(0, 1))
@@ -100,7 +99,7 @@ class genex_database:
         cluster_rdd.first()
 
         sl = StorageLevel(True, True, False, False, 1)
-        self.data_normalized_clusted = cluster_rdd.persist(storageLevel=sl)
+        self.data_normalized_clustered = cluster_rdd.persist(storageLevel=sl)
 
 
     def save(self, folder_name: str):
@@ -109,7 +108,7 @@ class genex_database:
         if os.path.exists(path):
             shutil.rmtree(path)
 
-        self.data_normalized_clusted.saveAsTextFile(path + '/clusted_data')
+        self.data_normalized_clustered.saveAsTextFile(path + '/clustered_data')
         self.data.to_csv(path + '/data.csv')
         self.data_normalized.to_csv(path + '/data_normalized.csv')
 
