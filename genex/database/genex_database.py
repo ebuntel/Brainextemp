@@ -1,11 +1,17 @@
 import heapq
-from pyspark import SparkContext
+import json
+import os
+import pickle
+from pyspark import SparkContext, StorageLevel
+from pyspark.sql import SQLContext
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
-
+import shutil
 from genex.classes.Sequence import Sequence
-from genex.cluster import sim_between_seq
+from genex.cluster import sim_between_seq, filter_cluster
+from genex.preprocess import all_sublists_with_id_length
+
 
 
 def from_csv(file_name, feature_num: int):
@@ -64,8 +70,57 @@ class genex_database:
 
     def build(self, sc: SparkContext, similarity_threshold: float, dist_type: str = 'eu', verbose: int = 1):
         _validate_inputs(locals())
+        self.conf = {'similarity_threshold':similarity_threshold, 'dist_type':dist_type, 'verbose':verbose}
+
+        # Transforming pandas dataframe into spark dataframe
+        sqlCtx = SQLContext(sc)
+
+        # Only for test build functionality, just take the first 20 rows in the original dataframe
+        data_rdd = sqlCtx.createDataFrame(self.data_normalized).rdd
+
+        # Transforming the input_rdd RDD[Row] into a collection of lists which contains a tuple and list
+        def _row_to_list(row):
+            key = tuple([x for x in row[:4]])
+            value = [y for y in row[5:]]
+            return [key, value]
+
+        input_rdd = data_rdd.map(
+            lambda x: _row_to_list(x)
+        )
+
+        # Grouping the data
+        group_rdd = input_rdd.flatMap(
+            lambda x: all_sublists_with_id_length(x, [120])
+        )
+
+        # Cluster the data with Gcluster
+        cluster_rdd = group_rdd.mapPartitions(lambda x: filter_cluster(groups=x, st=similarity_threshold, log_level=1),
+                                              preservesPartitioning=False)
+
+        cluster_rdd.first()
+
+        sl = StorageLevel(True, True, False, False, 1)
+        self.data_normalized_clusted = cluster_rdd.persist(storageLevel=sl)
 
 
+    def save(self, folder_name: str):
+        path = 'gxdb/' + folder_name
+
+        if os.path.exists(path):
+            shutil.rmtree(path)
+
+        self.data_normalized_clusted.saveAsTextFile(path + '/clusted_data')
+        self.data.to_csv(path + '/data.csv')
+        self.data_normalized.to_csv(path + '/data_normalized.csv')
+
+        with open(path + '/conf.json', 'w') as f:
+            json.dump(self.conf, f, indent=4)
+
+        # with open(path + '/functions.txt', 'w') as t:
+        #     pickle.dump(self.scale_func, t)
+
+    def from_db(self):
+        pass
 
     def __len__(self):
         try:

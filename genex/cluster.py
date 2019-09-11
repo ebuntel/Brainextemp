@@ -1,4 +1,4 @@
-import _ucrdtw
+# import _ucrdtw
 import csv
 import random
 # distance libraries
