@@ -95,12 +95,13 @@ class genex_database:
 
         # Cluster the data with Gcluster
         cluster_rdd = group_rdd.mapPartitions(lambda x: filter_cluster(groups=x, st=similarity_threshold, log_level=1),
-                                              preservesPartitioning=False)
+                                              preservesPartitioning=False).cache()
 
+        # collect the result, use first save memory
         cluster_rdd.first()
 
-        sl = StorageLevel(True, True, False, False, 1)
-        self.data_normalized_clusted = cluster_rdd.persist(storageLevel=sl)
+        # sl = StorageLevel(True, True, False, False, 1)
+        self.data_normalized_clusted = cluster_rdd
 
 
     def save(self, folder_name: str):

@@ -16,10 +16,10 @@ mydb = gxdb.from_csv(fn, feature_num=5)
 from pyspark import SparkContext, SparkConf
 num_cores = 8
 
-conf = SparkConf(). \
-    setMaster("local[" + str(num_cores) + "]"). \
-    setAppName("Genex").set('spark.driver.memory', '15G'). \
-    set('spark.driver.maxResultSize', '15G')
+# conf = SparkConf(). \
+#     setMaster("local[" + str(num_cores) + "]"). \
+#     setAppName("Genex").set('spark.driver.memory', '15G'). \
+#     set('spark.driver.maxResultSize', '15G')
 
 # Setting up the number of the workers automatically based on the amount of the cores in the server
 # by setting up the local[*] property
