@@ -58,6 +58,7 @@ class genex_database:
 
     def build(self, sc: SparkContext, similarity_threshold: float, dist_type: str = 'eu', verbose: int = 1):
         _validate_inputs(locals())
+
         self.conf = {'similarity_threshold':similarity_threshold, 'dist_type':dist_type, 'verbose':verbose}
 
         # Transforming pandas dataframe into spark dataframe
@@ -86,21 +87,23 @@ class genex_database:
                                               preservesPartitioning=False).cache()
 
         # collect the result, use first save memory
+        # TODO check spark action for better strategy
         cluster_rdd.collect()
 
         # sl = StorageLevel(True, True, False, False, 1)
-        self.data_normalized_clusted = cluster_rdd
+        self.data_normalized_clustered = cluster_rdd
 
 
     def save(self, folder_name: str):
+        # TODO exception handler for an existed folder name
         path = 'gxdb/' + folder_name
 
         if os.path.exists(path):
             shutil.rmtree(path)
 
-        self.data_normalized_clusted.saveAsTextFile(path + '/clusted_data')  # TODO this won't load back
-        self.data.to_csv(path + '/data.csv')
-        self.data_normalized.to_csv(path + '/data_normalized.csv')
+        self.data_normalized_clustered.saveAsPickleFile(path + '/clustered_data')
+        self.data.to_csv(path + '/data.csv', index=False)
+        self.data_normalized.to_csv(path + '/data_normalized.csv', index=False)
 
         with open(path + '/conf.json', 'w') as f:
             json.dump(self.conf, f, indent=4)
@@ -108,8 +111,24 @@ class genex_database:
         with open(path + '/scaler.p', 'wb') as scaler_pickle:
             pickle.dump(self.scaler, scaler_pickle)
 
-    def from_db(self):
-        pass
+    @classmethod
+    def from_db(cls, sc: SparkContext, fold_name: str):
+        path = 'gxdb/' + fold_name + '/'
+
+        # TODO the input fold_name is not existed
+        data = pd.read_csv(path + 'data.csv')
+        data_normalized = pd.read_csv(path + 'data_normalized.csv')
+        scaler = pickle.load(open(path + 'scaler.p', 'rb'))
+
+        init = {'data':data, 'data_normalized':data_normalized,'scaler':scaler}
+        db = cls(**init)
+
+        db.data_normalized_clustered = sc.pickleFile(path + 'clustered_data/*')
+
+        with open(path + 'conf.json', 'r') as conf:
+            db.conf = json.load(conf)
+
+        return db
 
     def __len__(self):
         try:

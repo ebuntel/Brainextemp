@@ -35,4 +35,5 @@ mydb.data_normalized = mydb.data_normalized[:10]
 mydb.build(sc=sc, similarity_threshold=0.1)
 mydb.save(folder_name='test_db')
 
+from_d = gxdb.genex_database.from_db(sc, 'test_db')
 print()
