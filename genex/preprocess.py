@@ -229,9 +229,13 @@ def min_max_normalize(input_list):
     global_max = flattened_list.max()
     global_min = flattened_list.min()
 
-    normalize_list = map(lambda id_sequence:
+    normalized_list = map(lambda id_sequence:
                          [id_sequence[0],
                           list(map(lambda num: normalize_num(num, global_max, global_min), id_sequence[1]))]
                          , input_list)
 
-    return list(normalize_list), global_max, global_min
+    return list(normalized_list), global_max, global_min
+
+def z_normalize(input_list):
+    normalized_list = [(x[0], (x[1]-np.mean(x[1]))/np.std(x[1])) for x in input_list]
+    return normalized_list

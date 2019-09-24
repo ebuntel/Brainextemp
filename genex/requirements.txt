@@ -5,3 +5,5 @@ pyspark-stubs
 pyspark
 pandas
 ucrdtw
+tslearn
+cython
