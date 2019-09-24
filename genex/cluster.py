@@ -55,6 +55,10 @@ def lb_keogh_sequence(seq_matching, seq_enveloped):
     :param seq_enveloped:
     :return: lb keogh lower bound distance between query and sequence
     """
+    try:
+        assert len(seq_matching) == len(seq_enveloped)
+    except AssertionError as ae:
+        raise Exception('cluster.lb_keogh_sequence: two sequences must be of equal length to calculate lb_keogh')
     envelope_down, envelope_up = metrics.lb_envelope(seq_enveloped, radius=1)
     lb_k_sim = metrics.lb_keogh(seq_matching,
                                 envelope_candidate=(envelope_down, envelope_up))
