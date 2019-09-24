@@ -9,13 +9,13 @@ from genex.utils import normalize_sequence
 
 import heapq
 import time
-from genex.cluster import sim_between_seq
+from genex.cluster import sim_between_seq,lb_keogh_sequence
 import matplotlib.pyplot as plt
 
 fn = 'SART2018_HbO_40.csv'
 
 input_list = generate_source(fn, feature_num=5)
-input_list = input_list[:24]
+#input_list = input_list[:24]
 normalized_input_list, global_max, global_min = min_max_normalize(input_list)
 
 from pyspark import SparkContext, SparkConf
@@ -35,7 +35,7 @@ from genex.preprocess import all_sublists_with_id_length
 
 gstart_time = time.time()
 group_rdd = input_rdd.flatMap(
-    lambda x: all_sublists_with_id_length(x, [260]))
+    lambda x: all_sublists_with_id_length(x, [274]))
 partition_group = group_rdd.glom().collect()
 gend_time = time.time()
 gtime = gend_time - gstart_time
@@ -60,7 +60,7 @@ file.write('Cluster time is :' + ctime)
 file.close()
 
 
-def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dist_type: str = 'eu_ucr', loi=None,
+def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dist_type: str = 'eu', loi=None,
                             exclude_same_id: bool=False, overlap: float=None):
     q = q.value
     normalized_input = normalized_input.value
@@ -102,15 +102,28 @@ def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dis
             if exclude_same_id:
                 querying_cluster = (x for x in querying_cluster if x.id != q.id)
 
+          # Sorting sequence using lb keogh
+            querying_cluster = list(
+                 map(lambda cluster_seq: [
+                     lb_keogh_sequence(cluster_seq.fetch_data(normalized_input), q.data),
+                     cluster_seq],
+                     querying_cluster))
+            querying_cluster.sort(key=lambda x: x[0])
+            querying_cluster = querying_cluster[:k*2]
+
+
+
+
+
             querying_cluster = list(
                 map(lambda cluster_seq: [
                     sim_between_seq(cluster_seq.fetch_data(normalized_input), q.data, dist_type=dist_type),
                     cluster_seq],
-                    querying_cluster))
+                    querying_cluster))        # [distance,sequence]
             heapq.heapify(querying_cluster)
 
             for cur_match in querying_cluster:
-                if cur_match[0] < st:
+                if cur_match[0] < st:      # if dist<st
 
                     #if not any(_isOverlap(cur_match[1], prev_match[1], overlap) for prev_match in
                               # query_result):  # check for overlap against all the matches so far
@@ -141,7 +154,7 @@ print(query_set)
 
 for query in query_set:
     lst = []
-    print(query)
+    print("Length---------------------------------------------:"+str(len(query)))
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # query = next((item for item in query_set if item.id in dict(input_list).keys()), None)
     # print(query)
@@ -164,7 +177,7 @@ for query in query_set:
     query_rdd = cluster_rdd.mapPartitions(
         lambda x:
         query_cluster_partition(cluster=x, q=query_bc, st=query_st, k=best_k,
-                                normalized_input=normalized_input_list_bc, dist_type='eu_ucr',
+                                normalized_input=normalized_input_list_bc, dist_type='eu',
                                 exclude_same_id=True, overlap=None)).cache()
     query_partition = query_rdd.glom().collect()
     qend_time = time.time()
@@ -186,7 +199,7 @@ for query in query_set:
         lst.append(seq[0])
         plt.plot(seq[1].fetch_data(input_list), label=str(l) + str(seq[0]))
     lst.append(qtime)
-    with open('results_Genex_HbO_ucr.csv', 'a') as csvfile:
+    with open('results_Genex_HbO_ucr1.csv;', 'a') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(lst)
     csvfile.close()
