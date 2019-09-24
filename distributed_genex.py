@@ -19,7 +19,8 @@ input_list = generate_source(fn, feature_num=5)
 normalized_input_list, global_max, global_min = min_max_normalize(input_list)
 
 from pyspark import SparkContext, SparkConf
-
+from pyspark.sql import SparkSession, SQLContext
+from pyspark.sql.types import *
 num_cores = 8
 
 conf = SparkConf(). \
@@ -27,7 +28,7 @@ conf = SparkConf(). \
     setAppName("Genex").set('spark.driver.memory', '15G'). \
     set('spark.driver.maxResultSize', '15G')
 sc = SparkContext(conf=conf)
-
+spark = SQLContext.getOrCreate(sc)
 input_rdd = sc.parallelize(normalized_input_list, numSlices=num_cores)
 partition_input = input_rdd.glom().collect()
 
@@ -51,6 +52,61 @@ start_time = time.time()
 cluster_rdd = group_rdd.mapPartitions(lambda x: filter_cluster(groups=x, st=0.05, log_level=1),
                                       preservesPartitioning=False).cache()
 cluster_partition = cluster_rdd.glom().collect()
+# ------------------------data schema
+idStruct = StructType([
+        (StructField("Subject Name", StringType())),
+        (StructField("Event Name", StringType())),
+        (StructField("Channel Name", StringType())),
+        (StructField("Start time", StringType())),
+        (StructField("End Time", StringType()))
+    ])
+
+schema = StructType([
+ StructField("id", idStruct, True),
+ StructField("start", IntegerType(), True),
+ StructField("end", IntegerType(), True)])
+
+
+schema_nested = StructType(
+    [
+        StructField("repres", schema),
+        StructField("mem", ArrayType(schema))
+    ]
+)
+
+def formSchema(genex_sequence):
+    id = [{'Subject Name': genex_sequence.id[0]},
+      {'Event Name': genex_sequence.id[1]},
+      {'Channel Name': genex_sequence.id[2]},
+      {'Start time': genex_sequence.id[3]},
+      {'End Time': genex_sequence.id[4]}]
+    d = {'id': id, 'start':  genex_sequence.start, 'end':  genex_sequence.end}
+    return d
+
+# ---test single representative and its cluster goes here here
+# testEle = next(iter(cluster_partition[0][0][1].items()))
+# data_list = list(map(lambda x: formSchema(x), testEle[1]))
+# single_data = formSchema(testEle[0])
+#
+# data_frame = spark.createDataFrame([(single_data,data_list)], schema_nested)
+
+# --------------formal procedure
+repre = None
+mem_ls = []
+data_frame = spark.createDataFrame(sc.emptyRDD(), schema_nested)
+
+for cluster in cluster_partition:
+    for clu in cluster:
+        for repre, mem_list in clu[1].items():
+            representative = formSchema(repre)
+            for mem in mem_list:
+                mem_ls.append(formSchema(mem))
+            newRow = spark.createDataFrame([(repre, mem_ls)], schema_nested)
+            data_frame = data_frame.union(newRow)
+            mem_ls = []
+
+
+
 end_time = time.time()
 ctime = end_time - start_time
 ctime = time.strftime("%H:%M:%S", time.gmtime(ctime))
