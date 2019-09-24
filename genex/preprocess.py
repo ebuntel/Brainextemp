@@ -216,7 +216,7 @@ def normalize_num(num, global_max, global_min):
     return (num - global_min) / (global_max - global_min)
 
 
-def min_max_normalize(input_list):
+def min_max_normalize(input_list, z_normalize=False):
     # scaler = MinMaxScaler(feature_range=(0, 1))
     #
     #
@@ -233,6 +233,9 @@ def min_max_normalize(input_list):
                          [id_sequence[0],
                           list(map(lambda num: normalize_num(num, global_max, global_min), id_sequence[1]))]
                          , input_list)
+    
+    if z_normalize:
+        normalized_list = z_normalize(input_list)
 
     return list(normalized_list), global_max, global_min
 
