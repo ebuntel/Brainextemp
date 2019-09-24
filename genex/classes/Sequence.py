@@ -3,7 +3,7 @@ wrap_in_parantheses = lambda x: "(" + str(x) + ")"
 
 class Sequence:
 
-    def __init__(self, id: str, start: int, end: int, data: list = None):
+    def __init__(self, id: tuple, start: int, end: int, data: list = None):
         self.id = id
         self.start = start
         self.end = end
@@ -23,6 +23,23 @@ class Sequence:
     def __eq__(self, other):
         return (self.id, self.start, self.end) == (other.id, other.start, other.end)
 
+    def __le__(self, other):
+        return True
+
+    def __ge__(self, other):
+        return True
+
+    def __lt__(self, other):
+        return True
+
+    # return comparison
+    def __ne__(self, other):
+        return True
+
+    # return comparison
+    def __gt__(self, other):
+        return True
+
     def del_data(self):
         self.data = None
 
@@ -40,7 +57,7 @@ class Sequence:
             raise Exception('sequence: fetch_data: input_list is not key-value pair.')
 
         try:
-            return input_dict[self.id][self.start: self.end]
+            return input_dict[self.id][self.start:self.end+1]
         except KeyError and IndexError as e:
             print(self)
             if type(e) is KeyError:

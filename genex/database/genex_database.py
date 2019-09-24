@@ -1,38 +1,134 @@
 import heapq
-from pyspark import SparkContext
+import json
+import os
+import pickle
+from pyspark import SparkContext, StorageLevel
+from pyspark.sql import SQLContext
+import pandas as pd
+import numpy as np
+import shutil
+from genex.classes.Sequence import Sequence
+from genex.cluster import sim_between_seq, filter_cluster
+from genex.preprocess import all_sublists_with_id_length
+from genex.utils import scale
 
-from .Sequence import Sequence
-from ..cluster import sim_between_seq
 
 
-class Gcluster:
+def from_csv(file_name, feature_num: int):
     """
-    Genex Clusters Object
+    build a genex_database object from given csv,
+    Note: if time series are of different length, shorter sequences will be post padded to the length
+    of the longest sequence in the dataset
+    :param file_name:
+    :return:
+    """
+    df = pd.read_csv(file_name).fillna(0)
 
-    clusters: dictionary object that holds the cluster information
-        key(integer): length of the sequence in the cluster
-        value: dict: the clustered sequence of keyed length
-            key: Sequence object that is the representative
-            value: list of Sequence that are represented by the key
+    # prepare to minmax normalize the data columns
+
+    df_normalized, scaler = scale(df, feature_num)
+
+    # return genex_database
+    rtn = genex_database(data=df, data_normalized=df_normalized, scaler=scaler)
+
+    return rtn
+
+
+def _validate_inputs(args):
+    print(args)
+
+    return
+
+
+class genex_database:
+    """
+    Genex Database
+
+    Init parameters
+    data
+    data_normalized
+    scale_funct
     """
 
-    def __init__(self, feature_list, data, norm_data, st: float, cluster_dict=None, collected: bool = None,
-                 global_max: float = None,
-                 global_min: float = None):
-        self.feature_list = feature_list
-        self.data = data
-        self.norm_data = norm_data
-        self.st = st
+    def __init__(self, **kwargs):
+        self.data = kwargs['data']
+        self.data_normalized = kwargs['data_normalized']
+        self.scaler = kwargs['scaler']
 
-        self.clusters = cluster_dict
 
-        self.filtered_clusters = cluster_dict
-        self.filters = None
+    def build(self, sc: SparkContext, similarity_threshold: float, dist_type: str = 'eu', verbose: int = 1):
+        _validate_inputs(locals())
 
-        self.collected = collected
+        self.conf = {'similarity_threshold':similarity_threshold, 'dist_type':dist_type, 'verbose':verbose}
 
-        self.global_max = global_max
-        self.global_min = global_min
+        # Transforming pandas dataframe into spark dataframe
+        sqlCtx = SQLContext(sc)
+
+        # Only for test build functionality, just take the first 20 rows in the original dataframe
+        data_rdd = sqlCtx.createDataFrame(self.data_normalized).rdd
+
+        # Transforming the input_rdd RDD[Row] into a collection of lists which contains a tuple and list
+        def _row_to_list(row):
+            key = tuple([x for x in row[:4]])
+            value = [y for y in row[5:]]
+            return [key, value]
+
+        input_rdd = data_rdd.map(
+            lambda x: _row_to_list(x)
+        )
+
+        # Grouping the data
+        group_rdd = input_rdd.flatMap(
+            lambda x: all_sublists_with_id_length(x, [120])
+        )
+
+        # Cluster the data with Gcluster
+        cluster_rdd = group_rdd.mapPartitions(lambda x: filter_cluster(groups=x, st=similarity_threshold, log_level=1),
+                                              preservesPartitioning=False).cache()
+
+        # collect the result, use first save memory
+        # TODO check spark action for better strategy
+        cluster_rdd.collect()
+
+        # sl = StorageLevel(True, True, False, False, 1)
+        self.data_normalized_clustered = cluster_rdd
+
+
+    def save(self, folder_name: str):
+        # TODO exception handler for an existed folder name
+        path = 'gxdb/' + folder_name
+
+        if os.path.exists(path):
+            shutil.rmtree(path)
+
+        self.data_normalized_clustered.saveAsPickleFile(path + '/clustered_data')
+        self.data.to_csv(path + '/data.csv', index=False)
+        self.data_normalized.to_csv(path + '/data_normalized.csv', index=False)
+
+        with open(path + '/conf.json', 'w') as f:
+            json.dump(self.conf, f, indent=4)
+
+        with open(path + '/scaler.p', 'wb') as scaler_pickle:
+            pickle.dump(self.scaler, scaler_pickle)
+
+    @classmethod
+    def from_db(cls, sc: SparkContext, fold_name: str):
+        path = 'gxdb/' + fold_name + '/'
+
+        # TODO the input fold_name is not existed
+        data = pd.read_csv(path + 'data.csv')
+        data_normalized = pd.read_csv(path + 'data_normalized.csv')
+        scaler = pickle.load(open(path + 'scaler.p', 'rb'))
+
+        init = {'data':data, 'data_normalized':data_normalized,'scaler':scaler}
+        db = cls(**init)
+
+        db.data_normalized_clustered = sc.pickleFile(path + 'clustered_data/*')
+
+        with open(path + 'conf.json', 'r') as conf:
+            db.conf = json.load(conf)
+
+        return db
 
     def __len__(self):
         try:
@@ -320,7 +416,8 @@ class Gcluster:
         # calculate the distances, create a key-value pair: key = dist from query to the sequence, value = the sequence
         # ready to be heapified!
         rheap_rdd = rheap_rdd.map(lambda x: (
-            sim_between_seq(query_sequence.fetch_data(bc_norm_data.value), x.fetch_data(bc_norm_data.value), dist_type=dist_type), x))
+            sim_between_seq(query_sequence.fetch_data(bc_norm_data.value), x.fetch_data(bc_norm_data.value),
+                            dist_type=dist_type), x))
         r_heap = rheap_rdd.collect()
         heapq.heapify(r_heap)
 
@@ -336,7 +433,8 @@ class Gcluster:
                     print('Warning: R space exhausted, best k not reached, returning all the matches so far')
                     return query_result
 
-                querying_cluster = querying_cluster + self.get_cluster(top_rep[1])  # top_rep: (dist to query, rep sequence)
+                querying_cluster = querying_cluster + self.get_cluster(
+                    top_rep[1])  # top_rep: (dist to query, rep sequence)
 
             query_cluster_rdd = sc.parallelize(querying_cluster, numSlices=data_slices)
 
@@ -345,14 +443,16 @@ class Gcluster:
 
             # TODO do not fetch data everytime for the query sequence
             query_cluster_rdd = query_cluster_rdd.map(lambda x: (
-                sim_between_seq(query_sequence.fetch_data(bc_norm_data.value), x.fetch_data(bc_norm_data.value), dist_type=dist_type), x))
+                sim_between_seq(query_sequence.fetch_data(bc_norm_data.value), x.fetch_data(bc_norm_data.value),
+                                dist_type=dist_type), x))
             qheap = query_cluster_rdd.collect()
             heapq.heapify(qheap)
 
             while len(query_result) < k and len(qheap) != 0:
                 current_match = heapq.heappop(qheap)
 
-                if not any(_isOverlap(current_match[1], prev_match[1], overlap) for prev_match in query_result):  # check for overlap against all the matches so far
+                if not any(_isOverlap(current_match[1], prev_match[1], overlap) for prev_match in
+                           query_result):  # check for overlap against all the matches so far
                     query_result.append(current_match)
 
         return query_result
@@ -362,7 +462,7 @@ def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
     if seq1.id != seq2.id:  # overlap does NOT matter if two seq have different id
         return True
     else:
-        of =  _calculate_overlap(seq1, seq2)
+        of = _calculate_overlap(seq1, seq2)
         return _calculate_overlap(seq1, seq2) >= overlap
 
 

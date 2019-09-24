@@ -1,5 +1,8 @@
+cython
 numpy
 fastdtw
 scipy
 pyspark-stubs
-psutil
+pyspark
+pandas
+tslearn

@@ -1,5 +1,9 @@
+# import _ucrdtw
+import csv
 import random
 # distance libraries
+import time
+
 from fastdtw import fastdtw
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
@@ -8,6 +12,7 @@ from scipy.spatial.distance import chebyshev
 
 import math
 import numpy as np
+from tslearn import metrics
 
 from .data_process import get_data
 
@@ -21,7 +26,17 @@ def sim_between_seq(seq1, seq2, dist_type: str = 'eu'):
     :return float: return the similarity between sequence 1 and sequence 2
     """
     if dist_type == 'eu':  #TODO trillion optimizaiton here
-        return fastdtw(seq1, seq2, dist=euclidean)[0]  # fastdtw returns a tuple with the first item being the distance
+        dist = fastdtw(seq1, seq2, dist=euclidean)[0]
+        # print("distance using fastdtw is " + dist)
+        return dist  # fastdtw returns a tuple with the first item being the distance
+
+    if dist_type == 'eu_ucr':
+
+        loc, dist = _ucrdtw.ucrdtw(seq1, seq2, 0.5, False)
+        print("distance using ucrdtw is------------------------------- " + str(dist))
+        print("location" + str(loc))
+
+        return dist
     if dist_type == 'ma':
         return fastdtw(seq1, seq2, dist=cityblock)[0]
     if dist_type == 'mi':
@@ -32,6 +47,22 @@ def sim_between_seq(seq1, seq2, dist_type: str = 'eu'):
     else:
         raise Exception("sim_between_seq: cluster: invalid distance type: " + dist_type)
     # and the second is the shortest path
+
+def lb_keogh_sequence(seq_matching, seq_enveloped):
+    """
+    calculate lb keogh lower bound between query and sequence with envelope around query
+    :param seq_matching:
+    :param seq_enveloped:
+    :return: lb keogh lower bound distance between query and sequence
+    """
+    try:
+        assert len(seq_matching) == len(seq_enveloped)
+    except AssertionError as ae:
+        raise Exception('cluster.lb_keogh_sequence: two sequences must be of equal length to calculate lb_keogh')
+    envelope_down, envelope_up = metrics.lb_envelope(seq_enveloped, radius=1)
+    lb_k_sim = metrics.lb_keogh(seq_matching,
+                                envelope_candidate=(envelope_down, envelope_up))
+    return lb_k_sim
 
 
 def randomize(arr):
@@ -247,7 +278,7 @@ def filter_cluster(groups: list, st: float, log_level: int = 1, dist_type: str =
     groups = sorted(groups, key=lambda x: x[0])  # need to sort for the groupby to work properly
     for seq_len, grp in groupby(groups, lambda x: x[0]):
         grp = list(map(lambda x: x[1], grp))  # only keeps the sequence from (seq_len, sequence)
-        result.append(cluster_with_filter(grp, st, seq_len))
+        result.append(cluster_with_filter(grp, st, seq_len, dist_type=dist_type))
     # for i in range(loi[0], loi[1] + 1):
     #     print(i)
     #     grp = list(filter(lambda x: x[0] == i, groups))  # get the cluster of a specific length
@@ -342,9 +373,18 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
 
                 if ss not in cluster.keys():
                     cluster[ss] = [ss]
-
+    lst = []
     print()
-    print('Cluster length: ' + str(length) + '   Done!')
+    print('Cluster length: ' + str(length) + '   Done!----------------------------------------------')
+    cluster_log = 'Cluster length: ' + str(length) + '   Done!'
+   # lst.append(cluster_log)
+    #ctime = time.strftime("%H:%M:%S", time.time())
+    #lst.append(ctime)
+    #with open('results_log.csv', 'a') as csvfile:
+    #    writer = csv.writer(csvfile)
+    #    writer.writerow(lst)
+    #csvfile.close()
+    lst = []
 
     if del_data:
         for value in cluster.values():
