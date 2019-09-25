@@ -225,6 +225,9 @@ def min_max_normalize(input_list, z_normalize=False):
     #
     # input_array_scaled = scaler.fit_transform(input_array)
 
+    if z_normalize:
+        input_list = z_normalize(input_list)
+
     flattened_list = np.array(flatten(list(map(lambda x: x[1], input_list))))
     global_max = flattened_list.max()
     global_min = flattened_list.min()
@@ -234,9 +237,6 @@ def min_max_normalize(input_list, z_normalize=False):
                           list(map(lambda num: normalize_num(num, global_max, global_min), id_sequence[1]))]
                          , input_list)
     
-    if z_normalize:
-        normalized_list = z_normalize(input_list)
-
     return list(normalized_list), global_max, global_min
 
 def z_normalize(input_list):
