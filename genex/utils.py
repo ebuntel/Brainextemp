@@ -1,14 +1,17 @@
+from pandas.tests.extension.numpy_.test_numpy_nested import np
 from sklearn.preprocessing import MinMaxScaler
 
 from genex.classes.Sequence import Sequence
 from genex.preprocess import normalize_num
 
 
-def normalize_sequence(seq: Sequence, max, min):
+def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
     if seq.data is None:
         raise Exception('Given sequence does not have data set, use fetch_data to set its data first')
-
     data = seq.data
+    if z_normalize:
+        data = [(x[0], (x[1]-np.mean(x[1]))/np.std(x[1])) for x in data]
+
     normalized_data = list(map(lambda num: normalize_num(num, max, min), data))
 
     seq.set_data(normalized_data)
@@ -26,3 +29,4 @@ def scale(ts_df, feature_num):
     df_normalized.iloc[:, feature_num:] = time_series
 
     return df_normalized, scaler
+
