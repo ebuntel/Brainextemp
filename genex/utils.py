@@ -10,7 +10,7 @@ def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
         raise Exception('Given sequence does not have data set, use fetch_data to set its data first')
     data = seq.data
     if z_normalize:
-        data = [(x[0], (x[1]-np.mean(x[1]))/np.std(x[1])) for x in data]
+        data = [(x-np.mean(data)/np.std(data)) for x in data]
 
     normalized_data = list(map(lambda num: normalize_num(num, max, min), data))
 
