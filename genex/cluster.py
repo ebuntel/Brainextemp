@@ -64,6 +64,11 @@ def lb_keogh_sequence(seq_matching, seq_enveloped):
                                 envelope_candidate=(envelope_down, envelope_up))
     return lb_k_sim
 
+def lb_kim_sequence(candidate_seq, query_sequence):
+    lb_kim_sim = math.sqrt((candidate_seq[0] - query_sequence[0])**2 + (candidate_seq[-1] - query_sequence[-1])**2)
+
+    return lb_kim_sim
+
 
 def randomize(arr):
     """
