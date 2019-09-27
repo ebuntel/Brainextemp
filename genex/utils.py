@@ -1,13 +1,13 @@
 import heapq
 import math
 
-from pandas.tests.extension.numpy_.test_numpy_nested import np
 from sklearn.preprocessing import MinMaxScaler
 
 from genex.Gcluster_utils import _isOverlap
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, lb_kim_sequence, lb_keogh_sequence
 from genex.preprocess import normalize_num
+import numpy as np
 
 
 def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
