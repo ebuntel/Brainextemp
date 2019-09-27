@@ -1,4 +1,4 @@
-from pandas.tests.extension.numpy_.test_numpy_nested import np
+# from pandas.tests.extension.numpy_.test_numpy_nested import np
 from sklearn.preprocessing import MinMaxScaler
 
 from genex.classes.Sequence import Sequence
