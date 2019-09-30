@@ -14,7 +14,7 @@ Creates a new gxdb instance, which sets up 4 fields at first--data, data_normali
 Note that we will not create a gxdb instance directly through the initializer.
 #### Methods
 
-build
+**build**
 ```
 build(
     similarity_threshold: float,
@@ -31,7 +31,8 @@ Args：
 - loi: Length of interest, it is a slice object.
 - verbose:
 
-save
+
+**save**
 ```
 save(
     folder_name: str
@@ -42,7 +43,8 @@ Stores a gxdb instance locally which can be fetched and restored in the future.
 Args:
 - folder_name: Give a name to the folder, which stores all the essential fields of the gxdb instance
 
-from_db
+
+**from_db**
 ```
 from_db（
     sc: SparkContext,
@@ -55,7 +57,8 @@ Args:
 - sc: A instacne of the SparkContext.
 - folder_name: The folder name which contains the local gxdb instance.
     
-from_csv
+    
+**from_csv**
 ```
 from_csv(
     file_name: str,
@@ -71,7 +74,8 @@ Args:
 - feature_num：An ID used to distinguish each time series
 - SparkContext: A instance of SparkContext
 
-query
+
+**query**
 ```
 query(
     query: Sequence,
