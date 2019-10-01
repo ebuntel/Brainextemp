@@ -66,6 +66,7 @@ def all_sublists_with_id(input_list):
 
 
 def all_sublists_with_id_length(input_list: list, loi: list):
+    # TODO refactor the loi  parameter, using slice notation
     tmp = []
     if len(loi) == 1:
         loi.append(math.inf)
@@ -80,7 +81,6 @@ def all_sublists_with_id_length(input_list: list, loi: list):
 
 
 def group_inputs(input_lists: list, loi: list):
-
     result = []
 
     for input_list in input_lists:
@@ -95,7 +95,7 @@ def group_inputs(input_lists: list, loi: list):
 
         for i in range(loi[0], loi[1] + 1):
             tmp.append(list(filter_sublists_with_id_length(input_list, i)))
-        result.append([y for x in tmp for y in x]) # flatten the list
+        result.append([y for x in tmp for y in x])  # flatten the list
 
     return result
 
@@ -116,12 +116,14 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext, num_cores: int,
     if loi[0] >= loi[1]:
         raise Exception('do_gcluster: Start must be greater than end in the '
                         'Length of Interest')
-    
+
     # normalize the input list, keep global_max and global min to return later
     normalized_input_list, global_max, global_min = min_max_normalize(input_list)
-    input_rdd = sc.parallelize(normalized_input_list, numSlices= num_cores)
+    input_rdd = sc.parallelize(normalized_input_list, numSlices=num_cores)
     group_rdd = input_rdd.flatMap(lambda x: all_sublists_with_id_length(x, loi))
-    cluster_rdd = group_rdd.mapPartitions(lambda x: filter_cluster(groups=x, st=similarity_threshold, log_level=log_level, dist_type=dist_type), preservesPartitioning=False).cache()
+    cluster_rdd = group_rdd.mapPartitions(
+        lambda x: filter_cluster(groups=x, st=similarity_threshold, log_level=log_level, dist_type=dist_type),
+        preservesPartitioning=False).cache()
 
     # if is_collect:
     #     return Gcluster(feature_list=feature_list,
@@ -135,7 +137,7 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext, num_cores: int,
     #                     cluster_dict=input_rdd, collected=False,
     #                     global_max=global_max, global_min=global_min)
 
-    
+
 # def do_gcluster_legacy(input_list: list, loi: list, sc: SparkContext,
 #                 similarity_threshold: float = 0.1, dist_type: str = 'eu', normalize: bool = True,
 #                 del_data: bool = False, data_slices: int = 16, is_collect: bool = True, log_level: int = 1):
@@ -233,12 +235,13 @@ def min_max_normalize(input_list, z_normalization=False):
     global_min = flattened_list.min()
 
     normalized_list = map(lambda id_sequence:
-                         [id_sequence[0],
-                          list(map(lambda num: normalize_num(num, global_max, global_min), id_sequence[1]))]
-                         , input_list)
-    
+                          [id_sequence[0],
+                           list(map(lambda num: normalize_num(num, global_max, global_min), id_sequence[1]))]
+                          , input_list)
+
     return list(normalized_list), global_max, global_min
 
+
 def z_normalize(input_list):
-    normalized_list = [(x[0], (x[1]-np.mean(x[1]))/np.std(x[1])) for x in input_list]
+    normalized_list = [(x[0], (x[1] - np.mean(x[1])) / np.std(x[1])) for x in input_list]
     return normalized_list

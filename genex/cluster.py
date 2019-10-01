@@ -325,8 +325,6 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
     # randomize the sequence in the group to remove clusters-related bias
     subsequences = randomize(subsequences)
 
-    delimiter = '_'
-
     count = 0
 
     for ss in subsequences:
@@ -346,16 +344,23 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
                 rprst_raw_data = rprst.get_data()
 
                 # check the distance type
-                if dist_type == 'eu':
-                    dist = euclidean(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                elif dist_type == 'ma':
-                    dist = cityblock(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                elif dist_type == 'mi':
-                    dist = minkowski(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                elif dist_type == 'ch':
-                    dist = chebyshev(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                else:
-                    raise Exception("cluster_operations: cluster: invalid distance type: " + dist_type)
+                try:
+                    if dist_type == 'eu':
+                        dist = euclidean(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                    elif dist_type == 'ma':
+                        dist = cityblock(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                    elif dist_type == 'mi':
+                        dist = minkowski(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                    elif dist_type == 'ch':
+                        dist = chebyshev(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                    else:
+                        raise Exception("cluster_operations: cluster: invalid distance type: " + dist_type)
+                except TypeError as te:
+                    print('first: ' + str(ss_raw_data))
+                    print('type of the first: ' + str(type(ss_raw_data[0])))
+                    print('second:' + str(rprst_raw_data))
+                    print(te)
+                    raise TypeError
 
                 # update the minimal similarity
                 if dist < minSim:
