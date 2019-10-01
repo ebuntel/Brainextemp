@@ -178,3 +178,26 @@ def query_partition(cluster, q, st: float, k: int, normalized_input, dist_type: 
         else:
             break
     return query_result
+
+
+def _validate_gxdb_build_arguments(gxdb, args: dict):
+    """
+    sanity check function for the arguments of build as a class method @ genex_databse object
+    :param gxdb:
+    :param args:
+    :return:
+    """
+    # TODO finish the exception messages
+    if 'loi' in args:
+        try:
+            assert args['loi'].step == None
+        except AssertionError as ae:
+            raise Exception('Build check argument failed')
+        try:
+            assert args['loi'].start >= 1
+        except AssertionError as ae:
+            raise Exception('Build check argument failed')
+
+    print(args)
+
+    return

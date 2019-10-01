@@ -65,17 +65,11 @@ def all_sublists_with_id(input_list):
     return [y for x in tmp for y in x]  # flatten the list
 
 
-def all_sublists_with_id_length(input_list: list, loi: list):
+def all_sublists_with_id_length(input_list: list, loi: slice):
     # TODO refactor the loi  parameter, using slice notation
     tmp = []
-    if len(loi) == 1:
-        loi.append(math.inf)
 
-    if loi[1] > len(input_list[1]) + 1:
-        print('Warning: given loi exceeds maximum sequence length, setting end point to sequence length')
-        loi[1] = len(input_list[1])  # + 1
-
-    for i in range(loi[0], loi[1] + 1):
+    for i in range(loi.start, loi.end):
         tmp.append(list(filter_sublists_with_id_length(input_list, i)))
     return [y for x in tmp for y in x]  # flatten the list
 

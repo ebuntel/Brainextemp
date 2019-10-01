@@ -10,7 +10,7 @@ import shutil
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, filter_cluster, lb_kim_sequence, lb_keogh_sequence
 from genex.preprocess import all_sublists_with_id_length, min_max_normalize
-from genex.utils import scale
+from genex.utils import scale, _validate_gxdb_build_arguments
 
 
 def from_csv(file_name, feature_num: int, sc: SparkContext):
@@ -96,7 +96,7 @@ class genex_database:
         :param verbose:
         :return:
         """
-        _validate_inputs(locals())
+        _validate_gxdb_build_arguments(self, locals())
 
         self.conf = {'similarity_threshold': similarity_threshold, 'dist_type': dist_type, 'loi': loi,
                      'verbose': verbose}
@@ -644,12 +644,6 @@ def _row_to_list(row, key_num=5):
     key = tuple([x for x in row[:key_num]])
     value = [y for y in row[key_num:]]
     return [key, value]
-
-
-def _validate_inputs(args):
-    print(args)
-
-    return
 
 
 def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
