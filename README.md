@@ -1,28 +1,35 @@
-## genex.database
+# Genex 
+This repository is a General Exploration System that implements DTW in exploring time series.
+This program implements the algorithm described in these papers:
 
-Aliase: gxdb
+Neamtu, Rodica, et al. "Interactive time series analytics powered by ONEX." Proceedings of the 2017 ACM International Conference on Management of Data. ACM, 2017.
+Neamtu, Rodica, et al. "Generalized dynamic time warping: Unleashing the warping power hidden in point-wise distances." 2018 IEEE 34th International Conference on Data Engineering (ICDE). IEEE, 2018.
+Stan Salvador, and Philip Chan. “FastDTW: Toward accurate dynamic time warping in linear time and space.” Intelligent Data Analysis 11.5 (2007): 561-580.
 
-### Class genex_database
+In addition, Genex uses Spark as distributed computing engine, whose reference can be found [here](https://spark.apache.org/docs/latest/)
 
-\_\_init__
 
+## Genex Database
+Genex database (Aliase: gxdb) is core object in genex. It keeps the original time series given by the user in addition to some meta-data.
+Note that gxdb must exist in a [Spark Context](https://spark.apache.org/docs/latest/api/python/pyspark.sql.html#module-pyspark.sql).
+
+## Creat Genex Database
+There are two ways to create a gxdb in a given context. [from_csv] and [from_db]
+
+
+## API Calls
+### from_csv
 ```
-__init__(**kwargs)
+from_csv(file_name, feature_num, sc)
 ```
-Creates a new gxdb instance, which sets up 4 fields at first--data, data_normalized, scaler and sc.
+returns a gxdb object from given csv data file, the returned gxdb
+resides in the Spark Context given.
+#### Arguements
+**file_name**:
+**feature_num**:
+**sc**:
 
-Note that we will not create a gxdb instance directly through the initializer.
-#### Methods
-
-**build**
-```
-build(
-    similarity_threshold: float,
-    dist_type: str,
-    loi：Slice object
-    verbose: int
-) -> None
-```
+### genex_database.build
 Groups and clusters the time series set based on the customized similarity threshold and the distance type which is a parameter in the DTW algorithm to calculate the similarity between two time series.
 
 Args：

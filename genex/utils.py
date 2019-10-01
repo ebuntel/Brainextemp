@@ -92,7 +92,9 @@ def query_partition(cluster, q, st: float, k: int, normalized_input, dist_type: 
         target_cluster_reprs = target_cluster.keys()
         target_cluster_reprs = list(
             map(lambda rpr: [sim_between_seq(rpr.fetch_data(normalized_input), q.data, dist_type=dist_type), rpr],
-                target_cluster_reprs))
+                target_cluster_reprs))  # calculates the warped distance between the query and the representatives
+        target_cluster_reprs = [x for x in target_cluster_reprs if x[0] < query_threshold]
+
         # add a counter to avoid comparing a Sequence object with another Sequence object
         heapq.heapify(target_cluster_reprs)
 
@@ -138,15 +140,21 @@ def query_partition(cluster, q, st: float, k: int, normalized_input, dist_type: 
                     querying_cluster = querying_cluster[:reduction_factor_lbkeogh * k]
                 else:
                     raise Exception('Type of reduction factor must be str or int')
+
+                querying_cluster_reduced = [(sim_between_seq(x[1], q.data, dist_type=dist_type), x[0]) for x in
+                                    querying_cluster]  # now entries are (dist, seq)
+
+
             elif lb_optimization == 'bestSoFar':
-                pass
+                dist_buffer = list()
+                querying_cluster_reduced = list()
+                if len(dist_buffer) < k:
+                    querying_cluster_reduced.append()
 
-            querying_cluster = [(sim_between_seq(x[1], q.data, dist_type=dist_type), x[0]) for x in
-                                querying_cluster]  # now entries are (dist, seq)
-            querying_cluster = [x for x in querying_cluster if x[0] < query_threshold]
-            heapq.heapify(querying_cluster)
-
-            for cur_match in querying_cluster:
+            if len(querying_cluster_reduced) == 0:
+                continue
+            heapq.heapify(querying_cluster_reduced)
+            for cur_match in querying_cluster_reduced:
                 if overlap != 1.0:
                     if not any(_isOverlap(cur_match[1], prev_match[1], overlap) for prev_match in
                                query_result):  # check for overlap against all the matches so far
