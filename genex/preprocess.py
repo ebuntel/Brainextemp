@@ -216,7 +216,7 @@ def normalize_num(num, global_max, global_min):
     return (num - global_min) / (global_max - global_min)
 
 
-def min_max_normalize(input_list, z_normalize=False):
+def min_max_normalize(input_list, z_normalization=False):
     # scaler = MinMaxScaler(feature_range=(0, 1))
     #
     #
@@ -225,7 +225,7 @@ def min_max_normalize(input_list, z_normalize=False):
     #
     # input_array_scaled = scaler.fit_transform(input_array)
 
-    if z_normalize:
+    if z_normalization:
         input_list = z_normalize(input_list)
 
     flattened_list = np.array(flatten(list(map(lambda x: x[1], input_list))))

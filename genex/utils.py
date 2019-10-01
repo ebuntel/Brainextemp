@@ -2,12 +2,13 @@ import heapq
 import math
 
 # from genex.Gcluster_utils import _isOverlap
-from pandas.tests.extension.numpy_.test_numpy_nested import np
 from sklearn.preprocessing import MinMaxScaler
 
+from genex.Gcluster_utils import _isOverlap
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, lb_kim_sequence, lb_keogh_sequence
 from genex.preprocess import normalize_num
+import numpy as np
 
 
 def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
@@ -36,9 +37,9 @@ def scale(ts_df, feature_num):
     return df_normalized, scaler
 
 
-def query_partitiion(cluster, q, st: float, k: int, normalized_input, dist_type: str = 'eu', loi=None,
-                    exclude_same_id: bool = True,
-                    lb_optimization='heuristic', reduction_factor_lbkim='half', reduction_factor_lbkeogh='3quater'):
+def query_partition(cluster, q, st: float, k: int, normalized_input, dist_type: str = 'eu', loi=None,
+                            exclude_same_id: bool = False, overlap: float = 1.0,
+                            lb_optimization='heuristic', reduction_factor_lbkim='half', reduction_factor_lbkeogh=2):
     # if the reduction factor is a string, reduction is performed based on the cluster size
     # if the reduction factor is a number n, reduction is performed by taking the top n
     # the reduction factors are only for experiment purposes
@@ -57,8 +58,8 @@ def query_partitiion(cluster, q, st: float, k: int, normalized_input, dist_type:
         lbkeogh_mult_factor = 0.25
     elif reduction_factor_lbkeogh == '3quater':
         lbkeogh_mult_factor = 0.75
-   # else:
-   #     raise Exception('reduction factor must be one of the specified string')
+    else:
+        raise Exception('reduction factor must be one of the specified string')
 
     q = q.value
     q_length = len(q.data)
@@ -90,50 +91,9 @@ def query_partitiion(cluster, q, st: float, k: int, normalized_input, dist_type:
         target_cluster = cluster_dict[target_length]
         query_threshold = math.sqrt(target_length) * st / 2
         target_cluster_reprs = target_cluster.keys()
-        # fetch data for the target cluster representatives
-        target_cluster_reprs = ((rpr, rpr.fetch_data(normalized_input)) for rpr in
-                                target_cluster_reprs)  # now entries are (rpr, data)
-        print(type(target_cluster_reprs))
-        
-        if lb_optimization == 'heuristic':
-            # Sorting representatives using cascading bounds
-            # need to make sure that the query and the candidates are of the same length when calculating LB_keogh
-            if target_length != q_length:
-                print('interpolating representatives----')
-                target_cluster_reprs = (
-                    (rpr[0], np.interp(np.linspace(0, 1, q_length), np.linspace(0, 1, len(rpr[1])), rpr[1])) for rpr in
-                    target_cluster_reprs)  # now entries are (seq, interp_data)
-
-            # sorting the representatives using LB_KIM bound
-            target_cluster_reprs = [(x[0], x[1], lb_kim_sequence(x[1], q.data)) for x in target_cluster_reprs]
-            target_cluster_reprs.sort(key=lambda x: x[2])
-            # checking how much we reduce the cluster
-            if type(reduction_factor_lbkim) == str:
-                target_cluster_reprs = target_cluster_reprs[:int(len(target_cluster_reprs) * lbkim_mult_factor)]
-            elif type(reduction_factor_lbkim) == int:
-                target_cluster_reprs = target_cluster_reprs[:reduction_factor_lbkim * k]
-            else:
-                raise Exception('Type of reduction factor must be str or int')
-            print(type(target_cluster_reprs))
-            print("after lb kim-------------------"+str(len(target_cluster_reprs)))
-            # Sorting the representatives using LB Keogh bound
-            target_cluster_reprs = [(x[0], x[1], lb_keogh_sequence(x[1], q.data)) for x in
-                                target_cluster_reprs]  # now entries are (seq, data, lb_heuristic)
-            target_cluster_reprs.sort(key=lambda x: x[2])  # sort by the lb_heuristic
-            # checking how much we reduce the cluster
-            if type(reduction_factor_lbkeogh) == str:
-                target_cluster_reprs = target_cluster_reprs[:int(len(target_cluster_reprs) * lbkeogh_mult_factor)]
-            elif type(reduction_factor_lbkeogh) == int:
-                target_cluster_reprs = target_cluster_reprs[:reduction_factor_lbkeogh * k]
-            else:
-                raise Exception('Type of reduction factor must be str or int')
-            print(type(target_cluster_reprs))
-            print("after lb keogh-------------------" + str(len(target_cluster_reprs)))
-        elif lb_optimization == 'bestSoFar':
-            pass
-        target_cluster_reprs = [[sim_between_seq(x[1], q.data, dist_type=dist_type), x[0]] for x in
-                                target_cluster_reprs]
-
+        target_cluster_reprs = list(
+            map(lambda rpr: [sim_between_seq(rpr.fetch_data(normalized_input), q.data, dist_type=dist_type), rpr],
+                target_cluster_reprs))
         # add a counter to avoid comparing a Sequence object with another Sequence object
         heapq.heapify(target_cluster_reprs)
 
@@ -167,7 +127,7 @@ def query_partitiion(cluster, q, st: float, k: int, normalized_input, dist_type:
                     querying_cluster = querying_cluster[:reduction_factor_lbkim * k]
                 else:
                     raise Exception('Type of reduction factor must be str or int')
-                print("after lb kim seq--------"+str(len(querying_cluster)))
+
                 # Sorting the sequence using LB Keogh bound
                 querying_cluster = [(x[0], x[1], lb_keogh_sequence(x[1], q.data)) for x in
                                     querying_cluster]  # now entries are (seq, data, lb_heuristic)
@@ -175,11 +135,10 @@ def query_partitiion(cluster, q, st: float, k: int, normalized_input, dist_type:
                 # checking how much we reduce the cluster
                 if type(reduction_factor_lbkeogh) == str:
                     querying_cluster = querying_cluster[:int(len(querying_cluster) * lbkeogh_mult_factor)]
-                elif type(reduction_factor_lbkeogh) == int:
+                elif type(reduction_factor_lbkim) == int:
                     querying_cluster = querying_cluster[:reduction_factor_lbkeogh * k]
                 else:
                     raise Exception('Type of reduction factor must be str or int')
-                print("after lb keogh seq--------" + str(len(querying_cluster)))
             elif lb_optimization == 'bestSoFar':
                 pass
 
@@ -189,16 +148,16 @@ def query_partitiion(cluster, q, st: float, k: int, normalized_input, dist_type:
             heapq.heapify(querying_cluster)
 
             for cur_match in querying_cluster:
-                    #if overlap != 1.0:
-                    #if not any(_isOverlap(cur_match[1], prev_match[1], overlap) for prev_match in
-                    #           query_result):  # check for overlap against all the matches so far
-                    #    print('Adding to querying result')
-                    #    query_result.append(cur_match[:2])
-                    #else:
-                    #    print('Overlapped, Not adding to query result')
-                #else:
-                print('Not applying overlapping')
-                query_result.append(cur_match[:2])
+                if overlap != 1.0:
+                    if not any(_isOverlap(cur_match[1], prev_match[1], overlap) for prev_match in
+                               query_result):  # check for overlap against all the matches so far
+                        print('Adding to querying result')
+                        query_result.append(cur_match[:2])
+                    else:
+                        print('Overlapped, Not adding to query result')
+                else:
+                    print('Not applying overlapping')
+                    query_result.append(cur_match[:2])
 
                 if (len(query_result)) >= k:
                     return query_result
@@ -211,4 +170,3 @@ def query_partitiion(cluster, q, st: float, k: int, normalized_input, dist_type:
         else:
             break
     return query_result
-

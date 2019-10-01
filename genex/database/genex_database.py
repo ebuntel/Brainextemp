@@ -8,28 +8,36 @@ import pandas as pd
 import numpy as np
 import shutil
 from genex.classes.Sequence import Sequence
-from genex.cluster import sim_between_seq, filter_cluster
-from genex.preprocess import all_sublists_with_id_length
+from genex.cluster import sim_between_seq, filter_cluster, lb_kim_sequence, lb_keogh_sequence
+from genex.preprocess import all_sublists_with_id_length, min_max_normalize
 from genex.utils import scale
 
 
-
-def from_csv(file_name, feature_num: int):
+def from_csv(file_name, feature_num: int, sc: SparkContext):
     """
     build a genex_database object from given csv,
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
+    :param sc:
+    :param feature_num:
     :param file_name:
     :return:
     """
     df = pd.read_csv(file_name).fillna(0)
 
     # prepare to minmax normalize the data columns
-
     df_normalized, scaler = scale(df, feature_num)
 
-    # return genex_database
-    rtn = genex_database(data=df, data_normalized=df_normalized, scaler=scaler)
+    df_norm_list = df_normalized.values.tolist()
+    df_norm_list = [_row_to_list(x) for x in df_norm_list]
+
+    z_norm_ts, global_max, global_min = min_max_normalize(df_norm_list, z_normalization=True)
+    z_norm_ts = np.array([list(x[0]) + x[1] for x in z_norm_ts])
+
+    df_normalized.iloc[:, :] = z_norm_ts
+
+    # return Genex_database
+    rtn = genex_database(data=df, data_normalized=df_normalized, scaler=scaler, spark_context=sc)
 
     return rtn
 
@@ -54,24 +62,18 @@ class genex_database:
         self.data = kwargs['data']
         self.data_normalized = kwargs['data_normalized']
         self.scaler = kwargs['scaler']
+        self.sc = kwargs['spark_context']
 
-
-    def build(self, sc: SparkContext, similarity_threshold: float, dist_type: str = 'eu', verbose: int = 1):
+    def build(self, similarity_threshold: float, dist_type: str = 'eu', verbose: int = 1):
         _validate_inputs(locals())
 
-        self.conf = {'similarity_threshold':similarity_threshold, 'dist_type':dist_type, 'verbose':verbose}
+        self.conf = {'similarity_threshold': similarity_threshold, 'dist_type': dist_type, 'verbose': verbose}
 
         # Transforming pandas dataframe into spark dataframe
-        sqlCtx = SQLContext(sc)
+        sqlCtx = SQLContext(self.sc)
 
         # Only for test build functionality, just take the first 20 rows in the original dataframe
         data_rdd = sqlCtx.createDataFrame(self.data_normalized).rdd
-
-        # Transforming the input_rdd RDD[Row] into a collection of lists which contains a tuple and list
-        def _row_to_list(row):
-            key = tuple([x for x in row[:4]])
-            value = [y for y in row[5:]]
-            return [key, value]
 
         input_rdd = data_rdd.map(
             lambda x: _row_to_list(x)
@@ -90,9 +92,7 @@ class genex_database:
         # TODO check spark action for better strategy
         cluster_rdd.collect()
 
-        # sl = StorageLevel(True, True, False, False, 1)
         self.data_normalized_clustered = cluster_rdd
-
 
     def save(self, folder_name: str):
         # TODO exception handler for an existed folder name
@@ -120,15 +120,46 @@ class genex_database:
         data_normalized = pd.read_csv(path + 'data_normalized.csv')
         scaler = pickle.load(open(path + 'scaler.p', 'rb'))
 
-        init = {'data':data, 'data_normalized':data_normalized,'scaler':scaler}
+        init = {'data': data, 'data_normalized': data_normalized, 'scaler': scaler, 'spark_context': sc}
         db = cls(**init)
 
-        db.data_normalized_clustered = sc.pickleFile(path + 'clustered_data/*')
+        db.data_normalized_clustered = db.sc.pickleFile(path + 'clustered_data/*')
 
         with open(path + 'conf.json', 'r') as conf:
             db.conf = json.load(conf)
 
         return db
+
+    def query(self, sc: SparkContext, query, threshold: float, best_k: int):
+        '''
+
+        :param sc:
+        :param query:
+        :param threshold:
+        :param best_k:
+        :return: list of Sequences, those sequences must have data
+        '''
+        # TODO broadcasting function here two parameters one for query, one for input_list
+        query_bc = sc.broadcast(query)  # change this to self.sc
+        input_list_norm_bc = sc.broadcast(self.data_normalized)  # TODO rename this to something dataframe
+
+        self.query_rdd = self.data_normalized_clustered.mapPartitions(
+            lambda x:
+            _query_cluster_partition(cluster=x, q_value=query_bc, st=threshold, k=best_k,
+                                     normalized_input=input_list_norm_bc, dist_type='eu', exclude_same_id=True,
+                                     lb_heuristic=True)
+            # expose to the user: exclude same id,
+            # normalized input: dataframe, was output of generate source.
+            # st, dist_type: this query threshold amd dist_type should be the same as the clustering threshold and dist_type
+            # z-normalization is not an option any more.
+        # TODO aggregate the slaves' top k and return the real type k
+        #
+        )
+
+    # TODO
+    # mydb.select: get cluster
+    # mydb
+
 
     def __len__(self):
         try:
@@ -456,6 +487,145 @@ class genex_database:
                     query_result.append(current_match)
 
         return query_result
+
+
+def _query_cluster_partition(cluster, q, st, k, normalized_input, dist_type: str = 'eu', loi=None,
+                             exclude_same_id: bool = True, overlap: float = 1.0,
+                             lb_heuristic=True, reduction_factor_lbkim='half', reduction_factor_lbkeogh=2):
+    if reduction_factor_lbkim == 'half':
+        lbkim_mult_factor = 0.5
+    elif reduction_factor_lbkim == '1quater':
+        lbkim_mult_factor = 0.25
+    elif reduction_factor_lbkim == '3quater':
+        lbkim_mult_factor = 0.75
+    else:
+        raise Exception('reduction factor must be one of the specified string')
+
+    if reduction_factor_lbkeogh == 'half':
+        lbkeogh_mult_factor = 0.5
+    elif reduction_factor_lbkeogh == '1quater':
+        lbkeogh_mult_factor = 0.25
+    elif reduction_factor_lbkeogh == '3quater':
+        lbkeogh_mult_factor = 0.75
+    else:
+        raise Exception('reduction factor must be one of the specified string')
+
+    q_value = q.value
+    q_length = len(q_value.data)
+
+    normalized_input = normalized_input.value
+
+    if loi is not None:
+        cluster_dict = dict(x for x in cluster if x[0] in range(loi[0], loi[1]))
+    else:
+        cluster_dict = dict(cluster)
+        # get the seq length of the query, start query in the cluster that has the same length as the query
+
+    target_length = len(q_value)
+
+    # get the seq length Range of the partition
+    try:
+        len_range = (min(cluster_dict.keys()), max(cluster_dict.keys()))
+    except ValueError as ve:
+        raise Exception('cluster does not have the given query loi!')
+
+    # if given query is longer than the longest cluster sequence,
+    # set starting clusterSeq length to be of the same length as the longest sequence in the partition
+    target_length = max(min(target_length, len_range[1]), len_range[0])
+
+    query_result = []
+    # temperoray variable that decides whether to look up or down when a cluster of a specific length is exhausted
+
+    while len(cluster_dict) > 0:
+        target_cluster = cluster_dict[target_length]
+        target_cluster_reprs = target_cluster.keys()
+        target_cluster_reprs = list(
+            map(lambda rpr: [sim_between_seq(rpr.fetch_data(normalized_input), q_value.data, dist_type=dist_type), rpr],
+                target_cluster_reprs))
+        # add a counter to avoid comparing a Sequence object with another Sequence object
+        heapq.heapify(target_cluster_reprs)
+
+        while len(target_cluster_reprs) > 0:
+            querying_repr = heapq.heappop(target_cluster_reprs)
+            querying_cluster = target_cluster[querying_repr[1]]
+
+            # filter by id
+            if exclude_same_id:
+                querying_cluster = (x for x in querying_cluster if x.id != q_value.id)
+
+            # fetch data for the target cluster
+            querying_cluster = ((x, x.fetch_data(normalized_input)) for x in
+                                querying_cluster)  # now entries are (seq, data)
+            if lb_heuristic:
+                # Sorting sequence using cascading bounds
+                # need to make sure that the query and the candidates are of the same length when calculating LB_keogh
+                if target_length != q_length:
+                    print('interpolating')
+                    querying_cluster = (
+                        (x[0], np.interp(np.linspace(0, 1, q_length), np.linspace(0, 1, len(x[1])), x[1])) for x in
+                        querying_cluster)  # now entries are (seq, interp_data)
+
+                # sorting the sequence using LB_KIM bound
+                querying_cluster = [(x[0], x[1], lb_kim_sequence(x[1], q_value.data)) for x in querying_cluster]
+                querying_cluster.sort(key=lambda x: x[2])
+                # checking how much we reduce the cluster
+                if type(reduction_factor_lbkim) == str:
+                    querying_cluster = querying_cluster[:int(len(querying_cluster) * lbkim_mult_factor)]
+                elif type(reduction_factor_lbkim) == int:
+                    querying_cluster = querying_cluster[:reduction_factor_lbkim * k]
+                else:
+                    raise Exception('Type of reduction factor must be str or int')
+
+                # Sorting the sequence using LB Keogh bound
+                querying_cluster = [(x[0], x[1], lb_keogh_sequence(x[1], q_value.data)) for x in
+                                    querying_cluster]  # now entries are (seq, data, lb_heuristic)
+                querying_cluster.sort(key=lambda x: x[2])  # sort by the lb_heuristic
+                # checking how much we reduce the cluster
+                if type(reduction_factor_lbkeogh) == str:
+                    querying_cluster = querying_cluster[:int(len(querying_cluster) * lbkeogh_mult_factor)]
+                elif type(reduction_factor_lbkim) == int:
+                    querying_cluster = querying_cluster[:reduction_factor_lbkeogh * k]
+                else:
+                    raise Exception('Type of reduction factor must be str or int')
+
+            querying_cluster = [(sim_between_seq(x[1], q_value.data, dist_type=dist_type), x[0]) for x in
+                                querying_cluster]  # now entries are (dist, seq)
+
+            heapq.heapify(querying_cluster)
+
+            for cur_match in querying_cluster:
+                if cur_match[0] < st:
+                    if overlap != 1.0:
+                        if not any(_isOverlap(cur_match[1], prev_match[1], overlap) for prev_match in
+                                   query_result):  # check for overlap against all the matches so far
+                            print('Adding to querying result')
+                            query_result.append(cur_match[:2])
+                        else:
+                            print('Overlapped, Not adding to query result')
+                    else:
+                        print('Not applying overlapping')
+                        query_result.append(cur_match[:2])
+
+                    if (len(query_result)) >= k:
+                        return query_result
+
+        cluster_dict.pop(target_length)  # remove this len-cluster just queried
+
+        # find the next closest sequence length
+        if len(cluster_dict) != 0:
+            target_length = min(list(cluster_dict.keys()), key=lambda x: abs(x - target_length))
+        else:
+            break
+    return query_result
+
+
+# Transforming each row object in a RDD[Row] or DataFrame to a list which contains a tuple as keyID and list as value
+# return [(ID), [values]]
+def _row_to_list(row, key_num=5):
+    # list slicing syntax: ending at the key_num-th element but not include it
+    key = tuple([x for x in row[:key_num]])
+    value = [y for y in row[key_num:]]
+    return [key, value]
 
 
 def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
