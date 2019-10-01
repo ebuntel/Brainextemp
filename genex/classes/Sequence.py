@@ -49,6 +49,10 @@ class Sequence:
     def set_data(self, data):
         self.data = data
 
+    def fetch_data_from_df(self, input_df):
+        # TODO
+        pass
+
     def fetch_data(self, input_list, save_data: bool = False):
         # TODO not tested
         try:
