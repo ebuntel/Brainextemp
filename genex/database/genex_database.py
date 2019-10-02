@@ -9,8 +9,8 @@ import numpy as np
 import shutil
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, filter_cluster, lb_kim_sequence, lb_keogh_sequence
-from genex.preprocess import all_sublists_with_id_length, min_max_normalize
-from genex.utils import scale, _validate_gxdb_build_arguments
+from genex.preprocess import get_subsequences, genex_normalize
+from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _list_to_df
 
 
 def from_csv(file_name, feature_num: int, sc: SparkContext):
@@ -25,41 +25,31 @@ def from_csv(file_name, feature_num: int, sc: SparkContext):
     :return:
     """
 
-    df = pd.read_csv(file_name).fillna(0)
+    df = pd.read_csv(file_name)
+    data_list = _df_to_list(df, feature_num=feature_num)
 
-    # prepare to minmax normalize the data columns
-    df_normalized, scaler = scale(df, feature_num)
-
-    df_norm_list = df_normalized.values.tolist()
-    df_norm_list = map(lambda x: _row_to_list(x), df_norm_list)
-
-    z_norm_ts, global_max, global_min = min_max_normalize(df_norm_list, z_normalization=True)
-    z_norm_ts = np.array([x[1] for x in z_norm_ts])
-
-    df_normalized.iloc[:, feature_num:] = z_norm_ts
+    data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=True)
 
     # return Genex_database
-    return genex_database(data=df, data_normalized=df_normalized, scaler=scaler, spark_context=sc)
+    return genex_database(data=data_list, data_normalized=data_norm_list, global_max=global_max, global_min=global_min, spark_context=sc)
 
 
-def from_db(sc: SparkContext, folder_name: str):
+def from_db(sc: SparkContext, path: str):
     """
 
     :param sc:
-    :param folder_name:
+    :param path:
     :return:
     """
-    path = 'gxdb/' + folder_name + '/'
 
     # TODO the input fold_name is not existed
-    data = pd.read_csv(path + 'data.csv')
-    data_normalized = pd.read_csv(path + 'data_normalized.csv')
-    scaler = pickle.load(open(path + 'scaler.p', 'rb'))
+    data = pd.read_csv(os.path.join(path, 'data.csv'))
+    data_normalized = pd.read_csv(os.path.join(path, 'data_normalized.csv'))
 
-    init = {'data': data, 'data_normalized': data_normalized, 'scaler': scaler, 'spark_context': sc}
+    init = {'data': data, 'data_normalized': data_normalized, 'spark_context': sc}
     db = genex_database(**init)
 
-    db.data_normalized_clustered = db.sc.pickleFile(path + 'clustered_data/*')
+    db.clusters = db.sc.pickleFile(os.path.join(path, 'clustered_data/*'))
 
     with open(path + 'conf.json', 'r') as conf:
         db.conf = json.load(conf)
@@ -84,8 +74,21 @@ class genex_database:
         """
         self.data = kwargs['data']
         self.data_normalized = kwargs['data_normalized']
-        self.scaler = kwargs['scaler']
         self.sc = kwargs['spark_context']
+        self.clusters = None
+
+        self.conf = {'build_conf': None,
+                     'global_max': kwargs['global_max'],
+                     'global_min': kwargs['global_min']}
+
+    def _process_loi(self, loi):
+        if not loi:
+            loi = slice(1, )  # set the end to the max time series length
+
+        if not loi.start:
+            loi.start = 1
+        if not loi.end:
+            pass
 
     def build(self, similarity_threshold: float, dist_type: str = 'eu', loi: slice = None, verbose: int = 1):
         """
@@ -98,8 +101,10 @@ class genex_database:
         """
         _validate_gxdb_build_arguments(self, locals())
 
-        self.conf = {'similarity_threshold': similarity_threshold, 'dist_type': dist_type, 'loi': loi,
-                     'verbose': verbose}
+        # update build configuration
+        self.conf['build_conf'] = {'similarity_threshold': similarity_threshold,
+                                   'dist_type': dist_type,
+                                   'loi': loi}
 
         # Transforming pandas dataframe into spark dataframe
         sqlCtx = SQLContext(self.sc)
@@ -107,12 +112,15 @@ class genex_database:
         data_rdd = sqlCtx.createDataFrame(self.data_normalized).rdd
 
         input_rdd = data_rdd.map(
-            lambda x: _row_to_list(x)
+            lambda x: _row_to_feature_and_data(x)
         )
+
+        # validate and save the loi to gxdb class fields
+        self._process_loi(loi)
 
         # Grouping the data
         group_rdd = input_rdd.flatMap(
-            lambda x: all_sublists_with_id_length(x, loi)
+            lambda x: get_subsequences(x, loi)
         )
 
         # Cluster the data with Gcluster
@@ -122,29 +130,28 @@ class genex_database:
         # TODO check spark action for better strategy
         cluster_rdd.collect()
 
-        self.data_normalized_clustered = cluster_rdd
+        self.clusters = cluster_rdd
 
-    def save(self, folder_name: str):
+
+    def save(self, path: str):
         """
 
-        :param folder_name:
+        :param path:
         :return:
         """
-        # TODO exception handler for an existed folder name
-        path = 'gxdb/' + folder_name
-
         if os.path.exists(path):
+            print('Path ' + path + ' already exists, overwriting...')
             shutil.rmtree(path)
 
-        self.data_normalized_clustered.saveAsPickleFile(path + '/clustered_data')
-        self.data.to_csv(path + '/data.csv', index=False)
-        self.data_normalized.to_csv(path + '/data_normalized.csv', index=False)
+        if self.clusters is not None:
+            self.clusters.saveAsPickleFile(os.path.join(path, 'clustered_data'))
+
+        _list_to_df(self.data).to_csv(os.path.join(path, 'data.csv'), index=False)
+        _list_to_df(self.data_normalized).to_csv(os.path.join(path, 'data_normalized.csv'), index=False)
 
         with open(path + '/conf.json', 'w') as f:
             json.dump(self.conf, f, indent=4)
 
-        with open(path + '/scaler.p', 'wb') as scaler_pickle:
-            pickle.dump(self.scaler, scaler_pickle)
 
     def query(self, query: Sequence, best_k: int, unique_id: bool, overlap: float):
         """
@@ -157,9 +164,9 @@ class genex_database:
         """
         query_bc = self.sc.broadcast(query)
         df_z_norm_list = self.data_normalized.values.tolist()
-        df_z_norm_list_bc = self.sc.broadcast(map(lambda x: _row_to_list(x), df_z_norm_list))
+        df_z_norm_list_bc = self.sc.broadcast(map(lambda x: _row_to_feature_and_data(x), df_z_norm_list))
 
-        query_result_partition = self.data_normalized_clustered.mapPartitions(
+        query_result_partition = self.clusters.mapPartitions(
             lambda x:
             _query_cluster_partition(cluster=x, q=query_bc, st=self.conf.get('similarity_threshold'), k=best_k,
                                      normalized_input=df_z_norm_list_bc, dist_type=self.conf.get('dist_type'),
@@ -168,7 +175,7 @@ class genex_database:
         # TODO fetch data values from dataFrame
         aggre_q_rlts = query_result_partition.takeOrdered(best_k, key=lambda x: x[0])
 
-        raw_data = map(lambda x: _row_to_list(x), self.data.values.tolist())
+        raw_data = map(lambda x: _row_to_feature_and_data(x), self.data.values.tolist())
 
         for i in aggre_q_rlts:
             i[1].set_data(i[1].fetch_data(raw_data))
@@ -639,12 +646,6 @@ def _query_cluster_partition(cluster, q, st: float, k: int, normalized_input, di
 
 # Transforming each row object in a RDD[Row] or DataFrame to a list which contains a tuple as keyID and list as value
 # return [(ID), [values]]
-def _row_to_list(row, key_num=5):
-    # list slicing syntax: ending at the key_num-th element but not include it
-    key = tuple([x for x in row[:key_num]])
-    value = [y for y in row[key_num:]]
-    return [key, value]
-
 
 def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
     if seq1.id != seq2.id:  # overlap does NOT matter if two seq have different id

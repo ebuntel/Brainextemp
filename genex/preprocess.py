@@ -65,13 +65,12 @@ def all_sublists_with_id(input_list):
     return [y for x in tmp for y in x]  # flatten the list
 
 
-def all_sublists_with_id_length(input_list: list, loi: slice):
-    # TODO refactor the loi  parameter, using slice notation
-    tmp = []
+def get_subsequences(input_list: list, loi: slice):
+    rtn = []
 
     for i in range(loi.start, loi.end):
-        tmp.append(list(filter_sublists_with_id_length(input_list, i)))
-    return [y for x in tmp for y in x]  # flatten the list
+        rtn.append(list(filter_sublists_with_id_length(input_list, i)))
+    return [y for x in rtn for y in x]  # flatten the list
 
 
 def group_inputs(input_lists: list, loi: list):
@@ -112,9 +111,9 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext, num_cores: int,
                         'Length of Interest')
 
     # normalize the input list, keep global_max and global min to return later
-    normalized_input_list, global_max, global_min = min_max_normalize(input_list)
+    normalized_input_list, global_max, global_min = genex_normalize(input_list)
     input_rdd = sc.parallelize(normalized_input_list, numSlices=num_cores)
-    group_rdd = input_rdd.flatMap(lambda x: all_sublists_with_id_length(x, loi))
+    group_rdd = input_rdd.flatMap(lambda x: get_subsequences(x, loi))
     cluster_rdd = group_rdd.mapPartitions(
         lambda x: filter_cluster(groups=x, st=similarity_threshold, log_level=log_level, dist_type=dist_type),
         preservesPartitioning=False).cache()
@@ -212,30 +211,27 @@ def normalize_num(num, global_max, global_min):
     return (num - global_min) / (global_max - global_min)
 
 
-def min_max_normalize(input_list, z_normalization=False):
-    # scaler = MinMaxScaler(feature_range=(0, 1))
-    #
-    #
-    #
-    # input_array = np.array(list(map(lambda x: x[1], input_list)), dtype=np.float64)
-    #
-    # input_array_scaled = scaler.fit_transform(input_array)
-
+def genex_normalize(input_list, z_normalization=False):
+    # perform z normalization
     if z_normalization:
-        input_list = z_normalize(input_list)
+        z_normalized_input_list = _z_normalize(input_list)
 
-    flattened_list = np.array(flatten(list(map(lambda x: x[1], input_list))))
-    global_max = flattened_list.max()
-    global_min = flattened_list.min()
+    # get a flatten z normalized list so to obtain the global min and max
+    flattened_list = flatten([x[1] for x in z_normalized_input_list])
+    global_max = np.max(flattened_list)
+    global_min = np.min(flattened_list)
 
-    normalized_list = map(lambda id_sequence:
-                          [id_sequence[0],
-                           list(map(lambda num: normalize_num(num, global_max, global_min), id_sequence[1]))]
-                          , input_list)
+    # perform Min-max normalization
+    zmm_normlized_list = _min_max_normalize(z_normalized_input_list, global_max=global_max, global_min=global_min)
 
-    return list(normalized_list), global_max, global_min
+    return zmm_normlized_list, global_max, global_min
 
 
-def z_normalize(input_list):
-    normalized_list = [(x[0], (x[1] - np.mean(x[1])) / np.std(x[1])) for x in input_list]
-    return normalized_list
+def _z_normalize(input_list):
+    z_normalized_list = [(x[0], (x[1] - np.mean(x[1])) / np.std(x[1])) for x in input_list]
+    return z_normalized_list
+
+
+def _min_max_normalize(input_list, global_max, global_min):
+    mm_normalized_list = [(x[0], (x[1] - global_min) / (global_max - global_min)) for x in input_list]
+    return mm_normalized_list

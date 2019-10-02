@@ -188,16 +188,28 @@ def _validate_gxdb_build_arguments(gxdb, args: dict):
     :return:
     """
     # TODO finish the exception messages
-    if 'loi' in args:
+    if 'loi' in args and args['loi']:
         try:
             assert args['loi'].step == None
         except AssertionError as ae:
-            raise Exception('Build check argument failed')
-        try:
-            assert args['loi'].start >= 1
-        except AssertionError as ae:
-            raise Exception('Build check argument failed')
-
+            raise Exception('Build check argument failed: build loi(length of interest) does not support stepping, '
+                            'loi.step=' + str(args['loi'].step))
     print(args)
 
     return
+
+
+def _df_to_list(df, feature_num):
+    df_list = [_row_to_feature_and_data(x, feature_num) for x in df.values.tolist()]
+    return df_list
+
+def _list_to_df(data_list):
+    max_seq_len = max([len(x[1]) for x in data_list])
+    rtn = np.empty((len(data_list), ))
+    rtn[:] = np.nan
+
+def _row_to_feature_and_data(row, feature_num):
+    # list slicing syntax: ending at the key_num-th element but not include it
+    key = tuple([str(x) for x in row[:feature_num]])
+    value = [x for x in row[feature_num:] if not np.isnan(x)]
+    return (key, value)
