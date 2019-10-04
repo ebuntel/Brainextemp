@@ -205,8 +205,10 @@ def _df_to_list(df, feature_num):
 
 def _list_to_df(data_list):
     max_seq_len = max([len(x[1]) for x in data_list])
-    rtn = np.empty((len(data_list), ))
-    rtn[:] = np.nan
+    data_array = np.empty((len(data_list), max_seq_len))
+    data_array[:] = np.nan
+
+    pass
 
 def _row_to_feature_and_data(row, feature_num):
     # list slicing syntax: ending at the key_num-th element but not include it
