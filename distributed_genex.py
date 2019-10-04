@@ -4,7 +4,7 @@ from genex.parse import generate_source
 from genex.Gcluster_utils import _isOverlap
 
 import genex.database.genex_database as gxdb
-from genex.preprocess import min_max_normalize
+from genex.preprocess import genex_normalize
 from genex.utils import normalize_sequence
 
 import heapq
@@ -16,7 +16,7 @@ fn = 'SART2018_HbO_40.csv'
 
 input_list = generate_source(fn, feature_num=5)
 #input_list = input_list[:24]
-normalized_input_list, global_max, global_min = min_max_normalize(input_list)
+normalized_input_list, global_max, global_min = genex_normalize(input_list)
 
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SparkSession, SQLContext
@@ -32,11 +32,11 @@ spark = SQLContext.getOrCreate(sc)
 input_rdd = sc.parallelize(normalized_input_list, numSlices=num_cores)
 partition_input = input_rdd.glom().collect()
 
-from genex.preprocess import all_sublists_with_id_length
+from genex.preprocess import get_subsequences
 
 gstart_time = time.time()
 group_rdd = input_rdd.flatMap(
-    lambda x: all_sublists_with_id_length(x, [274]))
+    lambda x: get_subsequences(x, [274]))
 partition_group = group_rdd.glom().collect()
 gend_time = time.time()
 gtime = gend_time - gstart_time
@@ -46,10 +46,10 @@ file = open('time_log.txt', 'a')
 file.write('Group time is :' + gtime)
 file.close()
 
-from genex.cluster import filter_cluster
+from genex.cluster import _cluster_groups
 
 start_time = time.time()
-cluster_rdd = group_rdd.mapPartitions(lambda x: filter_cluster(groups=x, st=0.05, log_level=1),
+cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(groups=x, st=0.05, log_level=1),
                                       preservesPartitioning=False).cache()
 cluster_partition = cluster_rdd.glom().collect()
 # ------------------------data schema

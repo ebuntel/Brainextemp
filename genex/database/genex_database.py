@@ -2,42 +2,60 @@ import heapq
 import json
 import os
 import pickle
-from pyspark import SparkContext, StorageLevel
+from pyspark import SparkContext
 from pyspark.sql import SQLContext
 import pandas as pd
 import numpy as np
 import shutil
 from genex.classes.Sequence import Sequence
-from genex.cluster import sim_between_seq, filter_cluster
-from genex.preprocess import all_sublists_with_id_length
-from genex.utils import scale
+from genex.cluster import sim_between_seq, _cluster_groups, lb_kim_sequence, lb_keogh_sequence
+from genex.preprocess import get_subsequences, genex_normalize, _group_time_series
+from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition
 
 
-
-def from_csv(file_name, feature_num: int):
+def from_csv(file_name, feature_num: int, sc: SparkContext):
     """
     build a genex_database object from given csv,
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
+
     :param file_name:
+    :param feature_num:
+    :param sc:
     :return:
     """
-    df = pd.read_csv(file_name).fillna(0)
 
-    # prepare to minmax normalize the data columns
+    df = pd.read_csv(file_name)
+    data_list = _df_to_list(df, feature_num=feature_num)
 
-    df_normalized, scaler = scale(df, feature_num)
+    data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=True)
 
-    # return genex_database
-    rtn = genex_database(data=df, data_normalized=df_normalized, scaler=scaler)
+    # return Genex_database
+    return genex_database(data=data_list, data_normalized=data_norm_list, global_max=global_max, global_min=global_min,
+                          spark_context=sc)
 
-    return rtn
 
+def from_db(sc: SparkContext, path: str):
+    """
 
-def _validate_inputs(args):
-    print(args)
+    :param sc:
+    :param path:
+    :return:
+    """
 
-    return
+    # TODO the input fold_name is not existed
+    data = pickle.load(open(os.path.join(path, 'data.gxdb'), 'rb'))
+    data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
+
+    conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
+    init_params = {'data': data, 'data_normalized': data_normalized, 'spark_context': sc,
+                   'global_max': conf['global_max'], 'global_min': conf['global_min']}
+    db = genex_database(**init_params)
+
+    db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clustered_data/*')))
+    db.set_conf(conf)
+
+    return db
 
 
 class genex_database:
@@ -51,415 +69,128 @@ class genex_database:
     """
 
     def __init__(self, **kwargs):
+        """
+
+        :param kwargs:
+        """
         self.data = kwargs['data']
         self.data_normalized = kwargs['data_normalized']
-        self.scaler = kwargs['scaler']
+        self.sc = kwargs['spark_context']
+        self.cluster_rdd = None
 
+        self.conf = {'build_conf': None,
+                     'global_max': kwargs['global_max'],
+                     'global_min': kwargs['global_min']}
 
-    def build(self, sc: SparkContext, similarity_threshold: float, dist_type: str = 'eu', verbose: int = 1):
-        _validate_inputs(locals())
+    def set_conf(self, conf):
+        self.conf = conf
 
-        self.conf = {'similarity_threshold':similarity_threshold, 'dist_type':dist_type, 'verbose':verbose}
+    def set_clusters(self, clusters):
+        self.cluster_rdd = clusters
 
-        # Transforming pandas dataframe into spark dataframe
-        sqlCtx = SQLContext(sc)
+    def get_sc(self):
+        return self.sc
 
-        # Only for test build functionality, just take the first 20 rows in the original dataframe
-        data_rdd = sqlCtx.createDataFrame(self.data_normalized).rdd
+    def build(self, similarity_threshold: float, dist_type: str = 'eu', loi: slice = None, verbose: int = 1,
+              _batch_size=None):
+        """
 
-        # Transforming the input_rdd RDD[Row] into a collection of lists which contains a tuple and list
-        def _row_to_list(row):
-            key = tuple([x for x in row[:4]])
-            value = [y for y in row[5:]]
-            return [key, value]
+        :param loi: default value is none, otherwise using slice notation [start, stop: step]
+        :param similarity_threshold:
+        :param dist_type:
+        :param verbose:
+        :return:
+        """
+        _validate_gxdb_build_arguments(self, locals())
+        start, end = _process_loi(loi)
+        # update build configuration
+        self.conf['build_conf'] = {'similarity_threshold': similarity_threshold,
+                                   'dist_type': dist_type,
+                                   'loi': [start, end]}
 
-        input_rdd = data_rdd.map(
-            lambda x: _row_to_list(x)
-        )
-
+        # validate and save the loi to gxdb class fields
+        # distribute the data
+        input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
+        # partition_input = input_rdd.glom().collect() #  for debug purposes
         # Grouping the data
-        group_rdd = input_rdd.flatMap(
-            lambda x: all_sublists_with_id_length(x, [120])
-        )
+        # group = _group_time_series(input_rdd.glom().collect()[0], start, end) # for debug purposes
+        group_rdd = input_rdd.mapPartitions(
+            lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+        # group_partition = group_rdd.glom().collect()  # for debug purposes
 
         # Cluster the data with Gcluster
-        cluster_rdd = group_rdd.mapPartitions(lambda x: filter_cluster(groups=x, st=similarity_threshold, log_level=1),
-                                              preservesPartitioning=False).cache()
+        # cluster = _cluster_groups(groups=group_rdd.glom().collect()[0], st=similarity_threshold,
+        #                           dist_type=dist_type, verbose=1)  # for debug purposes
+        cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(
+            groups=x, st=similarity_threshold, dist_type=dist_type, log_level=verbose)).cache()
+        cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
 
-        # collect the result, use first save memory
-        # TODO check spark action for better strategy
         cluster_rdd.collect()
 
-        # sl = StorageLevel(True, True, False, False, 1)
-        self.data_normalized_clustered = cluster_rdd
+        self.cluster_rdd = cluster_rdd
 
-
-    def save(self, folder_name: str):
-        # TODO exception handler for an existed folder name
-        path = 'gxdb/' + folder_name
-
+    def save(self, path: str):
+        """
+        The save method saves the databse onto the disk.
+        :param path: path to save the database to
+        :return:
+        """
         if os.path.exists(path):
+            print('Path ' + path + ' already exists, overwriting...')
             shutil.rmtree(path)
+            os.makedirs(path)
 
-        self.data_normalized_clustered.saveAsPickleFile(path + '/clustered_data')
-        self.data.to_csv(path + '/data.csv', index=False)
-        self.data_normalized.to_csv(path + '/data_normalized.csv', index=False)
+        # save the clusters if the db is built
+        if self.cluster_rdd is not None:
+            self.cluster_rdd.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
 
+        # save data files
+        pickle.dump(self.data, open(os.path.join(path, 'data.gxdb'), 'wb'))
+        pickle.dump(self.data_normalized, open(os.path.join(path, 'data_normalized.gxdb'), 'wb'))
+
+        # save configs
         with open(path + '/conf.json', 'w') as f:
             json.dump(self.conf, f, indent=4)
 
-        with open(path + '/scaler.p', 'wb') as scaler_pickle:
-            pickle.dump(self.scaler, scaler_pickle)
+    def is_id_exists(self, sequence: Sequence):
+        return sequence.seq_id in dict(self.data).keys()
 
-    @classmethod
-    def from_db(cls, sc: SparkContext, fold_name: str):
-        path = 'gxdb/' + fold_name + '/'
+    def _get_data_normalized(self):
+        return self.data_normalized
 
-        # TODO the input fold_name is not existed
-        data = pd.read_csv(path + 'data.csv')
-        data_normalized = pd.read_csv(path + 'data_normalized.csv')
-        scaler = pickle.load(open(path + 'scaler.p', 'rb'))
-
-        init = {'data':data, 'data_normalized':data_normalized,'scaler':scaler}
-        db = cls(**init)
-
-        db.data_normalized_clustered = sc.pickleFile(path + 'clustered_data/*')
-
-        with open(path + 'conf.json', 'r') as conf:
-            db.conf = json.load(conf)
-
-        return db
-
-    def __len__(self):
-        try:
-            assert self.collected
-        except AssertionError:
-            raise Exception('Gcluster must be _collected before retrieving items, use gcluster.collect()')
-        try:
-            return len(self.clusters.keys())
-        except AttributeError as error:
-            raise Exception('Gcluster clusters not set')
-
-    def __getitem__(self, sliced: slice):
-        try:
-            assert self.collected
-        except AssertionError:
-            raise Exception('Gcluster must be _collected before retrieving items, use gcluster.collect()')
-
-        if isinstance(sliced, int):
-            try:
-                try:
-                    assert min(self.clusters.keys()) <= sliced <= max(self.clusters.keys())
-                except AssertionError:
-                    raise Exception('Slicing Gcluster index out of bound')
-                return self.clusters[sliced]
-            except KeyError as error:
-                raise Exception('This Gcluser does not have cluster of given length')
-
-        try:
-            assert slice.step is not None
-        except AssertionError:
-            raise Exception('Gcluser does not support stepping in slice')
-
-        try:  # making sure that the slice index is within bound
-            if sliced.start is not None:
-                assert sliced.start >= min(self.clusters.keys())
-            if sliced.stop is not None:
-                assert sliced.stop <= max(self.clusters.keys())
-        except AssertionError as error:
-            raise Exception('Slicing Gcluster index out of bound')
-
-        rtn = []
-
-        if sliced.start is not None and sliced.stop is not None:
-            for i in range(sliced.start, sliced.stop + 1):
-                rtn.append(self.clusters[i])
-
-        elif sliced.start is None and sliced.stop is not None:
-            for i in range(min(self.clusters.keys()), sliced.stop + 1):
-                rtn.append(self.clusters[i])
-
-        elif sliced.start is not None and sliced.stop is None:
-            for i in range(sliced.start, max(self.clusters.keys()) + 1):
-                rtn.append(self.clusters[i])
-
-        return rtn
-
-    def __str__(self):
-        if not self.collected:
-            return 'Gluster at ' + str(hex(id(self))) + ' is NOT collected'
-        else:
-            return
-
-    def _set_data_dict(self, data_dict: dict):
-        self.clusters = data_dict
-
-    def collect(self):
-        try:
-            assert not self.collected
-        except AssertionError:
-            raise Exception('Gcluster is already _collected')
-
-        self.clusters = dict(self.clusters.collect())
-        self.collected = True
-
-    def gfilter(self, size=None, filter_features=None):
+    def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0):
         """
 
-        :param size: length can be an integer or a tuple or a list of two integers
-        :param filter_features:
+        :param overlap:
+        :param query:
+        :param best_k:
+        :param exclude_same_id:
+        :return:
         """
-        # check if ther result has been collected
-        try:
-            assert self.collected
-        except AssertionError:
-            raise Exception('Gluster at ' + str(hex(id(self))) + ' is NOT collected')
+        query.fetch_and_set_data(self._get_data_normalized())
+        query_bc = self.sc.broadcast(query)
+        data_normalized_bc = self.sc.broadcast(self._get_data_normalized())
 
-        try:  # validate size parameter
-            if size is not None:
-                assert isinstance(size, int) or isinstance(size, list) or isinstance(size, tuple)
-                if isinstance(size, list) or isinstance(size, tuple):
-                    assert len(size) == 2
-                    assert size[0] < size[1]
-                    for item in size:
-                        assert isinstance(item, int)
+        # TODO issue with broadcasting and serilization
+        query_rdd = self.cluster_rdd.mapPartitions(
+            lambda x:
+            _query_partition(cluster=x, q=query_bc, st=self.conf.get('similarity_threshold'), k=best_k,
+                             data_normalized=data_normalized_bc, dist_type=self.conf.get('dist_type'),
+                             exclude_same_id=exclude_same_id, overlap=overlap)
+        ).collect()
 
-        except AssertionError:
-            raise Exception('Given size for filtering clusters is not valid, check filter under Gcluster in the '
-                            'documentation for more details')
+        aggre_query_result = query_rdd.collect()
+        heapq.heapify(aggre_query_result)
+        best_matches = []
 
-        try:  # validate filter_features parameter
-            if filter_features is not None:
-                assert isinstance(filter_features, list) or isinstance(filter_features, tuple) or isinstance(
-                    filter_features, str)
-                if isinstance(filter_features, list) or isinstance(filter_features, tuple):
-                    assert len(filter_features) != 0
-                    for feature in filter_features:
-                        assert feature in self.feature_list
-                elif isinstance(filter_features, str):
-                    assert filter_features in self.feature_list
-        except AssertionError:
-            raise Exception(
-                'Given filter_features(s) for filtering clusters is not valid, filter_features for filtering '
-                'must contain at least one '
-                'filter_features and provided filter_features must be presented in the dataset')
+        for i in range(best_k):
+            best_matches.append(heapq.heappop(aggre_query_result))
 
-        self.filters = (size, filter_features)  # update self filters
-        self.filtered_clusters = self.clusters
-
-        # filter the clusters by size
-        if isinstance(size, int):
-            self.filtered_clusters = dict(filter(lambda x: x[0] == size, list(self.clusters.items())))
-        elif isinstance(size, list) or isinstance(size, tuple):
-            self.filtered_clusters = dict(
-                filter(lambda x: x[0] in range(size[0], size[1] + 1), list(self.clusters.items())))
-
-        if isinstance(filter_features, str):
-            self.filtered_clusters = dict(map(lambda seq_size_cluster:
-                                              (seq_size_cluster[0],
-                                               dict(map(lambda repr_cluster:
-                                                        (repr_cluster[0],  # the representative of the cluster
-                                                         list(filter(
-                                                             lambda cluster_seq:
-                                                             (filter_features in cluster_seq.id) or repr_cluster[
-                                                                 0] == cluster_seq,
-                                                             repr_cluster[1]
-                                                             # list that contains all the seqence in the cluster
-
-                                                         ))), seq_size_cluster[1].items()))),
-                                              self.filtered_clusters.items()))
-            # feature filter is applied on clusters that has already been filtered by size
-        # todo implement && filter
-        elif isinstance(filter_features, list):
-            self.filtered_clusters = dict(map(lambda seq_size_cluster:
-                                              (seq_size_cluster[0],
-                                               dict(map(lambda repr_cluster:
-                                                        (repr_cluster[0],  # the representative of the cluster
-                                                         list(filter(
-                                                             lambda cluster_seq:
-                                                             (any([i for i in filter_features if
-                                                                   i in cluster_seq.id])) or
-                                                             repr_cluster[0] == cluster_seq,
-                                                             repr_cluster[1]
-                                                             # list that contains all the seqence in the cluster
-
-                                                         ))), seq_size_cluster[1].items()))),
-                                              self.filtered_clusters.items()))
-            # feature filter is applied on clusters that has already been filtered by size
-
-    def _gfilter(self, size=None, filter_features=None):
-        """
-
-        :param size: length can be an integer or a tuple or a list of two integers
-        :param filter_features:
-        """
-        # check if ther result has been collected
-        try:
-            assert self.collected
-        except AssertionError:
-            raise Exception('Gluster at ' + str(hex(id(self))) + ' is NOT collected')
-
-        try:  # validate size parameter
-            if size is not None:
-                assert isinstance(size, int) or isinstance(size, list) or isinstance(size, tuple)
-                if isinstance(size, list) or isinstance(size, tuple):
-                    assert len(size) == 2
-                    assert size[0] < size[1]
-                    for item in size:
-                        assert isinstance(item, int)
-
-        except AssertionError:
-            raise Exception('Given size for filtering clusters is not valid, check filter under Gcluster in the '
-                            'documentation for more details')
-
-        try:  # validate filter_features parameter
-            if filter_features is not None:
-                assert isinstance(filter_features, list) or isinstance(filter_features, tuple) or isinstance(
-                    filter_features, str)
-                if isinstance(filter_features, list) or isinstance(filter_features, tuple):
-                    assert len(filter_features) != 0
-                    for feature in filter_features:
-                        assert feature in self.feature_list
-                elif isinstance(filter_features, str):
-                    assert filter_features in self.feature_list
-        except AssertionError:
-            raise Exception(
-                'Given filter_features(s) for filtering clusters is not valid, filter_features for filtering '
-                'must contain at least one '
-                'filter_features and provided filter_features must be presented in the dataset')
-
-        filter_result = self.clusters;
-        # filter the clusters by size
-        if isinstance(size, int):
-            filter_result = dict(filter(lambda x: x[0] == size, list(filter_result.items())))
-        elif isinstance(size, list) or isinstance(size, tuple):
-            filter_result = dict(filter(lambda x: x[0] in range(size[0], size[1] + 1), list(filter_result.items())))
-
-        if isinstance(filter_features, str):
-            filter_result = dict(map(lambda seq_size_cluster:
-                                     (seq_size_cluster[0],
-                                      dict(map(lambda repr_cluster:
-                                               (repr_cluster[0],  # the representative of the cluster
-                                                list(filter(
-                                                    lambda cluster_seq:
-                                                    (filter_features in cluster_seq.id) or repr_cluster[
-                                                        0] == cluster_seq,
-                                                    repr_cluster[1]
-                                                    # list that contains all the seqence in the cluster
-
-                                                ))), seq_size_cluster[1].items()))), filter_result.items()))
-            # feature filter is applied on clusters that has already been filtered by size
-        # todo implement && filter
-        elif isinstance(filter_features, list):
-            filter_result = dict(map(lambda seq_size_cluster:
-                                     (seq_size_cluster[0],
-                                      dict(map(lambda repr_cluster:
-                                               (repr_cluster[0],  # the representative of the cluster
-                                                list(filter(
-                                                    lambda cluster_seq:
-                                                    (any([i for i in filter_features if i in cluster_seq.id])) or
-                                                    repr_cluster[0] == cluster_seq,
-                                                    repr_cluster[1]
-                                                    # list that contains all the seqence in the cluster
-
-                                                ))), seq_size_cluster[1].items()))), filter_result.items()))
-            # feature filter is applied on clusters that has already been filtered by size
-        return filter_result
-
-    def get_feature_list(self):
-        return self.feature_list
-
-    # methods to retrieve the actual clusters
-    def get_representatives(self, filter=False):
-        d = list(self.filtered_clusters if filter else self.clusters.items())
-        e = map(lambda x: [x[0], list(x[1].keys())], d)
-
-        return dict(e)
-
-    def get_cluster(self, rep_seq):
-        try:
-            lenc = self.clusters[len(rep_seq)]
-            return self.clusters[len(rep_seq)][rep_seq]
-        except KeyError as e:
-            raise Exception("Gcluster: get_cluster: does not have a cluster represented by the given representative")
-
-    def gquery(self, query_sequence: Sequence, sc: SparkContext,
-               loi=None, foi=None, k: int = 1, dist_type: str = 'eu', data_slices: int = 32,
-               ex_sameID: bool = False, overlap: float = 0.0):
-        # TODO update gquery so that it can utilize past query result to do new queries
-        # input validation
-        try:
-            query_sequence.fetch_data(input_list=self.norm_data)
-        except KeyError as ke:
-            raise Exception('Given query sequence is not present in this Gcluster')
-
-        if overlap != 0.0:
-            try:
-                assert 0.0 <= overlap <= 1.0
-            except AssertionError as e:
-                raise Exception('gquery: overlap factor must be a float between 0.0 and 1.0')
-
-        if loi[0] <= 0:
-            raise Exception('gquery: first element of loi must be equal to or greater than 1')
-        if loi[0] >= loi[1]:
-            raise Exception('gquery: Start must be greater than end in the '
-                            'Length of Interest')
-
-        r_heap = self._gfilter(size=loi, filter_features=foi)  # retrieve cluster sequences of interests
-        r_heap = list(r_heap.items())
-
-        bc_norm_data = sc.broadcast(
-            self.norm_data)  # broadcast the normalized data so that the Sequence objects can find data faster
-        rheap_rdd = sc.parallelize(r_heap, numSlices=data_slices)
-        rheap_rdd = rheap_rdd.flatMap(lambda x: x[1])  # retrieve all the sequences and flatten
-
-        # calculate the distances, create a key-value pair: key = dist from query to the sequence, value = the sequence
-        # ready to be heapified!
-        rheap_rdd = rheap_rdd.map(lambda x: (
-            sim_between_seq(query_sequence.fetch_data(bc_norm_data.value), x.fetch_data(bc_norm_data.value),
-                            dist_type=dist_type), x))
-        r_heap = rheap_rdd.collect()
-        heapq.heapify(r_heap)
-
-        query_result = []
-
-        while len(query_result) < k:
-            # create a cluster to query
-            querying_cluster = []
-            while len(querying_cluster) <= k:
-                try:
-                    top_rep = heapq.heappop(r_heap)
-                except IndexError as ie:
-                    print('Warning: R space exhausted, best k not reached, returning all the matches so far')
-                    return query_result
-
-                querying_cluster = querying_cluster + self.get_cluster(
-                    top_rep[1])  # top_rep: (dist to query, rep sequence)
-
-            query_cluster_rdd = sc.parallelize(querying_cluster, numSlices=data_slices)
-
-            if ex_sameID:  # filter by not same id
-                query_cluster_rdd = query_cluster_rdd.filter(lambda x: x.id != query_sequence.id)
-
-            # TODO do not fetch data everytime for the query sequence
-            query_cluster_rdd = query_cluster_rdd.map(lambda x: (
-                sim_between_seq(query_sequence.fetch_data(bc_norm_data.value), x.fetch_data(bc_norm_data.value),
-                                dist_type=dist_type), x))
-            qheap = query_cluster_rdd.collect()
-            heapq.heapify(qheap)
-
-            while len(query_result) < k and len(qheap) != 0:
-                current_match = heapq.heappop(qheap)
-
-                if not any(_isOverlap(current_match[1], prev_match[1], overlap) for prev_match in
-                           query_result):  # check for overlap against all the matches so far
-                    query_result.append(current_match)
-
-        return query_result
+        return best_matches
 
 
 def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
-    if seq1.id != seq2.id:  # overlap does NOT matter if two seq have different id
+    if seq1.seq_id != seq2.seq_id:  # overlap does NOT matter if two seq have different id
         return True
     else:
         of = _calculate_overlap(seq1, seq2)

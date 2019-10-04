@@ -64,6 +64,11 @@ def lb_keogh_sequence(seq_matching, seq_enveloped):
                                 envelope_candidate=(envelope_down, envelope_up))
     return lb_k_sim
 
+def lb_kim_sequence(candidate_seq, query_sequence):
+    lb_kim_sim = math.sqrt((candidate_seq[0] - query_sequence[0])**2 + (candidate_seq[-1] - query_sequence[-1])**2)
+
+    return lb_kim_sim
+
 
 def randomize(arr):
     """
@@ -272,24 +277,11 @@ def randomize(arr):
 from itertools import groupby
 
 
-def filter_cluster(groups: list, st: float, log_level: int = 1, dist_type: str = 'eu',
-                   del_data: bool = True) -> list:
+def _cluster_groups(groups: list, st: float, dist_type, log_level: int = 1,
+                    del_data: bool = True) -> list:
     result = []
-    groups = sorted(groups, key=lambda x: x[0])  # need to sort for the groupby to work properly
-    for seq_len, grp in groupby(groups, lambda x: x[0]):
-        grp = list(map(lambda x: x[1], grp))  # only keeps the sequence from (seq_len, sequence)
+    for seq_len, grp in groups:
         result.append(cluster_with_filter(grp, st, seq_len, dist_type=dist_type))
-    # for i in range(loi[0], loi[1] + 1):
-    #     print(i)
-    #     grp = list(filter(lambda x: x[0] == i, groups))  # get the cluster of a specific length
-    #
-    #     length = i
-    #
-    #     grp = list(map(lambda x: x[1], grp))  # remove the sequence length
-    #
-    #
-    #     tmp = cluster_with_filter(grp, st, length)
-    #     result.append(tmp)
 
     return result
 
@@ -320,8 +312,6 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
     # randomize the sequence in the group to remove clusters-related bias
     subsequences = randomize(subsequences)
 
-    delimiter = '_'
-
     count = 0
 
     for ss in subsequences:
@@ -329,7 +319,7 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
             print('Cluster length: ' + str(length) + ':   ' + str(count + 1) + '/' + str(len(group)) + ' Num clusters: ' + str(len(cluster)))
             count += 1
 
-        if not cluster.keys():
+        if not cluster.keys():  # if there's no representatives, the first subsequence becomes a representative
             cluster[ss] = [ss]
         else:
             minSim = math.inf
@@ -341,16 +331,23 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
                 rprst_raw_data = rprst.get_data()
 
                 # check the distance type
-                if dist_type == 'eu':
-                    dist = euclidean(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                elif dist_type == 'ma':
-                    dist = cityblock(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                elif dist_type == 'mi':
-                    dist = minkowski(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                elif dist_type == 'ch':
-                    dist = chebyshev(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                else:
-                    raise Exception("cluster_operations: cluster: invalid distance type: " + dist_type)
+                try:
+                    if dist_type == 'eu':
+                        dist = euclidean(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                    elif dist_type == 'ma':
+                        dist = cityblock(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                    elif dist_type == 'mi':
+                        dist = minkowski(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                    elif dist_type == 'ch':
+                        dist = chebyshev(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
+                    else:
+                        raise Exception("cluster_operations: cluster: invalid distance type: " + dist_type)
+                except TypeError as te:
+                    print('first: ' + str(ss_raw_data))
+                    print('type of the first: ' + str(type(ss_raw_data[0])))
+                    print('second:' + str(rprst_raw_data))
+                    print(te)
+                    raise TypeError
 
                 # update the minimal similarity
                 if dist < minSim:
@@ -364,27 +361,11 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
             else:
                 # if the minSim is greater than the similarity threshold, we create a new similarity group
                 # with this sequence being its representative
-                # if ss in cluster.keys():
-                #     # should skip
-                #     continue
-                #     # raise Exception('cluster_operations: clusterer: Trying to create new similarity cluster '
-                #     #                 'due to exceeding similarity threshold, target sequence is already a '
-                #     #                 'representative(key) in cluster. The sequence isz: ' + ss.toString())
-
                 if ss not in cluster.keys():
                     cluster[ss] = [ss]
     lst = []
     print()
     print('Cluster length: ' + str(length) + '   Done!----------------------------------------------')
-    cluster_log = 'Cluster length: ' + str(length) + '   Done!'
-   # lst.append(cluster_log)
-    #ctime = time.strftime("%H:%M:%S", time.time())
-    #lst.append(ctime)
-    #with open('results_log.csv', 'a') as csvfile:
-    #    writer = csv.writer(csvfile)
-    #    writer.writerow(lst)
-    #csvfile.close()
-    lst = []
 
     if del_data:
         for value in cluster.values():
