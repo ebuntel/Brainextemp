@@ -176,4 +176,23 @@ general users to change their value other than the default.
 
 ### Parameter Explanation 
 **_lb_optimization** in genex_database.query()
-must be a string, can take value 'lb_heuristic', 'lb_bsf', or 'none'
+must be a string, can take value 'lb_heuristic', 'lb_bsf' (bsf stands for bestSoFar), or 'none'. It sets how the system optimize the places where 
+it needs to calculate DTW. 'lb_heuristic' and 'lb_bsf' are different pruning technicals to reduce the number of DTW
+calculation. The pruning is applied in two places: (1) calculating the DTW between the query and the
+representative space (i.e. all the representatives) (2) calculating the DTW between the query and the represented space
+(i.e. represented cluster). Without pruning, both place can induce a large number of DTW calculation.
+
+If 'lb_heuristic' is given: we calculate lb_kim_FL and lb_keogh distance between the query and the candidates. Each time
+we rank the candidates based on the lb distance calculated and prune a certain percentage of candidates who are at the 
+bottom of the rank. Then we only calculate the DTW for the remaining sequences.
+
+If 'lb_bsf' is given: we take an iterative approach. The system resolve the distance between the query and the candidates
+in a for loop. We also keep a maxheap of distances calculated. Note that this heap only records
+the DTW distance; it does not contain any lb distance at any time. Inside the loop, if the heap size is less than k (k 
+being the top best k given by the user), we calculate the DTW between the candidate and the query, then push
+the DTW distance calculated onto the heap. If the heap size is equal to k, then before calculating DTW, we calculate
+the lb_kim_FL and the lb_keogh distance between the query and the candidate. Each time we compare the lb distance with
+the top of heap. If the distance is larger than the heap top, we prune the candidate and continue onto the next iteration.
+If the distance is less than the heap top, we then calculate the DTW between this candidate and the query, check again 
+if it is less than the top of the heap, if it is, we pop the heap, and push the newly calculated distance. If not, we 
+simply prune this candidate and continue onto the next iteration.
