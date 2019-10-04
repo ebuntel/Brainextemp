@@ -46,10 +46,10 @@ file = open('time_log.txt', 'a')
 file.write('Group time is :' + gtime)
 file.close()
 
-from genex.cluster import filter_cluster
+from genex.cluster import _cluster_groups
 
 start_time = time.time()
-cluster_rdd = group_rdd.mapPartitions(lambda x: filter_cluster(groups=x, st=0.05, log_level=1),
+cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(groups=x, st=0.05, log_level=1),
                                       preservesPartitioning=False).cache()
 cluster_partition = cluster_rdd.glom().collect()
 # ------------------------data schema

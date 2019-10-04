@@ -145,7 +145,7 @@ from pyspark import SparkContext
 #     return query_result
 
 def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
-    if seq1.id != seq2.id:  # overlap does NOT matter if two seq have different id
+    if seq1.seq_id != seq2.seq_id:  # overlap does NOT matter if two seq have different id
         return True
     else:
         of =  _calculate_overlap(seq1, seq2)

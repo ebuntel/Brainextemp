@@ -60,5 +60,5 @@ z, global_max, global_min = genex_normalize(new_db.data_normalized, True)
 normalize_sequence(query, global_max, global_min, z_normalize=True)
 query_bc = sc.broadcast(query)
 
-query_r = new_db.query(query_bc, best_k=5, unique_id=True, overlap=1.0)
+query_r = new_db.query(query_bc, best_k=5, exclude_same_id=True, overlap=1.0)
 print(query_r)

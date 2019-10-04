@@ -3,25 +3,25 @@ wrap_in_parantheses = lambda x: "(" + str(x) + ")"
 
 class Sequence:
 
-    def __init__(self, id: tuple, start: int, end: int, data: list = None):
-        self.id = id
+    def __init__(self, seq_id: tuple, start: int, end: int, data: list = None):
+        self.seq_id = seq_id
         self.start = start
         self.end = end
         self.data = data
 
     def __str__(self):
-        label_features = [wrap_in_parantheses(feature) for feature in self.id]
+        label_features = [wrap_in_parantheses(feature) for feature in self.seq_id]
         id = "_".join(label_features).replace('  ', '-').replace(' ', '-')
-        return id + ': (' + str(self.start) + ':' + str(self.end) + ')'
+        return id + ': (' + str(self.start) + ':' + str(self.end - 1) + ')'
 
     def __len__(self):
         return self.end - self.start + 1
 
     def __hash__(self):
-        return hash((self.id, self.start, self.end))
+        return hash((self.seq_id, self.start, self.end))
 
     def __eq__(self, other):
-        return (self.id, self.start, self.end) == (other.id, other.start, other.end)
+        return (self.seq_id, self.start, self.end) == (other.id, other.start, other.end)
 
     def __le__(self, other):
         return True
@@ -44,16 +44,14 @@ class Sequence:
         self.data = None
 
     def get_data(self):
+        if self.data is None:
+            raise Exception('Sequence: data not stored, please use fetch_data instead')
         return self.data
 
-    def set_data(self, data):
-        self.data = data
+    def fetch_and_set_data(self, input_list):
+        self.data = self.fetch_data(input_list)
 
-    def fetch_data_from_df(self, input_df):
-        # TODO
-        pass
-
-    def fetch_data(self, input_list, save_data: bool = False):
+    def fetch_data(self, input_list):
         # TODO not tested
         try:
             input_dict = dict(input_list)  # validate by converting input_list into a dict
@@ -61,7 +59,7 @@ class Sequence:
             raise Exception('sequence: fetch_data: input_list is not key-value pair.')
 
         try:
-            return input_dict[self.id][self.start:self.end+1]
+            return input_dict[self.seq_id][self.start:self.end]
         except KeyError and IndexError as e:
             print(self)
             if type(e) is KeyError:
@@ -81,6 +79,6 @@ class Sequence:
             raise Exception('Invalide features in _check_feature for the Sequence object')
 
         if isinstance(features, str):
-            return features in self.id
+            return features in self.seq_id
         else:  # if features is a list or tuple
-            return any([i for i in features if i in self.id])
+            return any([i for i in features if i in self.seq_id])

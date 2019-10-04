@@ -2,7 +2,7 @@ import math
 from pyspark import SparkContext
 import numpy as np
 
-from genex.cluster import _cluster, filter_cluster
+from genex.cluster import _cluster, _cluster_groups
 from genex.classes.Sequence import Sequence
 
 
@@ -115,7 +115,7 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext, num_cores: int,
     input_rdd = sc.parallelize(normalized_input_list, numSlices=num_cores)
     group_rdd = input_rdd.flatMap(lambda x: get_subsequences(x, loi))
     cluster_rdd = group_rdd.mapPartitions(
-        lambda x: filter_cluster(groups=x, st=similarity_threshold, log_level=log_level, dist_type=dist_type),
+        lambda x: _cluster_groups(groups=x, st=similarity_threshold, log_level=log_level, dist_type=dist_type),
         preservesPartitioning=False).cache()
 
     # if is_collect:
@@ -235,3 +235,27 @@ def _z_normalize(input_list):
 def _min_max_normalize(input_list, global_max, global_min):
     mm_normalized_list = [(x[0], (x[1] - global_min) / (global_max - global_min)) for x in input_list]
     return mm_normalized_list
+
+
+def _group_time_series(time_series, start, end):
+    # start must be greater than 1, this is asserted in genex_databse._process_loi
+    rtn = dict()
+
+    for ts in time_series:
+        ts_id = ts[0]
+        ts_data = ts[1]
+        # we take min because min can be math.inf
+        for i in range(start, min(end, len(ts_data))):
+            if i not in rtn.keys():
+                rtn[i] = []
+            rtn[i] += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
+    return list(rtn.items())
+
+def _get_sublist_as_sequences(data_list, data_id, length):
+    # if given length is greater than the size of the data_list itself, the
+    # function returns an empty list
+    rtn = []
+    for i in range(0, len(data_list) - length + 1):  # if the second number in range() is less than 1, the iteration will not run
+        # data_list[i:i+length]  # for debug purposes
+        rtn.append(Sequence(start=i, end=i+length, seq_id=data_id, data=data_list[i:i+length]))
+    return rtn

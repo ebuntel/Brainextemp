@@ -16,7 +16,7 @@ def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
         raise Exception('Given sequence does not have data set, use fetch_data to set its data first')
     data = seq.data
     if z_normalize:
-        data = [(x-np.mean(data)/np.std(data)) for x in data]
+        data = [(x - np.mean(data) / np.std(data)) for x in data]
 
     normalized_data = list(map(lambda num: normalize_num(num, max, min), data))
 
@@ -37,9 +37,9 @@ def scale(ts_df, feature_num):
     return df_normalized, scaler
 
 
-def query_partition(cluster, q, st: float, k: int, normalized_input, dist_type: str = 'eu', loi=None,
-                            exclude_same_id: bool = False, overlap: float = 1.0,
-                            lb_optimization='heuristic', reduction_factor_lbkim='half', reduction_factor_lbkeogh=2):
+def _query_partition(cluster, q, st: float, k: int, data_normalized, dist_type: str = 'eu', loi=None,
+                     exclude_same_id: bool = False, overlap: float = 1.0,
+                     lb_optimization='heuristic', reduction_factor_lbkim='half', reduction_factor_lbkeogh=2):
     # if the reduction factor is a string, reduction is performed based on the cluster size
     # if the reduction factor is a number n, reduction is performed by taking the top n
     # the reduction factors are only for experiment purposes
@@ -64,7 +64,7 @@ def query_partition(cluster, q, st: float, k: int, normalized_input, dist_type: 
     q = q.value
     q_length = len(q.data)
 
-    normalized_input = normalized_input.value
+    data_normalized = data_normalized.value
 
     if loi is not None:
         cluster_dict = dict(x for x in cluster if x[0] in range(loi[0], loi[1]))
@@ -92,7 +92,7 @@ def query_partition(cluster, q, st: float, k: int, normalized_input, dist_type: 
         query_threshold = math.sqrt(target_length) * st / 2
         target_cluster_reprs = target_cluster.keys()
         target_cluster_reprs = list(
-            map(lambda rpr: [sim_between_seq(rpr.fetch_data(normalized_input), q.data, dist_type=dist_type), rpr],
+            map(lambda rpr: [sim_between_seq(rpr.fetch_data(data_normalized), q.data, dist_type=dist_type), rpr],
                 target_cluster_reprs))  # calculates the warped distance between the query and the representatives
         target_cluster_reprs = [x for x in target_cluster_reprs if x[0] < query_threshold]
 
@@ -108,7 +108,7 @@ def query_partition(cluster, q, st: float, k: int, normalized_input, dist_type: 
                 querying_cluster = (x for x in querying_cluster if x.id != q.id)
 
             # fetch data for the target cluster
-            querying_cluster = ((x, x.fetch_data(normalized_input)) for x in
+            querying_cluster = ((x, x.fetch_data(data_normalized)) for x in
                                 querying_cluster)  # now entries are (seq, data)
             if lb_optimization == 'heuristic':
                 # Sorting sequence using cascading bounds
@@ -116,8 +116,8 @@ def query_partition(cluster, q, st: float, k: int, normalized_input, dist_type: 
                 if target_length != q_length:
                     print('interpolating')
                     querying_cluster = (
-                    (x[0], np.interp(np.linspace(0, 1, q_length), np.linspace(0, 1, len(x[1])), x[1])) for x in
-                    querying_cluster)  # now entries are (seq, interp_data)
+                        (x[0], np.interp(np.linspace(0, 1, q_length), np.linspace(0, 1, len(x[1])), x[1])) for x in
+                        querying_cluster)  # now entries are (seq, interp_data)
 
                 # sorting the sequence using LB_KIM bound
                 querying_cluster = [(x[0], x[1], lb_kim_sequence(x[1], q.data)) for x in querying_cluster]
@@ -143,7 +143,7 @@ def query_partition(cluster, q, st: float, k: int, normalized_input, dist_type: 
                     raise Exception('Type of reduction factor must be str or int')
 
                 querying_cluster_reduced = [(sim_between_seq(x[1], q.data, dist_type=dist_type), x[0]) for x in
-                                    querying_cluster]  # now entries are (dist, seq)
+                                            querying_cluster]  # now entries are (dist, seq)
 
 
             elif lb_optimization == 'bestSoFar':
@@ -188,12 +188,18 @@ def _validate_gxdb_build_arguments(gxdb, args: dict):
     :return:
     """
     # TODO finish the exception messages
+
     if 'loi' in args and args['loi']:
         try:
             assert args['loi'].step == None
         except AssertionError as ae:
             raise Exception('Build check argument failed: build loi(length of interest) does not support stepping, '
                             'loi.step=' + str(args['loi'].step))
+    try:
+        assert 0. < args['similarity_threshold'] < 1.
+    except AssertionError as ae:
+        raise Exception('Build check argument failed: build similarity_threshold must be between 0. and 1. and not '
+                        'equal to 0. and 1.')
     print(args)
 
     return
@@ -206,6 +212,21 @@ def _df_to_list(df, feature_num):
 
 def _row_to_feature_and_data(row, feature_num, feature_head):
     # list slicing syntax: ending at the key_num-th element but not include it
-    seq_id = dict([(name, value) for name, value in zip(feature_head[:feature_num], row[:feature_num])])
+    # seq_id = tuple([(name, value) for name, value in zip(feature_head[:feature_num], row[:feature_num])])
+    seq_id = tuple(row[:feature_num])
+
     data = [x for x in row[feature_num:] if not np.isnan(x)]
-    return (seq_id, data)
+    return seq_id, data
+
+
+def _process_loi(loi: slice):
+    start = 1
+    end = math.inf
+    if loi is not None:
+        if loi.start is not None:
+            start = loi.start
+        if loi.stop is not None:
+            end = loi.stop
+
+    assert start > 0
+    return start, end
