@@ -10,8 +10,13 @@ conf = SparkConf(). \
 sc = SparkContext(conf=conf)
 
 # create gxdb from a csv file
-fn = 'SART2018_HbO_altered.csv'
-mydb = gxdb.from_csv(fn, sc=sc, feature_num=5)
-mydb.save(path='/home/apocalyvec/PycharmProjects/Genex/gxdb/testdb')
+data_file = 'SART2018_HbO_altered.csv'
+db_path = 'gxdb/test_db'
+mydb = gxdb.from_csv(data_file, sc=sc, feature_num=5)
+mydb.save(path=db_path)
+
+del mydb
+
+mydb = gxdb.from_db(path=db_path, sc=sc)
 mydb.build(similarity_threshold=0.1)
 

@@ -31,7 +31,8 @@ def from_csv(file_name, feature_num: int, sc: SparkContext):
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=True)
 
     # return Genex_database
-    return genex_database(data=data_list, data_normalized=data_norm_list, global_max=global_max, global_min=global_min, spark_context=sc)
+    return genex_database(data=data_list, data_normalized=data_norm_list, global_max=global_max, global_min=global_min,
+                          spark_context=sc)
 
 
 def from_db(sc: SparkContext, path: str):
@@ -43,16 +44,17 @@ def from_db(sc: SparkContext, path: str):
     """
 
     # TODO the input fold_name is not existed
-    data = pd.read_csv(os.path.join(path, 'data.csv'))
-    data_normalized = pd.read_csv(os.path.join(path, 'data_normalized.csv'))
+    data = pickle.load(open(os.path.join(path, 'data.gxdb'), 'rb'))
+    data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
 
-    init = {'data': data, 'data_normalized': data_normalized, 'spark_context': sc}
-    db = genex_database(**init)
+    conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
+    init_params = {'data': data, 'data_normalized': data_normalized, 'spark_context': sc,
+                   'global_max': conf['global_max'], 'global_min': conf['global_min']}
+    db = genex_database(**init_params)
 
-    db.clusters = db.sc.pickleFile(os.path.join(path, 'clustered_data/*'))
+    db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clustered_data/*')))
 
-    with open(path + 'conf.json', 'r') as conf:
-        db.conf = json.load(conf)
+    db.set_conf(conf)
 
     return db
 
@@ -77,9 +79,19 @@ class genex_database:
         self.sc = kwargs['spark_context']
         self.clusters = None
 
+
         self.conf = {'build_conf': None,
                      'global_max': kwargs['global_max'],
                      'global_min': kwargs['global_min']}
+
+    def set_conf(self, conf):
+        self.conf = conf
+
+    def set_clusters(self, clusters):
+        self.clusters
+
+    def get_sc(self):
+        return self.sc
 
     def _process_loi(self, loi):
         if not loi:
@@ -132,26 +144,28 @@ class genex_database:
 
         self.clusters = cluster_rdd
 
-
     def save(self, path: str):
         """
-
-        :param path:
+        The save method saves the databse onto the disk.
+        :param path: path to save the database to
         :return:
         """
         if os.path.exists(path):
             print('Path ' + path + ' already exists, overwriting...')
             shutil.rmtree(path)
+            os.makedirs(path)
 
+        # save the clusters if the db is built
         if self.clusters is not None:
-            self.clusters.saveAsPickleFile(os.path.join(path, 'clustered_data'))
+            self.clusters.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
 
-        self.data.to_csv(os.path.join(path, 'data.csv'), index=False)
-        self.data_normalized.to_csv(os.path.join(path, 'data_normalized.csv'), index=False)
+        # save data files
+        pickle.dump(self.data, open(os.path.join(path, 'data.gxdb'), 'wb'))
+        pickle.dump(self.data_normalized, open(os.path.join(path, 'data_normalized.gxdb'), 'wb'))
 
+        # save configs
         with open(path + '/conf.json', 'w') as f:
             json.dump(self.conf, f, indent=4)
-
 
     def query(self, query: Sequence, best_k: int, unique_id: bool, overlap: float):
         """
