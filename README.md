@@ -124,6 +124,31 @@ query(
 Find the k-best similar time series based on the given query time series from the current gxdb instance
 
 Args:
+
+**overlap**: Float; MUST be between 0. and 1.; Default = 1.; the overlap parameter alters the query result. It is only valid when the 
+querying sequence is extracted from the original dataset. In short, given a overlap between 0. and 1., the sequences
+ in the query result will not overlap more than the given number, pairwise.
+ 
+For example, if overlap is set to 0.5, k set to 3. Now we are looking for top 2 matches but they cannot overlap for more
+than 50%. If the first match we find is [id=time_series_1, start = 50, end = 100]  
+
+second best match might have been [id=time_series_1, start = 51, end = 101], but it overlaps with the first match for more
+than 50%. So this second best match will not appear in the query result.
+
+The third best match we found is [id=time_series_2, start = 51, end = 101], this is OK because it is from a different time
+series than the matches so far.
+
+The forth best match we found is [id=time_series_2, start = 76, end = 125], this is also OK because it overlaps with the
+matches so far for no more than 50%.
+
+With K=3, the final query result will be 
+
+{[id=time_series_1, start = 50, end = 100], 
+
+[id=time_series_2, start = 51, end = 101], 
+
+[id=time_series_2, start = 76, end = 125]}
+ 
 - query: The query time series.
 - best_k: k best matches.
 - unique_id: A boolean value that determinate whether the query results are allowed to have the same ID
@@ -136,3 +161,19 @@ mydb.save(path)
 -----
 
 mydb=from_db()
+
+
+# For Genex Developers
+This section is for developers who are involved in the implementation, testing and experimentation with the Genex
+core system. Content in this section is up to change in between releases.
+## Experiment Parameters
+
+There are experiment parameters in the Genex system. For example, **_reduction_factor_lbkim** in 
+**genex_database.query(...)**. Experiment parameters are denoted by starting with an '_'.
+
+Those parameters are meant for experiment purposes only and has not been fully tested. It is not recommended for 
+general users to change their value other than the default.
+
+### Parameter Explanation 
+**_lb_optimization** in genex_database.query()
+must be a string, can take value 'lb_heuristic', 'lb_bsf', or 'none'
