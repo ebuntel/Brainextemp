@@ -10,7 +10,7 @@ import shutil
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, filter_cluster, lb_kim_sequence, lb_keogh_sequence
 from genex.preprocess import get_subsequences, genex_normalize
-from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _list_to_df
+from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list
 
 
 def from_csv(file_name, feature_num: int, sc: SparkContext):
@@ -146,8 +146,8 @@ class genex_database:
         if self.clusters is not None:
             self.clusters.saveAsPickleFile(os.path.join(path, 'clustered_data'))
 
-        _list_to_df(self.data).to_csv(os.path.join(path, 'data.csv'), index=False)
-        _list_to_df(self.data_normalized).to_csv(os.path.join(path, 'data_normalized.csv'), index=False)
+        self.data.to_csv(os.path.join(path, 'data.csv'), index=False)
+        self.data_normalized.to_csv(os.path.join(path, 'data_normalized.csv'), index=False)
 
         with open(path + '/conf.json', 'w') as f:
             json.dump(self.conf, f, indent=4)

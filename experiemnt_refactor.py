@@ -2,7 +2,7 @@ import genex.database.genex_database as gxdb
 from pyspark import SparkContext, SparkConf
 
 # create the spark context
-num_cores = 12
+num_cores = 32
 conf = SparkConf(). \
     setMaster("local[" + str(num_cores) + "]"). \
     setAppName("Genex").set('spark.driver.memory', '64G'). \
