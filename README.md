@@ -161,3 +161,19 @@ mydb.save(path)
 -----
 
 mydb=from_db()
+
+
+# For Genex Developers
+This section is for developers who are involved in the implementation, testing and experimentation with the Genex
+core system. Content in this section is up to change in between releases.
+## Experiment Parameters
+
+There are experiment parameters in the Genex system. For example, **_reduction_factor_lbkim** in 
+**genex_database.query(...)**. Experiment parameters are denoted by starting with an '_'.
+
+Those parameters are meant for experiment purposes only and has not been fully tested. It is not recommended for 
+general users to change their value other than the default.
+
+### Parameter Explanation 
+**_lb_optimization** in genex_database.query()
+must be a string, can take value 'lb_heuristic', 'lb_bsf', or 'none'
