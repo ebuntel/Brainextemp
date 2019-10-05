@@ -61,10 +61,10 @@ def _query_partition(cluster, q, st: float, k: int, data_normalized, dist_type: 
     else:
         raise Exception('reduction factor must be one of the specified string')
 
-    q = q.value
+    # q = q.value
     q_length = len(q.data)
 
-    data_normalized = data_normalized.value
+    # data_normalized = data_normalized.value
 
     if loi is not None:
         cluster_dict = dict(x for x in cluster if x[0] in range(loi[0], loi[1]))

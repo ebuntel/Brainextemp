@@ -52,7 +52,7 @@ def from_db(sc: SparkContext, path: str):
                    'global_max': conf['global_max'], 'global_min': conf['global_min']}
     db = genex_database(**init_params)
 
-    db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clustered_data/*')))
+    db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
     db.set_conf(conf)
 
     return db
@@ -168,14 +168,20 @@ class genex_database:
         :return:
         """
         query.fetch_and_set_data(self._get_data_normalized())
-        query_bc = self.sc.broadcast(query)
-        data_normalized_bc = self.sc.broadcast(self._get_data_normalized())
+        query = self.sc.broadcast(query)
+        query_bc = query.value
+
+        data_normalized = self.sc.broadcast(self._get_data_normalized())
+        data_normalized_bc = data_normalized.value
+
+        st = self.conf.get('build_conf').get('similarity_threshold')
+        dist_type = self.conf.get('build_conf').get('dist_type')
 
         # TODO issue with broadcasting and serilization
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
-            _query_partition(cluster=x, q=query_bc, st=self.conf.get('similarity_threshold'), k=best_k,
-                             data_normalized=data_normalized_bc, dist_type=self.conf.get('dist_type'),
+            _query_partition(cluster=x, q=query_bc, st=st, k=best_k,
+                             data_normalized=data_normalized_bc, dist_type=dist_type,
                              exclude_same_id=exclude_same_id, overlap=overlap)
         ).collect()
 
