@@ -106,9 +106,6 @@ def generate_query(file_name: str, feature_num: int):
 
             try:
                 assert len(cur_query) == feature_num + 2
-                # TODO start time, end time data type issues solved, refactor code later
-                cur_query[feature_num-2] = int(cur_query[feature_num-2])
-                cur_query[feature_num-1] = int(cur_query[feature_num-1])
                 features = tuple(cur_query[0:feature_num])
                 start = int(cur_query[feature_num])
                 end = int(cur_query[feature_num+1])

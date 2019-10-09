@@ -59,7 +59,7 @@ class Sequence:
             raise Exception('sequence: fetch_data: input_list is not key-value pair.')
 
         try:
-            return input_dict[self.seq_id][self.start:self.end]
+            return input_dict[self.seq_id][self.start:self.end+1]
         except KeyError and IndexError as e:
             print(self)
             if type(e) is KeyError:

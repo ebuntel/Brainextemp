@@ -1,5 +1,6 @@
 import heapq
 import json
+import math
 import os
 import pickle
 from pyspark import SparkContext
@@ -9,8 +10,9 @@ import numpy as np
 import shutil
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, _cluster_groups, lb_kim_sequence, lb_keogh_sequence
-from genex.preprocess import get_subsequences, genex_normalize, _group_time_series
-from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition
+from genex.preprocess import get_subsequences, genex_normalize, _group_time_series, _slice_time_series
+from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
+    _validate_gxdb_query_arguments
 
 
 def from_csv(file_name, feature_num: int, sc: SparkContext):
@@ -52,7 +54,7 @@ def from_db(sc: SparkContext, path: str):
                    'global_max': conf['global_max'], 'global_min': conf['global_min']}
     db = genex_database(**init_params)
 
-    db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clustered_data/*')))
+    db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
     db.set_conf(conf)
 
     return db
@@ -101,12 +103,12 @@ class genex_database:
         :param verbose:
         :return:
         """
-        _validate_gxdb_build_arguments(self, locals())
+        _validate_gxdb_build_arguments(locals())
         start, end = _process_loi(loi)
         # update build configuration
         self.conf['build_conf'] = {'similarity_threshold': similarity_threshold,
                                    'dist_type': dist_type,
-                                   'loi': [start, end]}
+                                   'loi': (start, end)}
 
         # validate and save the loi to gxdb class fields
         # distribute the data
@@ -123,11 +125,29 @@ class genex_database:
         #                           dist_type=dist_type, verbose=1)  # for debug purposes
         cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(
             groups=x, st=similarity_threshold, dist_type=dist_type, log_level=verbose)).cache()
-        cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
+        # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
 
         cluster_rdd.collect()
 
         self.cluster_rdd = cluster_rdd
+
+    def query_brute_force(self, query: Sequence, best_k: int):
+        dist_type = self.conf.get('build_conf').get('dist_type')
+
+        query.fetch_and_set_data(self.data_normalized)
+        input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
+
+        start, end = self.conf.get('build_conf').get('loi')
+        slice_rdd = input_rdd.mapPartitions(
+            lambda x: _slice_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+
+        dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x, dist_type=dist_type), x))
+
+        candidate_list = dist_rdd.collect()
+        candidate_list.sort(key=lambda x: x[0])
+
+        query_result = candidate_list[:best_k]
+        return query_result
 
     def save(self, path: str):
         """
@@ -158,27 +178,41 @@ class genex_database:
     def _get_data_normalized(self):
         return self.data_normalized
 
-    def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0):
+    def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
+              _lb_opt_repr: str = 'none',
+              _lb_opt_cluster: str = 'bsf'):
         """
 
+        :param _lb_opt_cluster: lbh, bsf, lbh_bst, none
+        :param _lb_opt_repr: lbh, none
         :param overlap:
         :param query:
         :param best_k:
         :param exclude_same_id:
         :return:
         """
-        query.fetch_and_set_data(self._get_data_normalized())
-        query_bc = self.sc.broadcast(query)
-        data_normalized_bc = self.sc.broadcast(self._get_data_normalized())
+        _validate_gxdb_query_arguments(locals())
 
-        # TODO issue with broadcasting and serilization
+        query.fetch_and_set_data(self._get_data_normalized())
+        query = self.sc.broadcast(query)
+
+        data_normalized = self.sc.broadcast(self._get_data_normalized())
+
+        st = self.conf.get('build_conf').get('similarity_threshold')
+        dist_type = self.conf.get('build_conf').get('dist_type')
+
+        # for debug purposes
+        a = _query_partition(cluster=self.cluster_rdd.glom().collect()[0], q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
+                             _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
+                             exclude_same_id=exclude_same_id, overlap=overlap,
+                             )
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
-            _query_partition(cluster=x, q=query_bc, st=self.conf.get('similarity_threshold'), k=best_k,
-                             data_normalized=data_normalized_bc, dist_type=self.conf.get('dist_type'),
-                             exclude_same_id=exclude_same_id, overlap=overlap)
-        ).collect()
-
+            _query_partition(cluster=x, q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
+                             _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
+                             exclude_same_id=exclude_same_id, overlap=overlap,
+                             )
+        )
         aggre_query_result = query_rdd.collect()
         heapq.heapify(aggre_query_result)
         best_matches = []
@@ -187,6 +221,7 @@ class genex_database:
             best_matches.append(heapq.heappop(aggre_query_result))
 
         return best_matches
+
 
 
 def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
