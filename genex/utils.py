@@ -56,7 +56,8 @@ def scale(ts_df, feature_num):
 #         raise Exception('reduction facotr must be an int or one of the specified string, given: ' + reduction_factor)
 #     return rtn
 
-def prune_by_lbh(seq_list: list, seq_length: int, q: Sequence, kim_reduction: float = 0.75, keogh_reduction: float = 0.25):
+def prune_by_lbh(seq_list: list, seq_length: int, q: Sequence, kim_reduction: float = 0.75,
+                 keogh_reduction: float = 0.25):
     # prune using lb_kim
     seq_list = [(x, lb_kim_sequence(x.data, q.data)) for x in seq_list]  # (seq, lb_kim_dist)
     seq_list.sort(key=lambda x: x[1])
@@ -75,8 +76,8 @@ def prune_by_lbh(seq_list: list, seq_length: int, q: Sequence, kim_reduction: fl
 
 
 def _query_partition(cluster, q, k: int, data_normalized, dist_type,
-                     _lb_opt_cluster: str,
-                     _lb_opt_repr: str,
+                     _lb_opt_cluster: str, repr_kim_rf: float, repr_keogh_rf: float,
+                     _lb_opt_repr: str, cluster_kim_rf: float, cluster_keogh_rf: float,
                      loi=None, exclude_same_id: bool = False, overlap: float = 1.0):
     """
 
@@ -129,7 +130,8 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
         [x.fetch_and_set_data(data_normalized) for x in target_reprs]
 
         if _lb_opt_repr == 'lbh':
-            target_reprs = prune_by_lbh(seq_list=target_reprs, seq_length=target_length, q=q)
+            target_reprs = prune_by_lbh(seq_list=target_reprs, seq_length=target_length, q=q,
+                                        kim_reduction=repr_kim_rf, keogh_reduction=repr_keogh_rf)
 
         target_reprs = [(sim_between_seq(x, q, dist_type=dist_type), x) for x in target_reprs]
         heapq.heapify(target_reprs)
@@ -145,8 +147,10 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
             # fetch data for the target cluster
             [x.fetch_and_set_data(data_normalized) for x in querying_cluster]
 
-            if _lb_opt_cluster == 'lbh' or _lb_opt_cluster == 'lbh_bsf':
-                querying_cluster = prune_by_lbh(seq_list=querying_cluster, seq_length=target_length, q=q)
+            if (_lb_opt_cluster == 'lbh' or _lb_opt_cluster == 'lbh_bsf') and \
+                    len(querying_cluster) > (k / cluster_keogh_rf) / cluster_kim_rf:
+                querying_cluster = prune_by_lbh(seq_list=querying_cluster, seq_length=target_length, q=q,
+                                                kim_reduction=cluster_kim_rf, keogh_reduction=cluster_keogh_rf)
 
             if _lb_opt_cluster == 'bsf' or _lb_opt_cluster == 'lbh_bsf':
                 # use ranked heap
@@ -238,21 +242,25 @@ def _validate_gxdb_build_arguments(args: dict):
 
     return
 
+
 def _validate_gxdb_query_arguments(args: dict):
     _lb_opt_repr_options = ['lbh', 'none']
     _lb_opt_cluster_options = ['lbh', 'bsf', 'lbh_bst', 'none']
     try:
         assert args['_lb_opt_repr'] in _lb_opt_repr_options
     except AssertionError:
-        print('Query check argument failed: query _lb_opt_repr must be one of the following ' + str(_lb_opt_repr_options))
+        print(
+            'Query check argument failed: query _lb_opt_repr must be one of the following ' + str(_lb_opt_repr_options))
         raise AssertionError
 
     try:
         assert args['_lb_opt_cluster'] in _lb_opt_cluster_options
     except AssertionError:
         print(
-            'Query check argument failed: query _lb_opt_cluster must be one of the following ' + str(_lb_opt_cluster_options))
+            'Query check argument failed: query _lb_opt_cluster must be one of the following ' + str(
+                _lb_opt_cluster_options))
         raise AssertionError
+
 
 def _df_to_list(df, feature_num):
     df_list = [_row_to_feature_and_data(x, feature_num, df.head()) for x in df.values.tolist()]

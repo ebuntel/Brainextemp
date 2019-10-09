@@ -179,10 +179,15 @@ class genex_database:
         return self.data_normalized
 
     def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
-              _lb_opt_repr: str = 'none',
-              _lb_opt_cluster: str = 'bsf'):
+              _lb_opt_repr: str = 'none', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
+              _lb_opt_cluster: str = 'none', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
+              ):
         """
 
+        :param _cluster_kim_rf:
+        :param _repr_kim_rf:
+        :param _repr_keogh_rf:
+        :param _cluster_keogh_rf:
         :param _lb_opt_cluster: lbh, bsf, lbh_bst, none
         :param _lb_opt_repr: lbh, none
         :param overlap:
@@ -202,15 +207,18 @@ class genex_database:
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         # for debug purposes
-        a = _query_partition(cluster=self.cluster_rdd.glom().collect()[0], q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
-                             _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
-                             exclude_same_id=exclude_same_id, overlap=overlap,
-                             )
+        # a = _query_partition(cluster=self.cluster_rdd.glom().collect()[0], q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
+        #                      _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
+        #                      exclude_same_id=exclude_same_id, overlap=overlap,
+        #                      )
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
             _query_partition(cluster=x, q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
                              _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
                              exclude_same_id=exclude_same_id, overlap=overlap,
+
+                             repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
+                             cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
                              )
         )
         aggre_query_result = query_rdd.collect()
@@ -221,7 +229,6 @@ class genex_database:
             best_matches.append(heapq.heappop(aggre_query_result))
 
         return best_matches
-
 
 
 def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:

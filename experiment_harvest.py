@@ -22,7 +22,7 @@ mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
 mydb.build(similarity_threshold=0.1, loi=slice(110, 135))
 
 # generate the query sets
-query_set = generate_query(file_name='GE_Queries_set_reduced.csv', feature_num=2)
+query_set = generate_query(file_name='GE_Queries_set.csv', feature_num=2)
 # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
 # this query'id must exist in the database
 time_query_bf = []
@@ -39,8 +39,8 @@ for i, q in enumerate(query_set):
     query_result_bf = mydb.query_brute_force(query=query_set[0], best_k=5)
     time_query_bf.append(time.time() - start)
 
-    relative_errors = [abs(x-y) for x, y in zip(query_result, query_result_bf)]
-    accuracies = [abs(x-y)/y for x, y in zip(query_result, query_result_bf)]
+    relative_errors = [abs(x[0]-y[0]) for x, y in zip(query_result, query_result_bf)]
+    accuracies = [abs(x[0]-y[0])/y[0] for x, y in zip(query_result, query_result_bf)]
 
     relative_error_list.append(np.mean(relative_errors))
     accuracy_list.append(np.mean(accuracies))
