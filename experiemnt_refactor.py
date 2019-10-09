@@ -2,7 +2,7 @@ import genex.database.genex_database as gxdb
 from pyspark import SparkContext, SparkConf
 
 # create the spark context
-num_cores = 32
+num_cores = 12
 conf = SparkConf(). \
     setMaster("local[" + str(num_cores) + "]"). \
     setAppName("Genex").set('spark.driver.memory', '64G'). \
@@ -19,9 +19,9 @@ del mydb  # test saving before building
 mydb = gxdb.from_db(path=db_path, sc=sc)
 mydb.build(similarity_threshold=0.1, loi=slice(200, 205))
 mydb.save(path=db_path)
-# del mydb  # test saving after building
-#
-# mydb = gxdb.from_db(path=db_path, sc=sc)
+del mydb  # test saving after building
+
+mydb = gxdb.from_db(path=db_path, sc=sc)
 
 # test query
 from genex.parse import generate_query

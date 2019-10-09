@@ -14,10 +14,11 @@ import math
 import numpy as np
 from tslearn import metrics
 
+from genex.classes import Sequence
 from .data_process import get_data
 
 
-def sim_between_seq(seq1, seq2, dist_type: str = 'eu'):
+def sim_between_seq(seq1: Sequence, seq2: Sequence, dist_type: str):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
@@ -25,28 +26,23 @@ def sim_between_seq(seq1, seq2, dist_type: str = 'eu'):
     :param seq2:
     :return float: return the similarity between sequence 1 and sequence 2
     """
+    try:
+        assert seq1.data is not None and seq2.data is not None
+    except AssertionError as ae:
+        raise Exception('sim_between_seq: one or both of the given sequence do(es) not have their(its) data set!')
     if dist_type == 'eu':  #TODO trillion optimizaiton here
-        dist = fastdtw(seq1, seq2, dist=euclidean)[0]
+        dist = fastdtw(seq1.data, seq2.data, dist=euclidean)[0]
         # print("distance using fastdtw is " + dist)
         return dist  # fastdtw returns a tuple with the first item being the distance
 
-    if dist_type == 'eu_ucr':
-
-        loc, dist = _ucrdtw.ucrdtw(seq1, seq2, 0.5, False)
-        print("distance using ucrdtw is------------------------------- " + str(dist))
-        print("location" + str(loc))
-
-        return dist
     if dist_type == 'ma':
-        return fastdtw(seq1, seq2, dist=cityblock)[0]
+        return fastdtw(seq1.data, seq2.data, dist=cityblock)[0]  # 1st item is the shortest path
     if dist_type == 'mi':
-        return fastdtw(seq1, seq2, dist=minkowski)[0]
+        return fastdtw(seq1.data, seq2.data, dist=minkowski)[0]
     if dist_type == 'ch':
-        return fastdtw(seq1, seq2, dist=chebyshev)[0]
-
+        return fastdtw(seq1.data, seq2.data, dist=chebyshev)[0]
     else:
         raise Exception("sim_between_seq: cluster: invalid distance type: " + dist_type)
-    # and the second is the shortest path
 
 def lb_keogh_sequence(seq_matching, seq_enveloped):
     """
@@ -306,7 +302,7 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
     cluster = dict()
     length = sequence_len
     subsequences = group
-
+    threshold = math.sqrt(length) * st / 2
     # print("Clustering length of: " + str(length) + ", number of subsequences is " + str(len(group[1])))
 
     # randomize the sequence in the group to remove clusters-related bias
@@ -322,8 +318,8 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
         if not cluster.keys():  # if there's no representatives, the first subsequence becomes a representative
             cluster[ss] = [ss]
         else:
-            minSim = math.inf
-            minRprst = None
+            min_dist = math.inf
+            min_rprst = None
             # rprst is a time_series obj
             for rprst in list(cluster.keys()):  # iterate though all the similarity clusters, rprst = representative
                 # ss is also a time_series obj
@@ -348,22 +344,20 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
                     print('second:' + str(rprst_raw_data))
                     print(te)
                     raise TypeError
-
                 # update the minimal similarity
-                if dist < minSim:
-                    minSim = dist
-                    minRprst = rprst
-            sim = math.sqrt(length) * st / 2
-            if minSim <= sim:  # if the calculated min similarity is smaller than the
+                if dist < min_dist:
+                    min_dist = dist
+                    min_rprst = rprst
+
+            if min_dist <= threshold:  # if the calculated min similarity is smaller than the
                 # similarity threshold, put subsequence in the similarity cluster keyed by the min representative
-                cluster[minRprst].append(ss)
+                cluster[min_rprst].append(ss)
 
             else:
                 # if the minSim is greater than the similarity threshold, we create a new similarity group
                 # with this sequence being its representative
                 if ss not in cluster.keys():
                     cluster[ss] = [ss]
-    lst = []
     print()
     print('Cluster length: ' + str(length) + '   Done!----------------------------------------------')
 

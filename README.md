@@ -196,3 +196,5 @@ the top of heap. If the distance is larger than the heap top, we prune the candi
 If the distance is less than the heap top, we then calculate the DTW between this candidate and the query, check again 
 if it is less than the top of the heap, if it is, we pop the heap, and push the newly calculated distance. If not, we 
 simply prune this candidate and continue onto the next iteration.
+
+**_is_prune_reprs** in genex_database.query()

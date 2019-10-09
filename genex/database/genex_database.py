@@ -123,7 +123,7 @@ class genex_database:
         #                           dist_type=dist_type, verbose=1)  # for debug purposes
         cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(
             groups=x, st=similarity_threshold, dist_type=dist_type, log_level=verbose)).cache()
-        cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
+        # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
 
         cluster_rdd.collect()
 
@@ -158,9 +158,16 @@ class genex_database:
     def _get_data_normalized(self):
         return self.data_normalized
 
-    def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0):
+    def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
+              _lb_optimization: str = 'bestSoFar',
+              _is_prune_reprs: bool = True, __reprs_prune_kim_reduction_factor: float = 0.75,
+              __reprs_prune_keogh_reduction_factor: float = 0.75):
         """
 
+        :param __reprs_prune_keogh_reduction_factor:
+        :param __reprs_prune_kim_reduction_factor:
+        :param _is_prune_reprs:
+        :param _lb_optimization:
         :param overlap:
         :param query:
         :param best_k:
@@ -169,22 +176,24 @@ class genex_database:
         """
         query.fetch_and_set_data(self._get_data_normalized())
         query = self.sc.broadcast(query)
-        query_bc = query.value
 
         data_normalized = self.sc.broadcast(self._get_data_normalized())
-        data_normalized_bc = data_normalized.value
 
         st = self.conf.get('build_conf').get('similarity_threshold')
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         # TODO issue with broadcasting and serilization
+
+        # for debug purposes
+        # a = _query_partition(cluster=self.cluster_rdd.glom().collect()[0], q=query, k=best_k,
+        #                      data_normalized=data_normalized, dist_type=dist_type, lb_optimization=_lb_optimization,
+        #                      exclude_same_id=exclude_same_id, overlap=overlap, is_prune_reprs=_is_prune_reprs)
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
-            _query_partition(cluster=x, q=query_bc, st=st, k=best_k,
-                             data_normalized=data_normalized_bc, dist_type=dist_type,
-                             exclude_same_id=exclude_same_id, overlap=overlap)
-        ).collect()
-
+            _query_partition(cluster=x, q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
+                             lb_optimization=_lb_optimization, exclude_same_id=exclude_same_id, overlap=overlap,
+                             is_prune_reprs=_is_prune_reprs)
+        )
         aggre_query_result = query_rdd.collect()
         heapq.heapify(aggre_query_result)
         best_matches = []
