@@ -251,6 +251,18 @@ def _group_time_series(time_series, start, end):
             rtn[i] += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
     return list(rtn.items())
 
+def _slice_time_series(time_series, start, end):
+    # start must be greater than 1, this is asserted in genex_databse._process_loi
+    rtn = list()
+
+    for ts in time_series:
+        ts_id = ts[0]
+        ts_data = ts[1]
+        # we take min because min can be math.inf
+        for i in range(start, min(end, len(ts_data))):
+            rtn += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
+    return rtn
+
 def _get_sublist_as_sequences(data_list, data_id, length):
     # if given length is greater than the size of the data_list itself, the
     # function returns an empty list

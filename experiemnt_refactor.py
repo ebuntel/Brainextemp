@@ -5,8 +5,8 @@ from pyspark import SparkContext, SparkConf
 num_cores = 12
 conf = SparkConf(). \
     setMaster("local[" + str(num_cores) + "]"). \
-    setAppName("Genex").set('spark.driver.memory', '64G'). \
-    set('spark.driver.maxResultSize', '64G')
+    setAppName("Genex").set('spark.driver.memory', '31G'). \
+    set('spark.driver.maxResultSize', '31G')
 sc = SparkContext(conf=conf)
 
 # create gxdb from a csv file
@@ -31,6 +31,8 @@ query_set = generate_query(file_name='queries.csv', feature_num=5)
 # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
 # this query'id must exist in the database
 query_seq = next((query_seq for query_seq in query_set if mydb.is_id_exists(query_seq)), None)
+
+# query_result_bf = mydb.query_brute_force(query=query_seq, best_k=5)
 query_result = mydb.query(query=query_seq, best_k=5)
 
 # TODO memory optimization: brainstorm memory optimization, encode features (ids), length batches
