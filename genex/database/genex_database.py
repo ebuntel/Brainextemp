@@ -94,9 +94,12 @@ class genex_database:
         return self.sc
 
     def build(self, similarity_threshold: float, dist_type: str = 'eu', loi: slice = None, verbose: int = 1,
-              _batch_size=None):
+              _batch_size=None,
+              _is_cluster=True):
         """
 
+        :param _batch_size:
+        :param _is_cluster:
         :param loi: default value is none, otherwise using slice notation [start, stop: step]
         :param similarity_threshold:
         :param dist_type:
@@ -109,6 +112,10 @@ class genex_database:
         self.conf['build_conf'] = {'similarity_threshold': similarity_threshold,
                                    'dist_type': dist_type,
                                    'loi': (start, end)}
+
+        # exit without clustering
+        if not _is_cluster:
+            return
 
         # validate and save the loi to gxdb class fields
         # distribute the data

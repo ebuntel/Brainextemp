@@ -8,11 +8,11 @@ import numpy as np
 
 
 # create the spark context
-num_cores = 12
+num_cores = 32
 conf = SparkConf(). \
     setMaster("local[" + str(num_cores) + "]"). \
-    setAppName("Genex").set('spark.driver.memory', '31G'). \
-    set('spark.driver.maxResultSize', '31G')
+    setAppName("Genex").set('spark.driver.memory', '64G'). \
+    set('spark.driver.maxResultSize', '64G')
 sc = SparkContext(conf=conf)
 
 # create gxdb from a csv file
@@ -22,7 +22,7 @@ mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
 mydb.build(similarity_threshold=0.1, loi=slice(110, 135))
 
 # generate the query sets
-query_set = generate_query(file_name='GE_Queries_set.csv', feature_num=2)
+query_set = generate_query(file_name='ECG_Queries_set.csv', feature_num=2)
 # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
 # this query'id must exist in the database
 time_query_bf = []
