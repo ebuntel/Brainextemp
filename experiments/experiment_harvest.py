@@ -1,3 +1,4 @@
+import csv
 import time
 
 import genex.database.genex_database as gxdb
@@ -32,17 +33,26 @@ accuracy_list = []
 
 for i, q in enumerate(query_set):
     start = time.time()
-    query_result = mydb.query(query=query_set[0], best_k=5)
-    time_query_gx.append(time.time() - start)
+    lst= []
+    print(q)
+    lst.append(q)
+   # query_result = mydb.query(query=query_set[0], best_k=5)
+   # time_query_gx.append(time.time() - start)
 
-    start = time.time()
+    #start = time.time()
+    print("Running brute force")
     query_result_bf = mydb.query_brute_force(query=query_set[0], best_k=5)
+    #print(query_result_bf)
+    lst.append(query_result_bf)
     time_query_bf.append(time.time() - start)
+    with open('results_bf.csv','a') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(lst)
+    csvfile.close()
+    # relative_errors = [abs(x[0]-y[0]) for x, y in zip(query_result, query_result_bf)]
+    # accuracies = [abs(x[0]-y[0])/y[0] for x, y in zip(query_result, query_result_bf)]
 
-    relative_errors = [abs(x[0]-y[0]) for x, y in zip(query_result, query_result_bf)]
-    accuracies = [abs(x[0]-y[0])/y[0] for x, y in zip(query_result, query_result_bf)]
-
-    relative_error_list.append(np.mean(relative_errors))
-    accuracy_list.append(np.mean(accuracies))
+    #relative_error_list.append(np.mean(relative_errors))
+    #accuracy_list.append(np.mean(accuracies))
 
 # TODO memory optimization: brainstorm memory optimization, encode features (ids), length batches
