@@ -10,14 +10,14 @@ conf = SparkConf(). \
 sc = SparkContext(conf=conf)
 
 # create gxdb from a csv file
-data_file = '/Users/Leo/PycharmProjects/Genex/SART2018_HbO_40.csv'
+data_file = '/Users/Leo/PycharmProjects/Genex/ECGFiveDays.csv'
 db_path = '/Users/Leo/PycharmProjects/Genex/gxdb/test_db'
-mydb = gxdb.from_csv(data_file, sc=sc, feature_num=5)
+mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
 mydb.save(path=db_path)
 del mydb  # test saving before building
 
 mydb = gxdb.from_db(path=db_path, sc=sc)
-mydb.build(similarity_threshold=0.1, loi=slice(200, 205))
+mydb.build(similarity_threshold=0.1, loi=slice(110, 135))
 mydb.save(path=db_path)
 del mydb  # test saving after building
 
@@ -27,7 +27,7 @@ mydb = gxdb.from_db(path=db_path, sc=sc)
 from genex.parse import generate_query
 
 # generate the query sets
-query_set = generate_query(file_name='/Users/Leo/PycharmProjects/Genex/queries_test.csv', feature_num=5)
+query_set = generate_query(file_name='/Users/Leo/PycharmProjects/Genex/ECG_Queries_set.csv', feature_num=2)
 # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
 # this query'id must exist in the database
 # query_seq = next((query_seq for query_seq in query_set if mydb.is_id_exists(query_seq)), None)
