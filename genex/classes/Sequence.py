@@ -12,7 +12,7 @@ class Sequence:
     def __str__(self):
         label_features = [wrap_in_parantheses(feature) for feature in self.seq_id]
         id = "_".join(label_features).replace('  ', '-').replace(' ', '-')
-        return id + ': (' + str(self.start) + ':' + str(self.end - 1) + ')'
+        return id + ': (' + str(self.start) + ':' + str(self.end) + ')'
 
     def __len__(self):
         return self.end - self.start + 1
