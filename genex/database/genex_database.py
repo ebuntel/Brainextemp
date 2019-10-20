@@ -3,6 +3,8 @@ import json
 import math
 import os
 import pickle
+import random
+
 from pyspark import SparkContext
 from pyspark.sql import SQLContext
 import pandas as pd
@@ -15,12 +17,13 @@ from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _pro
     _validate_gxdb_query_arguments
 
 
-def from_csv(file_name, feature_num: int, sc: SparkContext):
+def from_csv(file_name, feature_num: int, sc: SparkContext, _rows_to_consider: int = None):
     """
     build a genex_database object from given csv,
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
 
+    :param _rows_to_consider:
     :param file_name:
     :param feature_num:
     :param sc:
@@ -29,6 +32,9 @@ def from_csv(file_name, feature_num: int, sc: SparkContext):
 
     df = pd.read_csv(file_name)
     data_list = _df_to_list(df, feature_num=feature_num)
+
+    if _rows_to_consider is not None:
+        data_list = data_list[_rows_to_consider[0]:_rows_to_consider[1]]
 
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=True)
 
@@ -155,6 +161,14 @@ class genex_database:
 
         query_result = candidate_list[:best_k]
         return query_result
+
+    def get_random_seq_of_len(self, sequence_len):
+        target = random.choice(self.data_normalized)
+
+        start = random.randint(0, len(target[1]) - sequence_len - 1)
+        seq = Sequence(target[0], start, start + sequence_len)
+
+        return seq
 
     def save(self, path: str):
         """
