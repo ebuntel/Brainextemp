@@ -246,9 +246,10 @@ def _group_time_series(time_series, start, end):
         ts_data = ts[1]
         # we take min because min can be math.inf
         for i in range(start, min(end, len(ts_data))):
-            if i not in rtn.keys():
-                rtn[i] = []
-            rtn[i] += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
+            target_length = i + 1
+            if target_length not in rtn.keys():
+                rtn[target_length] = []
+            rtn[target_length] += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
     return list(rtn.items())
 
 def _slice_time_series(time_series, start, end):
@@ -267,7 +268,7 @@ def _get_sublist_as_sequences(data_list, data_id, length):
     # if given length is greater than the size of the data_list itself, the
     # function returns an empty list
     rtn = []
-    for i in range(0, len(data_list) - length + 1):  # if the second number in range() is less than 1, the iteration will not run
+    for i in range(0, len(data_list) - length):  # if the second number in range() is less than 1, the iteration will not run
         # data_list[i:i+length]  # for debug purposes
         rtn.append(Sequence(start=i, end=i+length, seq_id=data_id, data=data_list[i:i+length]))
     return rtn

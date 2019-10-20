@@ -36,8 +36,8 @@ for i, q in enumerate(query_set):
     lst= []
     print(q)
     lst.append(q)
-   # query_result = mydb.query(query=query_set[0], best_k=5)
-   # time_query_gx.append(time.time() - start)
+    query_result = mydb.query(query=q, best_k=5)
+    time_query_gx.append(time.time() - start)
 
     #start = time.time()
     print("Running brute force")
