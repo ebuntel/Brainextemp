@@ -143,6 +143,9 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
             # filter by id
             if exclude_same_id:
                 querying_cluster = (x for x in querying_cluster if x.id != q.id)
+                if len(querying_cluster) == 0:  # if after filtering, there's no sequence left, then simply continue
+                    # to the next iteration
+                    continue
 
             # fetch data for the target cluster
             [x.fetch_and_set_data(data_normalized) for x in querying_cluster]
