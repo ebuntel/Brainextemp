@@ -214,10 +214,13 @@ class genex_database:
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         # for debug purposes
-        # a = _query_partition(cluster=self.cluster_rdd.glom().collect()[0], q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
-        #                      _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
-        #                      exclude_same_id=exclude_same_id, overlap=overlap,
-        #                      )
+        a = _query_partition(cluster=self.cluster_rdd.glom().collect()[0], q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
+                             _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
+                             exclude_same_id=exclude_same_id, overlap=overlap,
+
+                             repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
+                             cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
+                             )
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
             _query_partition(cluster=x, q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,

@@ -143,6 +143,9 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
             # filter by id
             if exclude_same_id:
                 querying_cluster = (x for x in querying_cluster if x.id != q.id)
+                if len(querying_cluster) == 0:  # if after filtering, there's no sequence left, then simply continue
+                    # to the next iteration
+                    continue
 
             # fetch data for the target cluster
             [x.fetch_and_set_data(data_normalized) for x in querying_cluster]
@@ -270,7 +273,7 @@ def _df_to_list(df, feature_num):
 def _row_to_feature_and_data(row, feature_num, feature_head):
     # list slicing syntax: ending at the key_num-th element but not include it
     # seq_id = tuple([(name, value) for name, value in zip(feature_head[:feature_num], row[:feature_num])])
-    seq_id = tuple(row[:feature_num])
+    seq_id = tuple([str(x) for x in row[:feature_num]])
 
     data = [x for x in row[feature_num:] if not np.isnan(x)]
     return seq_id, data
