@@ -66,7 +66,7 @@ def prune_by_lbh(seq_list: list, seq_length: int, q: Sequence, kim_reduction: fl
     # prune using lb_keogh
     if seq_length != len(q):
         seq_list = (
-            (x[0], np.interp(np.linspace(0, 1, len(q)), np.linspace(0, 1, len(x[0].data)), x[0].data))
+            (x[0], np.interp(np.linspace(0, len(x[0].data), len(q)), np.arrange(len(x[0].data)), x[0].data))
             for x in seq_list)  # now entries are (seq, interp_data)
     seq_list = [(x[0], lb_keogh_sequence(x[1], q.data)) for x in seq_list]  # (seq, lb_keogh_dist)
     seq_list.sort(key=lambda x: x[1])
