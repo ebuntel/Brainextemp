@@ -154,6 +154,9 @@ class genex_database:
         slice_rdd = input_rdd.mapPartitions(
             lambda x: _slice_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
 
+        # for debug purpose
+        # a = slice_rdd.collect()
+
         dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x, dist_type=dist_type), x))
 
         candidate_list = dist_rdd.collect()
