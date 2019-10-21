@@ -2,12 +2,8 @@ import time
 
 import genex.database.genex_database as gxdb
 from pyspark import SparkContext, SparkConf
-from genex.parse import generate_query
-
-import numpy as np
 
 
-# create the spark context
 def validate_brute_force(data_file_path, rows_to_consider, len_to_test, feature_num=5):
     num_cores = 12
     conf = SparkConf(). \
@@ -32,9 +28,8 @@ def validate_brute_force(data_file_path, rows_to_consider, len_to_test, feature_
     return query_bf_results
 
 
-data_file = '/home/apocalyvec/PycharmProjects/Genex/SART2018_HbO.csv'
+data_file = 'data/SART2018_HbO.csv'
 
 validation_result = []
 
-
-validation_result.append(validate_brute_force(data_file_path=data_file, rows_to_consider=[0, 49], feature_num=5, len_to_test=[256]))
+validation_result.append(validate_brute_force(data_file_path=data_file, rows_to_consider=[0, 12], feature_num=5, len_to_test=[256]))

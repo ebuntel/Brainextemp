@@ -4,34 +4,60 @@ import math
 import os
 import pickle
 import random
+import uuid
 
 from pyspark import SparkContext
 from pyspark.sql import SQLContext
 import pandas as pd
 import numpy as np
 import shutil
+
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
+
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, _cluster_groups, lb_kim_sequence, lb_keogh_sequence
 from genex.preprocess import get_subsequences, genex_normalize, _group_time_series, _slice_time_series
 from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
-    _validate_gxdb_query_arguments
+    _validate_gxdb_query_arguments, _create_f_uuid_map
 
 
-def from_csv(file_name, feature_num: int, sc: SparkContext, _rows_to_consider: int = None):
+def from_csv(file_name, feature_num: int, sc: SparkContext,
+             _rows_to_consider: int = None,
+             _memory_opt: str = None):
     """
     build a genex_database object from given csv,
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
 
-    :param _rows_to_consider:
     :param file_name:
     :param feature_num:
-    :param sc:
-    :return:
+    :param sc: spark context on which the database will run
+
+    :param _rows_to_consider: experiment parameter that takes a iterable of two integers.
+            Only rows in between the given interval will be take into the database.
+    :param _is_use_uuid: experiment parameter. If set to true, the feature (id) of the time series will be
+
+
+    :return: a genex_database object that holds the
     """
 
     df = pd.read_csv(file_name)
-    data_list = _df_to_list(df, feature_num=feature_num)
+
+    if _memory_opt == 'uuid':
+            df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
+            feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
+            # take off the feature columns
+            df = df.drop(df.columns[list(range(1, feature_num+1))], axis=1, inplace=False)
+            data_list = _df_to_list(df, feature_num=1)  # now the only feature is the uuid
+
+    elif _memory_opt == 'encoding':
+        for i in range(feature_num):
+            le = LabelEncoder()
+            df.iloc[:, i] = le.fit_transform(df.iloc[:, i])
+
+        data_list = _df_to_list(df, feature_num=feature_num)
+    else:
+        data_list = _df_to_list(df, feature_num=feature_num)
 
     if _rows_to_consider is not None:
         data_list = data_list[_rows_to_consider[0]:_rows_to_consider[1]]
@@ -165,6 +191,19 @@ class genex_database:
         query_result = candidate_list[:best_k]
         return query_result
 
+    def group_sequences(self):
+        """
+        helper function to monitor memory usage
+        """
+        input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
+        # process all possible length
+        start, end = _process_loi(None)
+
+        slice_rdd = input_rdd.mapPartitions(
+            lambda x: _slice_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+
+        return slice_rdd.collect()
+
     def get_random_seq_of_len(self, sequence_len):
         target = random.choice(self.data_normalized)
 
@@ -258,7 +297,7 @@ class genex_database:
         return best_matches
 
 
-def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
+def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
     if seq1.seq_id != seq2.seq_id:  # overlap does NOT matter if two seq have different id
         return True
     else:
