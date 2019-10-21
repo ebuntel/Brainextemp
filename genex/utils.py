@@ -270,13 +270,21 @@ def _validate_gxdb_query_arguments(args: dict):
 
 
 def _df_to_list(df, feature_num):
-    df_list = [_row_to_feature_and_data(x, feature_num, df.head()) for x in df.values.tolist()]
+    df_list = [_row_to_feature_and_data(x, feature_num) for x in df.values.tolist()]
     return df_list
 
 
-def _row_to_feature_and_data(row, feature_num, feature_head):
+def _create_f_uuid_map(df, feature_num: int):
+    f_uuid_dict = dict()
+    for x in df.values.tolist():
+        f_uuid_dict[tuple(x[1:feature_num])] = x[0]
+
+    return f_uuid_dict
+
+def _row_to_feature_and_data(row, feature_num):
     # list slicing syntax: ending at the key_num-th element but not include it
     # seq_id = tuple([(name, value) for name, value in zip(feature_head[:feature_num], row[:feature_num])])
+    # seq_id = tuple([str(x) for x in row[:feature_num]])
     seq_id = tuple([str(x) for x in row[:feature_num]])
 
     data = [x for x in row[feature_num:] if not np.isnan(x)]
@@ -294,6 +302,8 @@ def _process_loi(loi: slice):
 
     assert start > 0
     return start, end
+
+
 
 # if _lb_optimization == 'heuristic':
 #     # Sorting sequence using cascading bounds
