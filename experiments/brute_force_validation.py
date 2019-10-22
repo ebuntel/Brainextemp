@@ -4,7 +4,7 @@ import genex.database.genex_database as gxdb
 from pyspark import SparkContext, SparkConf
 
 
-def validate_brute_force(data_file_path, rows_to_consider, len_to_test, feature_num=5):
+def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consider=None):
     num_cores = 12
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
@@ -28,9 +28,17 @@ def validate_brute_force(data_file_path, rows_to_consider, len_to_test, feature_
     sc.stop()
     return query_bf_results
 
-
-data_file = 'data/SART2018_HbO.csv'
-
 validation_result = []
 
-validation_result.append(validate_brute_force(data_file_path=data_file, rows_to_consider=[0, 12], feature_num=5, len_to_test=[4, 16, 64, 256]))
+'''
+Validation using SART
+'''
+# data_file = 'data/SART2018_HbO.csv'
+# validation_result.append(validate_brute_force(data_file_path=data_file, rows_to_consider=[0, 12], feature_num=5, len_to_test=[4, 16, 64, 256]))
+
+'''
+Validation using Italy Power
+'''
+data_file = 'data/ItalyPower.csv'
+validation_result.append(validate_brute_force(data_file_path=data_file, feature_num=2, len_to_test=[1, 8, 16, 24]))
+
