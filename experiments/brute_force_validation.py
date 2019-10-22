@@ -23,10 +23,11 @@ def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consi
 
         start = time.time()
         result = mydb.query_brute_force(query=q, best_k=5)
-        result.insert(0, time.time() - start)
+        result.insert(0, (q, time.time() - start))
         query_bf_results.append(result)
     sc.stop()
     return query_bf_results
+
 
 validation_result = []
 
@@ -41,4 +42,3 @@ Validation using Italy Power
 '''
 data_file = 'data/ItalyPower.csv'
 validation_result.append(validate_brute_force(data_file_path=data_file, feature_num=2, len_to_test=[1, 8, 16, 24]))
-
