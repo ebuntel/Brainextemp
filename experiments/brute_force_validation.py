@@ -23,7 +23,8 @@ def validate_brute_force(data_file_path, rows_to_consider, len_to_test, feature_
 
         start = time.time()
         result = mydb.query_brute_force(query=q, best_k=5)
-        query_bf_results.append(result.insert(0, time.time() - start))
+        result.insert(0, time.time() - start)
+        query_bf_results.append(result)
     sc.stop()
     return query_bf_results
 
@@ -32,4 +33,4 @@ data_file = 'data/SART2018_HbO.csv'
 
 validation_result = []
 
-validation_result.append(validate_brute_force(data_file_path=data_file, rows_to_consider=[0, 12], feature_num=5, len_to_test=[256]))
+validation_result.append(validate_brute_force(data_file_path=data_file, rows_to_consider=[0, 12], feature_num=5, len_to_test=[4, 16, 64, 256]))
