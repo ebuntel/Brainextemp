@@ -207,7 +207,7 @@ class genex_database:
     def get_random_seq_of_len(self, sequence_len):
         target = random.choice(self.data_normalized)
 
-        start = random.randint(0, len(target[1]) - sequence_len - 1)
+        start = random.randint(0, len(target[1]) - sequence_len)
         seq = Sequence(target[0], start, start + sequence_len)
 
         return seq
