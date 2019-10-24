@@ -3,9 +3,14 @@ import time
 
 import genex.database.genex_database as gxdb
 from pyspark import SparkContext, SparkConf
+import pandas as pd
+import csv
+import itertools
 
 
-def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consider=None):
+def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consider=None, sample_per_length=1, seed=0):
+    random.seed(seed)
+
     num_cores = 12
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
@@ -19,28 +24,47 @@ def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consi
 
     query_bf_results = []
 
-    random.seed(0)
     for testing_len in len_to_test:
-        q = mydb.get_random_seq_of_len(testing_len)
+        for i in range(sample_per_length):
+            q = mydb.get_random_seq_of_len(testing_len)
 
-        start = time.time()
-        result = mydb.query_brute_force(query=q, best_k=5)
-        result.insert(0, (q, time.time() - start))
-        query_bf_results.append(result)
+            start = time.time()
+            result = mydb.query_brute_force(query=q, best_k=5)
+            result.insert(0, (q, time.time() - start))
+            query_bf_results.append(list(result))
+
     sc.stop()
     return query_bf_results
 
 
-validation_result = []
-
 '''
 Validation using SART
+# dataset_name = 'SART2018_HbO'
+# len_to_test = [1, 8, 16, 24]
 '''
-# data_file = 'data/SART2018_HbO.csv'
-# validation_result.append(validate_brute_force(data_file_path=data_file, rows_to_consider=[0, 12], feature_num=5, len_to_test=[4, 16, 64, 256]))
 
 '''
 Validation using Italy Power
+# dataset_name = 'ItalyPower'
+# len_to_test = [1, 8, 16, 24]
+
 '''
-data_file = 'data/ItalyPower.csv'
-validation_result.append(validate_brute_force(data_file_path=data_file, feature_num=2, len_to_test=[8, 16, 24]))
+
+'''
+Validation using ECGFiveDays
+
+'''
+dataset_name = 'ECGFiveDays'
+len_to_test = [4, 16, 64, 136]
+
+sample_per_length = 16
+
+if __name__ == '__main__':
+    data_file = 'data/' + dataset_name + '.csv'
+    validation_result = validate_brute_force(data_file_path=data_file, feature_num=2, len_to_test=len_to_test,
+                                             sample_per_length=sample_per_length)
+
+    flattened = list(itertools.chain(*validation_result))
+    flattened = [list(x) for x in flattened]
+
+    pd.DataFrame(flattened).to_csv('results/bf_validation_' + dataset_name + '.csv')
