@@ -1,3 +1,4 @@
+import random
 import time
 
 import genex.database.genex_database as gxdb
@@ -18,6 +19,7 @@ def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consi
 
     query_bf_results = []
 
+    random.seed(0)
     for testing_len in len_to_test:
         q = mydb.get_random_seq_of_len(testing_len)
 
@@ -41,4 +43,4 @@ Validation using SART
 Validation using Italy Power
 '''
 data_file = 'data/ItalyPower.csv'
-validation_result.append(validate_brute_force(data_file_path=data_file, feature_num=2, len_to_test=[1, 8, 16, 24]))
+validation_result.append(validate_brute_force(data_file_path=data_file, feature_num=2, len_to_test=[8, 16, 24]))
