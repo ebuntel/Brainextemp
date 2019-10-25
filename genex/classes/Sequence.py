@@ -21,7 +21,7 @@ class Sequence:
         return hash((self.seq_id, self.start, self.end))
 
     def __eq__(self, other):
-        return (self.seq_id, self.start, self.end) == (other.id, other.start, other.end)
+        return (self.seq_id, self.start, self.end) == (other.seq_id, other.start, other.end)
 
     def __le__(self, other):
         return True

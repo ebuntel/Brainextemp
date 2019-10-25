@@ -122,11 +122,11 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
     prune_count = 0
 
     while len(cluster_dict) > 0 and len(candidates) < k:
-
+        # TODO this while loop is not tested after the first iteration
         target_length = get_target_length(available_lens=cluster_dict.keys(), current_len=target_length)
         target_cluster = cluster_dict[target_length]
         target_reprs = target_cluster.keys()
-        [x.fetch_and_set_data(data_normalized) for x in target_reprs] # fetch data for representatives
+        [x.fetch_and_set_data(data_normalized) for x in target_reprs] # fetch data for the representatives
 
         # lbh pruneing #####################################################################
         if _lb_opt_repr == 'lbh':
@@ -137,19 +137,41 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
         target_reprs = [(sim_between_seq(x, q, dist_type=dist_type), x) for x in target_reprs]  # calculate DTW
         heapq.heapify(target_reprs)  # heap sort R-space
 
-        while len(target_reprs) > 0:  # get enough sequence from the clustes represented to query
+        while len(target_reprs) > 0 and len(candidates) < k:  # get enough sequence from the clustes represented to query
             this_repr = heapq.heappop(target_reprs)[1]  # take the second element for the first one is the DTW dist
             candidates += (target_cluster[this_repr])
 
         cluster_dict.pop(target_length)
 
-    pass
+    # process exlude same id
+    candidates = (x for x in candidates if x.seq_id != q.seq_id) if exclude_same_id else candidates
+    [x.fetch_and_set_data(data_normalized) for x in candidates]  # fetch data for the candidates]
+
+    # lbh pruneing #####################################################################
+    if (_lb_opt_cluster == 'lbh' or _lb_opt_cluster == 'lbh_bsf') and \
+            len(candidates) > (k / cluster_keogh_rf) / cluster_kim_rf:
+        candidates = prune_by_lbh(seq_list=candidates, seq_length=target_length, q=q,
+                                            kim_reduction=cluster_kim_rf, keogh_reduction=cluster_keogh_rf)
+    # end of lbh pruneing ##############################################################
+
+    candidate_dist_list = [(sim_between_seq(x, q, dist_type), x) for x in candidates]
+    heapq.heapify(candidate_dist_list)
+
+    while len(candidate_dist_list) > 0 and len(query_result) < k:
+        c_dist = heapq.heappop(candidate_dist_list)
+        if overlap == 1.0 or exclude_same_id:
+            print('Adding to querying result')
+            query_result.append(c_dist)
+        else:
+            if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
+                       query_result):  # check for overlap against all the matches so far
+                print('Adding to querying result')
+                query_result.append(c_dist)
+
+    return query_result
 
 
-
-
-
-    #     while len(target_reprs) > 0:
+    # while len(target_reprs) > 0:
     #         this_repr = heapq.heappop(target_reprs)
     #         querying_cluster_seq = target_cluster[this_repr[1]]
     #
@@ -210,15 +232,15 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
     #             heapq.heapify(dist_seq_list)
     #
     #             while len(dist_seq_list) > 0:
-    #                 dist_seq = heapq.heappop(dist_seq_list)
+    #                 c_dist = heapq.heappop(dist_seq_list)
     #                 if overlap == 1.0 or exclude_same_id:
     #                     print('Adding to querying result')
-    #                     query_result.append(dist_seq)
+    #                     query_result.append(c_dist)
     #                 else:
-    #                     if not any(_isOverlap(dist_seq[1], prev_match[1], overlap) for prev_match in
+    #                     if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
     #                                query_result):  # check for overlap against all the matches so far
     #                         print('Adding to querying result')
-    #                         query_result.append(dist_seq)
+    #                         query_result.append(c_dist)
     #
     #                 if (len(query_result)) >= k:
     #                     print('Found k matches, returning query result')
