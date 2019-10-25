@@ -221,7 +221,7 @@ class genex_database:
         target = random.choice(self.data_normalized)
 
         start = random.randint(0, len(target[1]) - sequence_len)
-        seq = Sequence(target[0], start, start + sequence_len)
+        seq = Sequence(target[0], start, start + sequence_len - 1)
 
         return seq
 
@@ -234,6 +234,8 @@ class genex_database:
         if os.path.exists(path):
             print('Path ' + path + ' already exists, overwriting...')
             shutil.rmtree(path)
+            os.makedirs(path)
+        else:
             os.makedirs(path)
 
         # save the clusters if the db is built
@@ -255,8 +257,8 @@ class genex_database:
         return self.data_normalized
 
     def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
-              _lb_opt_repr: str = 'lbh', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
-              _lb_opt_cluster: str = 'lbh', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
+              _lb_opt_repr: str = 'none', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
+              _lb_opt_cluster: str = 'none', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
               ):
         """
         Find best k matches for given query sequence using Distributed Genex method
