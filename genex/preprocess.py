@@ -238,6 +238,17 @@ def _min_max_normalize(input_list, global_max, global_min):
 
 
 def _group_time_series(time_series, start, end):
+    """
+    This function groups the raw time series data into sub sequences of all possible length within the given grouping
+    range
+
+    :param time_series: set of raw time series sequences
+    :param start: starting index for grouping range
+    :param end: end index for grouping range
+
+    :return: a list of lists containing groups of subsequences of different length indexed by the group length
+    """
+
     # start must be greater than 1, this is asserted in genex_databse._process_loi
     rtn = dict()
 
@@ -253,6 +264,14 @@ def _group_time_series(time_series, start, end):
     return list(rtn.items())
 
 def _slice_time_series(time_series, start, end):
+    """
+    This function slices raw time series data into sub sequences of all possible length.
+    :param time_series: set of raw time series data
+    :param start: start index of length range
+    :param end: end index of length range
+
+    :return: list containing  subsequences of all possible lengths
+    """
     # start must be greater than 1, this is asserted in genex_databse._process_loi
     rtn = list()
 

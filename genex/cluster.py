@@ -22,9 +22,9 @@ def sim_between_seq(seq1: Sequence, seq2: Sequence, dist_type: str):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
-    :param seq1:
-    :param seq2:
-    :return float: return the similarity between sequence 1 and sequence 2
+    :param seq1: Time series sequence
+    :param seq2: Time series sequence
+    :return float: return the similarity distance between sequence 1 and sequence 2
     """
     try:
         assert seq1.data is not None and seq2.data is not None
@@ -61,6 +61,13 @@ def lb_keogh_sequence(seq_matching, seq_enveloped):
     return lb_k_sim
 
 def lb_kim_sequence(candidate_seq, query_sequence):
+    """
+    Calculate lb kim lower bound between candidate and query sequence
+    :param candidate_seq:
+    :param query_sequence:
+    :return: lb kim lower bound distance between query and sequence
+    """
+
     lb_kim_sim = math.sqrt((candidate_seq[0] - query_sequence[0])**2 + (candidate_seq[-1] - query_sequence[-1])**2)
 
     return lb_kim_sim
