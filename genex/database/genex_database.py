@@ -214,7 +214,7 @@ class genex_database:
         target = random.choice(self.data_normalized)
 
         start = random.randint(0, len(target[1]) - sequence_len)
-        seq = Sequence(target[0], start, start + sequence_len)
+        seq = Sequence(target[0], start, start + sequence_len - 1)
 
         return seq
 
