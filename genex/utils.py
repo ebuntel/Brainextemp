@@ -12,6 +12,16 @@ import numpy as np
 
 
 def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
+    """
+    Use min max and z normalization to normalize time series data
+
+    :param seq: Time series sequence
+    :param max: maximum value in sequence
+    :param min: minimum value in sequence
+    :param z_normalize: whether data is z normalized or not
+
+    """
+
     if seq.data is None:
         raise Exception('Given sequence does not have data set, use fetch_data to set its data first')
     data = seq.data
@@ -58,6 +68,19 @@ def scale(ts_df, feature_num):
 
 def prune_by_lbh(seq_list: list, seq_length: int, q: Sequence, kim_reduction: float = 0.75,
                  keogh_reduction: float = 0.25):
+    """
+    Prune the sequences based on LB_Kim and LB_Keogh lower bound. First the sequences are pruned using LB_Kim
+    reduction factor and then using LB_Keogh reduction factor
+
+    :param seq_list: list of candidate time series sequences
+    :param seq_length: length of the sequences in the seq_list
+    :param q: Query Sequence
+    :param kim_reduction: Value of reduction factor for LB_Kim lower bound
+    :param keogh_reduction: Value of reduction factor for LB_Keogh lower bound
+
+    :return: a list containing remaining candidate sequences that can not be pruned using LBH
+    """
+
     # prune using lb_kim
     seq_list = [(x, lb_kim_sequence(x.data, q.data)) for x in seq_list]  # (seq, lb_kim_dist)
     seq_list.sort(key=lambda x: x[1])
@@ -67,7 +90,7 @@ def prune_by_lbh(seq_list: list, seq_length: int, q: Sequence, kim_reduction: fl
     a = len(q)
     if seq_length != len(q):
         seq_list = [
-            (x[0], np.interp(np.linspace(0, seq_length, len(q)), np.arrange(seq_length), x[0].data))
+            (x[0], np.interp(np.linspace(0, seq_length, len(q)), np.arange(seq_length), x[0].data))
             for x in seq_list]  # now entries are (seq, interp_data)
         seq_list = [(x[0], lb_keogh_sequence(x[1], q.data)) for x in seq_list]  # (seq, lb_keogh_dist)
     else:
@@ -84,18 +107,20 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
                      _lb_opt_repr: str, cluster_kim_rf: float, cluster_keogh_rf: float,
                      loi=None, exclude_same_id: bool = False, overlap: float = 1.0):
     """
+    This function finds k best matches for given query sequence on the worker node
 
-    :param cluster:
-    :param q:
-    :param k:
+    :param cluster: cluster being queried
+    :param q: Query sequence
+    :param k: number of best matches to retrieve
     :param data_normalized:
-    :param dist_type:
-    :param _lb_opt_cluster: 'bsf', 'lbh', 'lbh_bst, 'none'
-    :param _lb_opt_repr: 'lbh', 'none'
-    :param loi:
-    :param exclude_same_id:
-    :param overlap:
-    :return:
+    :param dist_type: type of distance used for similarity calculation
+    :param _lb_opt_cluster:Type of optimization used for clusters ('bsf', 'lbh', 'lbh_bst, 'none')
+    :param _lb_opt_repr:Type of optimization used for representatives ('lbh', 'none')
+    :param loi: Length of interest, default value is none
+    :param exclude_same_id: whether to exclude the query sequence when finding best matches
+    :param overlap: Overlapping parameter( must be between 0 and 1 inclusive)
+
+    :return: a list containing retrieved matches for given query sequence on that worker node
     """
     q = q.value
     data_normalized = data_normalized.value
@@ -228,7 +253,6 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
 def _validate_gxdb_build_arguments(args: dict):
     """
     sanity check function for the arguments of build as a class method @ genex_databse object
-    :param gxdb:
     :param args:
     :return:
     """
@@ -251,6 +275,12 @@ def _validate_gxdb_build_arguments(args: dict):
 
 
 def _validate_gxdb_query_arguments(args: dict):
+    """
+    sanity check function for the arguments of query as a class method @ genex_databse object
+    :param args:
+    :return:
+    """
+
     _lb_opt_repr_options = ['lbh', 'none']
     _lb_opt_cluster_options = ['lbh', 'bsf', 'lbh_bst', 'none']
     try:
@@ -292,6 +322,11 @@ def _row_to_feature_and_data(row, feature_num):
 
 
 def _process_loi(loi: slice):
+    """
+    Process the length of interest parameter to get the start and end index
+    :param loi: length of interest parameter
+    :return: start and end index
+    """
     start = 1
     end = math.inf
     if loi is not None:
