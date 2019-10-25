@@ -11,7 +11,7 @@ import itertools
 def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consider=None, sample_per_length=1, seed=0):
     random.seed(seed)
 
-    num_cores = 12
+    num_cores = 32
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
         setAppName("Genex").set('spark.driver.memory', '31G'). \
@@ -24,7 +24,8 @@ def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consi
 
     query_bf_results = []
 
-    for testing_len in len_to_test:
+    for i, testing_len in enumerate(len_to_test):
+        print('Validating #' + str(i) + ' of length' + str(testing_len))
         for i in range(sample_per_length):
             q = mydb.get_random_seq_of_len(testing_len)
 
@@ -32,7 +33,7 @@ def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consi
             result = mydb.query_brute_force(query=q, best_k=5)
             result.insert(0, (q, time.time() - start))
             query_bf_results.append(list(result))
-
+        print('Done')
     sc.stop()
     return query_bf_results
 
@@ -47,7 +48,7 @@ Validation using SART
 Validation using Italy Power
 # dataset_name = 'ItalyPower'
 # len_to_test = [1, 8, 16, 24]
-
+# rows_to_consider=None
 '''
 
 '''
@@ -56,13 +57,14 @@ Validation using ECGFiveDays
 '''
 dataset_name = 'ECGFiveDays'
 len_to_test = [4, 16, 64, 136]
+rows_to_consider = [0, 100]
 
 sample_per_length = 16
 
 if __name__ == '__main__':
     data_file = 'data/' + dataset_name + '.csv'
     validation_result = validate_brute_force(data_file_path=data_file, feature_num=2, len_to_test=len_to_test,
-                                             sample_per_length=sample_per_length)
+                                             sample_per_length=sample_per_length, rows_to_consider=rows_to_consider)
 
     flattened = list(itertools.chain(*validation_result))
     flattened = [list(x) for x in flattened]
