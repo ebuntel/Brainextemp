@@ -34,7 +34,7 @@ def get_subsquences(input_list: list):
     """
     user defined function for mapping for spark
     :param input_list: input list, has two rows, the first row is ID, the second is a list of clusters
-    :return:    val: a list of a list of value [length, id, start_point, end_point]
+    :return: val: a list of a list of value [length, id, start_point, end_point]
     """
     id = input_list[0]
     val = []
@@ -99,6 +99,13 @@ def generate_source(file_name, feature_num):
 
 
 def generate_query(file_name: str, feature_num: int):
+    """
+     Generates a list of query sequences (indexed by id, start and end point) from given csv file.
+    :param file_name: Source file for the query set
+    :param feature_num: Number of features
+    :return: a list of query sequences indexed by id, start and end point
+    """
+
     query_set = []
     with open(file_name, 'r') as f:
         for line in f:
