@@ -169,9 +169,33 @@ class genex_database:
             groups=x, st=similarity_threshold, dist_type=dist_type, log_level=verbose)).cache()
         # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
 
-        cluster_rdd.collect()
+        cluster_rdd.count()
 
         self.cluster_rdd = cluster_rdd
+
+        # len->number of clusters
+        self.cluster_info_dict = dict(cluster_rdd.map(lambda x: (x[0], len(x[1]))).reduceByKey(lambda v1, v2: v1 + v2)
+                                      .collect())
+
+        # len->list of representative
+        self.thumbnail_dict = dict(cluster_rdd.map(lambda x: (x[0], [y for y in x[1].keys()]))
+                                   .reduceByKey(lambda v1, v2: v1 + v2).collect())
+
+    def get_cluster(self, repre: Sequence):
+
+        for k, v in self.thumbnail_dict.items():
+            if repre in v:
+                len = k
+                break
+
+        if len is None:
+            raise ValueError('Couldn\'t find the representative in the cluster, please check the input.')
+
+        target_cluster_rdd = self.cluster_rdd.filter(lambda x: repre in x[1].keys()).collect()
+
+        cluster = target_cluster_rdd[0][1].get(repre)
+
+        return cluster
 
     def query_brute_force(self, query: Sequence, best_k: int):
         """
