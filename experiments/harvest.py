@@ -8,6 +8,7 @@ from genex.parse import generate_query
 import numpy as np
 import pandas as pd
 
+
 # create the spark context
 def experiment_genex(data_file, query_file, result_file):
     num_cores = 32
@@ -20,19 +21,23 @@ def experiment_genex(data_file, query_file, result_file):
     # create gxdb from a csv file
 
     # set up where to save the results
-    result_headers = np.array([['cluster_time', 'query', 'gx_time', 'bf_time', 'diff', 'gx_dist', 'gx_match', 'bf_dist', 'bf_match']])
+    result_headers = np.array(
+        [['cluster_time', 'query', 'gx_time', 'bf_time', 'diff', 'gx_dist', 'gx_match', 'bf_dist', 'bf_match']])
     result_df = pd.DataFrame(columns=result_headers[0, :])
 
     print('Fetching query ...')
     # generate the query sets
     query_set = generate_query(file_name=query_file, feature_num=2)
-
     print('Performing clustering ...')
     mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
+    if not all(mydb.is_seq_exist(x) for x in query_set):
+        print('some query not found in the original dataset, aborted.')
+        return
+
     cluster_start_time = time.time()
     mydb.build(similarity_threshold=0.1)
     cluster_time = time.time() - cluster_start_time
-    result_df.append({'cluster_time': cluster_time}, ignore_index=True)
+    result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
 
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
@@ -68,18 +73,18 @@ def experiment_genex(data_file, query_file, result_file):
         print('     Done')
 
     # save the overall difference
-    result_df.append({'diff': np.mean(overall_diff_list)}, ignore_index=True)
+    result_df = result_df.append({'diff': np.mean(overall_diff_list)}, ignore_index=True)
+    result_df.to_csv(result_file)
     # terminate the spark session
     sc.stop()
 
 
-data_file = 'data/test/ItalyPowerDemand_TEST.csv'
-query_file = 'data/test/ItalyPowerDemand_query.csv'
-result_file = 'results/test/ItalyPowerDemand_result.csv'
-experiment_genex(data_file, query_file, result_file)
+# data_file = 'data/test/ItalyPowerDemand_TEST.csv'
+# query_file = 'data/test/ItalyPowerDemand_query.csv'
+# result_file = 'results/test/ItalyPowerDemand_result.csv'
+# experiment_genex(data_file, query_file, result_file)
 
 data_file = 'data/test/ECGFiveDays_TEST .csv'
 query_file = 'data/test/ECGFiveDays_query.csv'
 result_file = 'results/test/ECGFiveDays_result.csv'
 experiment_genex(data_file, query_file, result_file)
-

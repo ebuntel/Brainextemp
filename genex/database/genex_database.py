@@ -127,6 +127,13 @@ class genex_database:
     def get_sc(self):
         return self.sc
 
+    def is_seq_exist(self, seq: Sequence):
+        try:
+            seq.fetch_data(self.data_normalized)
+        except KeyError:
+            return False
+        return True
+
     def build(self, similarity_threshold: float, dist_type: str = 'eu', loi: slice = None, verbose: int = 1,
               _batch_size=None, _is_cluster=True):
         """
