@@ -108,15 +108,17 @@ def generate_query(file_name: str, feature_num: int):
 
     query_set = []
     with open(file_name, 'r') as f:
-        for line in f:
+        for i, line in enumerate(f):
+            # first line is the header, do not take
+            if i == 0:
+                continue
             cur_query = line.strip().split(',')
-
             try:
                 assert len(cur_query) == feature_num + 2
                 features = tuple(cur_query[0:feature_num])
                 start = int(cur_query[feature_num])
                 end = int(cur_query[feature_num+1])
                 query_set.append(Sequence(features, start, end))
-            except ValueError and AssertionError as e:
-                print('Invalid Query csv, please refer to get_query_csv in README')
+            except ValueError or AssertionError as e:
+                raise Exception('Invalid Query csv, please refer to get_query_csv in README')
     return query_set
