@@ -281,13 +281,18 @@ def _create_f_uuid_map(df, feature_num: int):
 
     return f_uuid_dict
 
+
 def _row_to_feature_and_data(row, feature_num):
     # list slicing syntax: ending at the key_num-th element but not include it
     # seq_id = tuple([(name, value) for name, value in zip(feature_head[:feature_num], row[:feature_num])])
     # seq_id = tuple([str(x) for x in row[:feature_num]])
     seq_id = tuple([str(x) for x in row[:feature_num]])
-
-    data = [x for x in row[feature_num:] if not np.isnan(x)]
+    try:
+        data = [x for x in row[feature_num:] if not np.isnan(x)]
+    except TypeError as te:
+        raise Exception('Genex: this may due to an incorrect feature_num, please check you data file for the number '
+                        'of features\n '
+                        + 'Exception: ' + str(te))
     return seq_id, data
 
 
@@ -302,8 +307,6 @@ def _process_loi(loi: slice):
 
     assert start > 0
     return start, end
-
-
 
 # if _lb_optimization == 'heuristic':
 #     # Sorting sequence using cascading bounds

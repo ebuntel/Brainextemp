@@ -11,7 +11,7 @@ import itertools
 def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consider=None, sample_per_length=1, seed=0):
     random.seed(seed)
 
-    num_cores = 32
+    num_cores = 12
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
         setAppName("Genex").set('spark.driver.memory', '31G'). \
@@ -24,24 +24,23 @@ def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consi
 
     query_bf_results = []
 
-    for i, testing_len in enumerate(len_to_test):
-        print('Validating #' + str(i) + ' of length' + str(testing_len))
+    for testing_len in len_to_test:
         for i in range(sample_per_length):
+            print('Validating #' + str(i) + ' of length ' + str(testing_len))
             q = mydb.get_random_seq_of_len(testing_len)
 
             start = time.time()
             result = mydb.query_brute_force(query=q, best_k=5)
             result.insert(0, (q, time.time() - start))
             query_bf_results.append(list(result))
-        print('Done')
+            print('Done')
     sc.stop()
     return query_bf_results
 
 
 '''
 Validation using SART
-# dataset_name = 'SART2018_HbO'
-# len_to_test = [1, 8, 16, 24]
+
 '''
 
 '''
@@ -53,17 +52,19 @@ Validation using Italy Power
 
 '''
 Validation using ECGFiveDays
-
+# dataset_name = 'ECGFiveDays'
+# len_to_test = [4, 16, 64, 136]
+# rows_to_consider = [0, 100]
 '''
-dataset_name = 'ECGFiveDays'
-len_to_test = [4, 16, 64, 136]
-rows_to_consider = [0, 100]
-
-sample_per_length = 16
+dataset_name = 'SART2018_HbO'
+len_to_test = [32, 64, 128, 256]
+rows_to_consider = [0, 50]
 
 if __name__ == '__main__':
+    sample_per_length = 16
+
     data_file = 'data/' + dataset_name + '.csv'
-    validation_result = validate_brute_force(data_file_path=data_file, feature_num=2, len_to_test=len_to_test,
+    validation_result = validate_brute_force(data_file_path=data_file, feature_num=5, len_to_test=len_to_test,
                                              sample_per_length=sample_per_length, rows_to_consider=rows_to_consider)
 
     flattened = list(itertools.chain(*validation_result))
