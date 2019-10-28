@@ -38,7 +38,7 @@ def from_csv(file_name, feature_num: int, sc: SparkContext,
     :param _is_use_uuid: experiment parameter. If set to true, the feature (id) of the time series will be
 
 
-    :return: a genex_database object that holds the
+    :return: a genex_database object that holds the original time series
     """
 
     df = pd.read_csv(file_name)
@@ -71,10 +71,12 @@ def from_csv(file_name, feature_num: int, sc: SparkContext,
 
 def from_db(sc: SparkContext, path: str):
     """
+    returns a previously saved gxdb object from its saved path
 
-    :param sc:
-    :param path:
-    :return:
+    :param sc: spark context on which the database will run
+    :param path: path of the saved gxdb object
+
+    :return: a genex database object that holds clusters of time series data
     """
 
     # TODO the input fold_name is not existed
@@ -125,18 +127,26 @@ class genex_database:
     def get_sc(self):
         return self.sc
 
-    def build(self, similarity_threshold: float, dist_type: str = 'eu', loi: slice = None, verbose: int = 1,
-              _batch_size=None,
-              _is_cluster=True):
-        """
+    def is_seq_exist(self, seq: Sequence):
+        try:
+            seq.fetch_data(self.data_normalized)
+        except KeyError:
+            return False
+        return True
 
-        :param _batch_size:
-        :param _is_cluster:
+    def build(self, similarity_threshold: float, dist_type: str = 'eu', loi: slice = None, verbose: int = 1,
+              _batch_size=None, _is_cluster=True):
+        """
+        Groups and clusters the time series set
+
+        :param similarity_threshold: The upper bound of the similarity value between two time series (Value must be
+                                      between 0 and 1)
+        :param dist_type: Distance type used for similarity calculation between sequences
         :param loi: default value is none, otherwise using slice notation [start, stop: step]
-        :param similarity_threshold:
-        :param dist_type:
-        :param verbose:
-        :return:
+        :param verbose: Print logs when grouping and clustering the data
+        :param batch_size:
+        :param _is_cluster: Decide whether time series data is clustered or not
+
         """
         _validate_gxdb_build_arguments(locals())
         start, end = _process_loi(loi)
@@ -171,6 +181,16 @@ class genex_database:
         self.cluster_rdd = cluster_rdd
 
     def query_brute_force(self, query: Sequence, best_k: int):
+        """
+        Retrieve best k matches for query sequence using Brute force method
+
+        :param query: Sequence being queried
+        :param best_k: Number of best matches to retrieve for the given query
+
+        :return: a list containing best k matches for given query sequence
+
+        """
+
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         query.fetch_and_set_data(self.data_normalized)
@@ -214,13 +234,15 @@ class genex_database:
 
     def save(self, path: str):
         """
-        The save method saves the databse onto the disk.
+        The save method saves the database onto the disk.
         :param path: path to save the database to
-        :return:
+
         """
         if os.path.exists(path):
             print('Path ' + path + ' already exists, overwriting...')
             shutil.rmtree(path)
+            os.makedirs(path)
+        else:
             os.makedirs(path)
 
         # save the clusters if the db is built
@@ -242,22 +264,25 @@ class genex_database:
         return self.data_normalized
 
     def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
-              _lb_opt_repr: str = 'lbh', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
-              _lb_opt_cluster: str = 'lbh', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
+              _lb_opt_repr: str = 'none', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
+              _lb_opt_cluster: str = 'none', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
               ):
         """
+        Find best k matches for given query sequence using Distributed Genex method
 
-        :param _cluster_kim_rf:
-        :param _repr_kim_rf:
-        :param _repr_keogh_rf:
-        :param _cluster_keogh_rf:
-        :param _lb_opt_cluster: lbh, bsf, lbh_bst, none
+        :param: query: Sequence to be queried
+        :param best_k: Number of best matches to retrieve
+        :param exclude_same_id: Whether to exclude query sequence in the retrieved matches
+        :param overlap: Value for overlapping parameter (Must be between 0 and 1 inclusive)
+        :param _lb_opt_repr: Type of optimization used for representatives (lbh or none)
+        :param _repr_kim_rf: Value of LB_Kim reduction factor for representatives (0.25 or 0.5 or 0.75)
+        :param _repr_keogh_rf: Value of LB_Keogh reduction factor for representatives (0.25 or 0.5 or 0.75)
+        :param _lb_opt_cluster: Type of optimization used for clusters (lbh or bsf or lbh_bst or none)
         :param _lb_opt_repr: lbh, none
-        :param overlap:
-        :param query:
-        :param best_k:
-        :param exclude_same_id:
-        :return:
+        :param _cluster_kim_rf: Value of LB_Kim reduction factor for clusters (0.25 or 0.5 or 0.75)
+        :param _cluster_keogh_rf: Value of LB_Keogh reduction factor for clusters (0.25 or 0.5 or 0.75)
+
+        :return: a list containing k best matches for given query sequence
         """
         _validate_gxdb_query_arguments(locals())
 
@@ -298,6 +323,15 @@ class genex_database:
 
 
 def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
+    """
+     Check for overlapping between two time series sequences
+
+    :param seq1: Time series Sequence
+    :param seq2: Time series Sequence
+    :param overlap: Value for overlap (must be between 0 and 1 inclusive)
+
+    :return: boolean value based on whether two sequences overlap more or less than given overlap parameter
+    """
     if seq1.seq_id != seq2.seq_id:  # overlap does NOT matter if two seq have different id
         return True
     else:
@@ -306,6 +340,14 @@ def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
 
 
 def _calculate_overlap(seq1, seq2) -> float:
+    """
+    Calculate overlap between two time series sequence
+
+    :param seq1: Time series sequence
+    :param seq2: Time series sequence
+
+    :return: overlap value between two sequences
+    """
     if seq2.end > seq1.end and seq2.start >= seq1.start:
         return (seq1.end - seq2.start + 1) / (seq2.end - seq1.start + 1)
     elif seq1.end > seq2.end and seq1.start >= seq2.start:

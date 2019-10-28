@@ -3,10 +3,11 @@ import math
 
 def get_data(tid, time_series_dict, start=None, end=None):
     """
+    This function return sub-sequence indexed by id, start point and end point in clusters
 
-    :param id:
-    :param start:
-    :param end:
+    :param tid: id of time series sequence
+    :param start: starting index
+    :param end: end index
     :param timeSeries: raw time series clusters
 
     :return list: return a sub-sequence indexed by id, start point and end point in clusters
@@ -24,10 +25,12 @@ def get_data(tid, time_series_dict, start=None, end=None):
 
 def get_data_for_timeSeriesObj(time_series_obj, time_series_dict):
     """
+    This function returns data for given time series object
 
     :type time_series_obj: TimeSeriesObj
-    :param time_series_obj:
-    :param time_series_dict:
+    :param time_series_obj: Time series object
+    :param time_series_dict: dictionary of raw time series data
+    :return: a dictionary containing data points for given time series id from start to end point
     """
     tid = time_series_obj.id
     if tid not in time_series_dict.keys():
