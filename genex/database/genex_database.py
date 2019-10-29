@@ -80,20 +80,25 @@ def from_db(sc: SparkContext, path: str):
     """
 
     # TODO the input fold_name is not existed
+    if os.path.exists(path) is False:
+        raise ValueError('There is no such database, check the path again.')
+
     data = pickle.load(open(os.path.join(path, 'data.gxdb'), 'rb'))
     data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
-    cluster_info_dict = pickle.load(open(os.path.join(path), 'cluster_info.gxdb'), 'rb')
-    thumbnail_dict = pickle.load(open(os.path.join(path), 'thumbnail.gxdb'), 'rb')
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
     init_params = {'data': data, 'data_normalized': data_normalized, 'spark_context': sc,
                    'global_max': conf['global_max'], 'global_min': conf['global_min']}
     db = genex_database(**init_params)
-
-    db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
     db.set_conf(conf)
-    db.set_cluster_info_dict(cluster_info_dict)
-    db.set_thumbnail_dict(thumbnail_dict)
+
+    if os.path.exists(os.path.join(path, 'clusters.gxdb')):
+        db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
+
+        cluster_info_dict = pickle.load(open(os.path.join(path), 'cluster_info.gxdb'), 'rb')
+        thumbnail_dict = pickle.load(open(os.path.join(path), 'thumbnail.gxdb'), 'rb')
+        db.set_cluster_info_dict(cluster_info_dict)
+        db.set_thumbnail_dict(thumbnail_dict)
 
     return db
 
