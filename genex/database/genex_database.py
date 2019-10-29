@@ -82,6 +82,8 @@ def from_db(sc: SparkContext, path: str):
     # TODO the input fold_name is not existed
     data = pickle.load(open(os.path.join(path, 'data.gxdb'), 'rb'))
     data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
+    cluster_info_dict = pickle.load(open(os.path.join(path), 'cluster_info.gxdb'), 'rb')
+    thumbnail_dict = pickle.load(open(os.path.join(path), 'thumbnail.gxdb'), 'rb')
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
     init_params = {'data': data, 'data_normalized': data_normalized, 'spark_context': sc,
@@ -90,6 +92,8 @@ def from_db(sc: SparkContext, path: str):
 
     db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
     db.set_conf(conf)
+    db.set_cluster_info_dict(cluster_info_dict)
+    db.set_thumbnail_dict(thumbnail_dict)
 
     return db
 
@@ -113,6 +117,8 @@ class genex_database:
         self.data_normalized = kwargs['data_normalized']
         self.sc = kwargs['spark_context']
         self.cluster_rdd = None
+        self.cluster_info_dict = None
+        self.thumbnail_dict = None
 
         self.conf = {'build_conf': None,
                      'global_max': kwargs['global_max'],
@@ -126,6 +132,12 @@ class genex_database:
 
     def get_sc(self):
         return self.sc
+
+    def set_cluster_info_dict(self, cluster_info_dict):
+        self.cluster_info_dict = cluster_info_dict
+
+    def set_thumbnail_dict(self, thumbnail_dict):
+        self.thumbnail_dict = thumbnail_dict
 
     def build(self, similarity_threshold: float, dist_type: str = 'eu', loi: slice = None, verbose: int = 1,
               _batch_size=None, _is_cluster=True):
@@ -265,6 +277,8 @@ class genex_database:
         # save the clusters if the db is built
         if self.cluster_rdd is not None:
             self.cluster_rdd.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
+            pickle.dump(self.cluster_info_dict, open(os.path.join(path, 'cluster_info.gxdb'), 'wb'))
+            pickle.dump(self.thumbnail_dict, open(os.path.join(path, 'thumbnail.gxdb'), 'wb'))
 
         # save data files
         pickle.dump(self.data, open(os.path.join(path, 'data.gxdb'), 'wb'))
