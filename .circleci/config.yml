@@ -1,8 +1,20 @@
 version: 2
 jobs:
   build:
+    working_directory: ~/circle_tutorial_genex
     docker:
-      - image: circleci/ruby:2.4.1
+      - image: circleci/python:3.7.3 # primary container for the build job
     steps:
-      - checkout
-      - run: echo "A first hello"
+      - checkout # checkout source code to working directory
+      - restore_cache:
+          key: deps1-{{ .Branch }}-{{ checksum "genex/requirements.txt" }}
+      - run:
+          name: Install Python deps in a venv
+          command: |
+            python3 -m venv env
+            . env/bin/activate
+            pip install -r genex/requirements.txt
+      - save_cache:
+          key: deps1-{{ .Branch }}-{{ checksum "genex/requirements.txt" }}
+          paths:
+            - "env"
