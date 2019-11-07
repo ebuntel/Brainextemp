@@ -183,13 +183,14 @@ class genex_database:
                                       .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
 
     def get_cluster(self, repre: Sequence):
-
+        length = None
+        
         for k, v in self.cluster_meta_dict.items():
             if repre in v.keys():
-                len = k
+                length = k
                 break
 
-        if len is None:
+        if length is None:
             raise ValueError('Couldn\'t find the representative in the cluster, please check the input.')
 
         target_cluster_rdd = self.cluster_rdd.filter(lambda x: repre in x[1].keys()).collect()
