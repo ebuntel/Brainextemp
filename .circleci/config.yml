@@ -1,0 +1,21 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/circle_tutorial_genex
+    docker:
+      - image: circleci/python:3.7.3 # primary container for the build job
+    steps:
+      - checkout # checkout source code to working directory
+      - restore_cache:
+          key: deps1-{{ .Branch }}-{{ checksum "genex/requirements.txt" }}
+      - run:
+          name: Install Python deps in a venv
+          command: |
+            python3 -m venv env
+            . env/bin/activate
+            pip install -r genex/requirements.txt
+            pip install tslearn
+      - save_cache:
+          key: deps1-{{ .Branch }}-{{ checksum "genex/requirements.txt" }}
+          paths:
+            - "env"
