@@ -7,7 +7,6 @@ import random
 import uuid
 
 from pyspark import SparkContext
-from pyspark.sql import SQLContext
 import pandas as pd
 import numpy as np
 import shutil
@@ -94,11 +93,7 @@ def from_db(sc: SparkContext, path: str):
 
     if os.path.exists(os.path.join(path, 'clusters.gxdb')):
         db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
-
-        cluster_info_dict = pickle.load(open(os.path.join(path), 'cluster_info.gxdb'), 'rb')
-        thumbnail_dict = pickle.load(open(os.path.join(path), 'thumbnail.gxdb'), 'rb')
-        db.set_cluster_info_dict(cluster_info_dict)
-        db.set_thumbnail_dict(thumbnail_dict)
+        db.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'rb')))
 
     return db
 
@@ -122,8 +117,7 @@ class genex_database:
         self.data_normalized = kwargs['data_normalized']
         self.sc = kwargs['spark_context']
         self.cluster_rdd = None
-        self.cluster_info_dict = None
-        self.thumbnail_dict = None
+        self.cluster_meta_dict = None
 
         self.conf = {'build_conf': None,
                      'global_max': kwargs['global_max'],
@@ -137,12 +131,6 @@ class genex_database:
 
     def get_sc(self):
         return self.sc
-
-    def set_cluster_info_dict(self, cluster_info_dict):
-        self.cluster_info_dict = cluster_info_dict
-
-    def set_thumbnail_dict(self, thumbnail_dict):
-        self.thumbnail_dict = thumbnail_dict
 
     def build(self, similarity_threshold: float, dist_type: str = 'eu', loi: slice = None, verbose: int = 1,
               _batch_size=None, _is_cluster=True):
@@ -190,18 +178,14 @@ class genex_database:
 
         self.cluster_rdd = cluster_rdd
 
-        # len->number of clusters
-        self.cluster_info_dict = dict(cluster_rdd.map(lambda x: (x[0], len(x[1]))).reduceByKey(lambda v1, v2: v1 + v2)
-                                      .collect())
-
-        # len->list of representative
-        self.thumbnail_dict = dict(cluster_rdd.map(lambda x: (x[0], [y for y in x[1].keys()]))
-                                   .reduceByKey(lambda v1, v2: v1 + v2).collect())
+        # Combining two dictionary using **kwargs concept
+        self.cluster_meta_dict = dict(cluster_rdd.map(lambda x: (x[0], {repre: len(slist) for(repre, slist) in x[1].items()}))
+                                      .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
 
     def get_cluster(self, repre: Sequence):
 
-        for k, v in self.thumbnail_dict.items():
-            if repre in v:
+        for k, v in self.cluster_meta_dict.items():
+            if repre in v.keys():
                 len = k
                 break
 
@@ -282,8 +266,8 @@ class genex_database:
         # save the clusters if the db is built
         if self.cluster_rdd is not None:
             self.cluster_rdd.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
-            pickle.dump(self.cluster_info_dict, open(os.path.join(path, 'cluster_info.gxdb'), 'wb'))
-            pickle.dump(self.thumbnail_dict, open(os.path.join(path, 'thumbnail.gxdb'), 'wb'))
+            pickle.dump(self.cluster_meta_dict, open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'wb'))
+
 
         # save data files
         pickle.dump(self.data, open(os.path.join(path, 'data.gxdb'), 'wb'))
@@ -356,6 +340,9 @@ class genex_database:
             best_matches.append(heapq.heappop(aggre_query_result))
 
         return best_matches
+
+    def set_cluster_meta_dict(self, cluster_meta_dict):
+        self.cluster_meta_dict = cluster_meta_dict
 
 
 def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
