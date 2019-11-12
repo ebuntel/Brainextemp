@@ -22,7 +22,8 @@ from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _pro
 
 def from_csv(file_name, feature_num: int, sc: SparkContext,
              _rows_to_consider: int = None,
-             _memory_opt: str = None):
+             _memory_opt: str = None,
+             _is_z_normalize = True):
     """
     build a genex_database object from given csv,
     Note: if time series are of different length, shorter sequences will be post padded to the length
@@ -61,7 +62,7 @@ def from_csv(file_name, feature_num: int, sc: SparkContext,
     if _rows_to_consider is not None:
         data_list = data_list[_rows_to_consider[0]:_rows_to_consider[1]]
 
-    data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=True)
+    data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
 
     # return Genex_database
     return genex_database(data=data_list, data_normalized=data_norm_list, global_max=global_max, global_min=global_min,
@@ -256,6 +257,11 @@ class genex_database:
         start = random.randint(0, len(target[1]) - sequence_len)
         seq = Sequence(target[0], start, start + sequence_len - 1)
 
+        try:
+            assert len(seq.fetch_data(self.data)) == sequence_len
+        except AssertionError:
+            raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
+                            'an implementation error, please report to the Repository as an issue.')
         return seq
 
     def save(self, path: str):
@@ -351,6 +357,9 @@ class genex_database:
 
     def set_cluster_meta_dict(self, cluster_meta_dict):
         self.cluster_meta_dict = cluster_meta_dict
+
+    def get_max_seq_len(self):
+        return max([len(x[1]) for x in self.data_normalized])
 
 
 def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
