@@ -60,7 +60,13 @@ def from_csv(file_name, feature_num: int, sc: SparkContext,
         data_list = _df_to_list(df, feature_num=feature_num)
 
     if _rows_to_consider is not None:
-        data_list = data_list[_rows_to_consider[0]:_rows_to_consider[1]]
+        if type(_rows_to_consider) == list:
+            assert len(_rows_to_consider) == 2
+            data_list = data_list[_rows_to_consider[0]:_rows_to_consider[1]]
+        elif type(_rows_to_consider) == int:
+            data_list = data_list[:_rows_to_consider]
+        else:
+            raise Exception('_rows_to_consider must be either a list or an integer')
 
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
 
@@ -199,13 +205,23 @@ class genex_database:
                 break
 
         if length is None:
-            raise ValueError('Couldn\'t find the representative in the cluster, please check the input.')
+            raise ValueError('get_cluster: Couldn\'t find the representative in the cluster, please check the input.')
 
         target_cluster_rdd = self.cluster_rdd.filter(lambda x: repre in x[1].keys()).collect()
 
         cluster = target_cluster_rdd[0][1].get(repre)
 
         return cluster
+
+    def get_num_subsequences(self):
+        try:
+            assert self.cluster_rdd is not None
+        except AssertionError:
+            raise Exception('get_num_subsequences: the database must be build before calling this function')
+        clusters = (x[1] for x in self.cluster_rdd.collect())
+
+        return len([item for sublist in (list(x.values()) for x in clusters) for item in sublist])
+
 
     def query_brute_force(self, query: Sequence, best_k: int):
         """
@@ -300,7 +316,7 @@ class genex_database:
     def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
               _lb_opt_repr: str = 'none', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
               _lb_opt_cluster: str = 'none', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
-              ):
+              _ke = None):
         """
         Find best k matches for given query sequence using Distributed Genex method
 
@@ -320,6 +336,9 @@ class genex_database:
         """
         _validate_gxdb_query_arguments(locals())
 
+        if _ke is None:
+            _ke = best_k
+
         query.fetch_and_set_data(self._get_data_normalized())
         query = self.sc.broadcast(query)
 
@@ -329,7 +348,7 @@ class genex_database:
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         # for debug purposes
-        # a = _query_partition(cluster=self.cluster_rdd.glom().collect()[0], q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
+        # a = _query_partition(cluster=self.cluster_rdd.glom().collect()[0], q=query, k=best_k, ke=100, data_normalized=data_normalized, dist_type=dist_type,
         #                      _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
         #                      exclude_same_id=exclude_same_id, overlap=overlap,
         #
@@ -338,7 +357,7 @@ class genex_database:
         #                      )
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
-            _query_partition(cluster=x, q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
+            _query_partition(cluster=x, q=query, k=best_k, ke=_ke, data_normalized=data_normalized, dist_type=dist_type,
                              _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
                              exclude_same_id=exclude_same_id, overlap=overlap,
 
