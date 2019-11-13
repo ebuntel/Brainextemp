@@ -187,12 +187,12 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type,
     while len(candidate_dist_list) > 0 and len(query_result) < k:
         c_dist = heapq.heappop(candidate_dist_list)
         if overlap == 1.0 or exclude_same_id:
-            print('Adding to querying result')
+            # print('Adding to querying result')
             query_result.append(c_dist)
         else:
             if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
                        query_result):  # check for overlap against all the matches so far
-                print('Adding to querying result')
+                # print('Adding to querying result')
                 query_result.append(c_dist)
 
     return query_result
