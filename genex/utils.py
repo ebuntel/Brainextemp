@@ -106,10 +106,10 @@ def get_target_length(available_lens, current_len):
     return min(list(available_lens), key=lambda x: abs(x - current_len))
 
 
-def _query_partition(cluster, q, k: int, data_normalized, dist_type,
+def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type,
                      _lb_opt_cluster: str, repr_kim_rf: float, repr_keogh_rf: float,
                      _lb_opt_repr: str, cluster_kim_rf: float, cluster_keogh_rf: float,
-                     loi=None, exclude_same_id: bool = False, overlap: float = 1.0):
+                     loi=None, exclude_same_id: bool = False, overlap: float = 1.0,):
     """
     This function finds k best matches for given query sequence on the worker node
 
@@ -146,7 +146,8 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
     query_result = []
     prune_count = 0
 
-    while len(cluster_dict) > 0 and len(candidates) < k:
+    # note that we are using ke here
+    while len(cluster_dict) > 0 and len(candidates) < ke:
         # TODO this while loop is not tested after the first iteration
         target_length = get_target_length(available_lens=cluster_dict.keys(), current_len=target_length)
         target_cluster = cluster_dict[target_length]
@@ -162,7 +163,7 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
         target_reprs = [(sim_between_seq(x, q, dist_type=dist_type), x) for x in target_reprs]  # calculate DTW
         heapq.heapify(target_reprs)  # heap sort R-space
 
-        while len(target_reprs) > 0 and len(candidates) < k:  # get enough sequence from the clustes represented to query
+        while len(target_reprs) > 0 and len(candidates) < ke:  # get enough sequence from the clustes represented to query
             this_repr = heapq.heappop(target_reprs)[1]  # take the second element for the first one is the DTW dist
             candidates += (target_cluster[this_repr])
 
@@ -182,15 +183,16 @@ def _query_partition(cluster, q, k: int, data_normalized, dist_type,
     candidate_dist_list = [(sim_between_seq(x, q, dist_type), x) for x in candidates]
     heapq.heapify(candidate_dist_list)
 
+    # note that we are using k here
     while len(candidate_dist_list) > 0 and len(query_result) < k:
         c_dist = heapq.heappop(candidate_dist_list)
         if overlap == 1.0 or exclude_same_id:
-            print('Adding to querying result')
+            # print('Adding to querying result')
             query_result.append(c_dist)
         else:
             if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
                        query_result):  # check for overlap against all the matches so far
-                print('Adding to querying result')
+                # print('Adding to querying result')
                 query_result.append(c_dist)
 
     return query_result
@@ -342,13 +344,18 @@ def _create_f_uuid_map(df, feature_num: int):
 
     return f_uuid_dict
 
+
 def _row_to_feature_and_data(row, feature_num):
     # list slicing syntax: ending at the key_num-th element but not include it
     # seq_id = tuple([(name, value) for name, value in zip(feature_head[:feature_num], row[:feature_num])])
     # seq_id = tuple([str(x) for x in row[:feature_num]])
     seq_id = tuple([str(x) for x in row[:feature_num]])
-
-    data = [x for x in row[feature_num:] if not np.isnan(x)]
+    try:
+        data = [x for x in row[feature_num:] if not np.isnan(x)]
+    except TypeError as te:
+        raise Exception('Genex: this may due to an incorrect feature_num, please check you data file for the number '
+                        'of features\n '
+                        + 'Exception: ' + str(te))
     return seq_id, data
 
 
@@ -368,8 +375,6 @@ def _process_loi(loi: slice):
 
     assert start > 0
     return start, end
-
-
 
 # if _lb_optimization == 'heuristic':
 #     # Sorting sequence using cascading bounds
