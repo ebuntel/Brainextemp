@@ -276,7 +276,9 @@ class genex_database:
 
         return slice_rdd.collect()
 
-    def get_random_seq_of_len(self, sequence_len):
+    def get_random_seq_of_len(self, sequence_len, seed=0):
+        random.seed(seed)
+        
         target = random.choice(self.data_normalized)
 
         start = random.randint(0, len(target[1]) - sequence_len)
