@@ -16,8 +16,8 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
     num_cores = 12
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
-        setAppName("Genex").set('spark.driver.memory', '64G'). \
-        set('spark.driver.maxResultSize', '64G')
+        setAppName("Genex").set('spark.driver.memory', '32G'). \
+        set('spark.driver.maxResultSize', '32G')
     sc = SparkContext(conf=conf)
 
     # create gxdb from a csv file

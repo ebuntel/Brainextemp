@@ -129,7 +129,8 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type,
     q = q.value
     data_normalized = data_normalized.value
 
-    cluster_dict = dict(x for x in cluster if x[0] in range(loi[0], loi[1])) if loi is not None else dict(cluster)
+    cluster_filtered = [x for x in cluster if x[0] in range(loi[0], loi[1])] if loi is not None else cluster
+    cluster_dict = dict(list(reduce_by_key(lambda x, y: merge_dict([x, y]), cluster_filtered)))
 
     # get the seq length Range of the partition
     try:
@@ -432,3 +433,17 @@ def reduce_by_key(func, iterable):
         lambda l: (l[0], reduce(func, map(get_second, l[1]))),
         groupby(sorted(iterable, key=get_first), get_first)
     )
+
+
+def merge_dict(dicts: list):
+    merged_dict = dict()
+    merged_len = 0
+    for d in dicts:
+        merged_len += len(d)
+        merged_dict = {**merged_dict, **d}    # make sure there is no replacement of elements
+    try:
+        assert merged_len == len(merged_dict)
+    except AssertionError as ae:
+        print(str(ae))
+        raise Exception('duplicate dict keys: dict item replaced!')
+    return merged_dict
