@@ -1,6 +1,4 @@
 import csv
-import math
-import random
 import time
 
 import genex.database.genex_database as gxdb
@@ -12,20 +10,23 @@ import pandas as pd
 
 
 # create the spark context
-def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
-    num_cores = 12
+def experiment_genex(data, output, num_sample, num_query, add_uuid):
+    num_cores = 32
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
-        setAppName("Genex").set('spark.driver.memory', '32G'). \
-        set('spark.driver.maxResultSize', '32G')
+        setAppName("Genex").set('spark.driver.memory', '64G'). \
+        set('spark.driver.maxResultSize', '64G')
     sc = SparkContext(conf=conf)
 
     # create gxdb from a csv file
 
     # set up where to save the results
+    result_headers = np.array(
+        [['cluster_time', 'query', 'gx_time', 'bf_time', 'diff', 'gx_dist', 'gx_match', 'bf_dist', 'bf_match']])
+    result_df = pd.DataFrame(columns=result_headers[0, :])
 
     print('Performing clustering ...')
-    mydb = gxdb.from_csv(data_file, sc=sc, feature_num=feature_num, _rows_to_consider=num_sample)
+    mydb = gxdb.from_csv(data, sc=sc, feature_num=2, add_uuid=add_uuid, _rows_to_consider=num_sample)
 
     print('Generating query of max seq len ...')
     # generate the query sets
@@ -36,74 +37,67 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
     for i in range(num_query):
         query_set.append(mydb.get_random_seq_of_len(mydb.get_max_seq_len()))
 
-    best_l1_so_far = math.inf
-    l1_ke_list = [[], []]
-    timing_dict = dict()
-    current_ke = 1
-
-    # perform clustering
     cluster_start_time = time.time()
     mydb.build(similarity_threshold=0.1)
-    timing_dict['cluster time'] = time.time() - cluster_start_time
+    cluster_time = time.time() - cluster_start_time
+    result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
 
-    print('Evaluating ... best k is ' + str(best_k))
+    # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
+    # this query'id must exist in the database
+    overall_diff_list = []
 
-    # first we calculate the bf distance only once
-    # print('Running Brute Force Query ...')
-    bf_result_dict = dict()
-    bf_time_list = list()
+    print('Evaluating ...')
     for i, q in enumerate(query_set):
-        print('Brute Force Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
+        print('Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
         start = time.time()
-        query_result_bf = mydb.query_brute_force(query=query_set[0], best_k=best_k)
-        bf_time_list.append(time.time() - start)
-        bf_result_dict[q] = query_result_bf
-    timing_dict['bf query time'] = np.mean(bf_time_list)
+        print('     Running Genex Query ...')
+        query_result_gx = mydb.query(query=q, best_k=15)
+        gx_time = time.time() - start
 
-    print('Running Genex Query ...')
-    gx_timing_list = list()
-    while best_l1_so_far > 0.0001:
+        start = time.time()
+        print('     Running Brute Force Query ...')
+        query_result_bf = mydb.query_brute_force(query=query_set[0], best_k=15)
+        bf_time = time.time() - start
+
+        # save the results
+        print('     Saving results ...')
+        result_df = result_df.append({'query': str(q), 'gx_time': gx_time, 'bf_time': bf_time}, ignore_index=True)
         diff_list = []
-        # calculate diff for all queries
-        for i, q in enumerate(query_set):
-            print('Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
-            start = time.time()
-            query_result_gx = mydb.query(query=q, best_k=best_k, _ke=current_ke)
-            gx_timing_list.append(time.time() - start)
+        for gx_r, bf_r in zip(query_result_gx, query_result_bf):
+            diff = abs(gx_r[0] - bf_r[0])
+            diff_list.append(diff)
+            overall_diff_list.append(diff)
+            result_df = result_df.append({'diff': diff,
+                                          'gx_dist': gx_r[0], 'gx_match': gx_r[1],
+                                          'bf_dist': bf_r[0], 'bf_match': bf_r[1]}, ignore_index=True)
+        result_df = result_df.append({'diff': np.mean(diff_list)}, ignore_index=True)
+        result_df.to_csv(output)
 
-            # calculating l1 distance
-            for gx_r, bf_r in zip(query_result_gx, bf_result_dict[q]):  # retrive bf result from the result dict
-                diff_list.append(abs(gx_r[0] - bf_r[0]))
+        print('     Done')
 
-        print('Diff list is ' + str(diff_list))
-        cur_l1 = np.mean(diff_list)
-
-        print('Current l1 and ke are: ' + str(cur_l1) + '       ' + str(current_ke))
-        l1_ke_list[0].append(cur_l1)
-        l1_ke_list[1].append(current_ke)
-
-        current_ke = int(current_ke + mydb.get_num_subsequences() * 0.05)  # increment ke
-        # break the loop if current_ke exceeds the number of subsequences
-        if current_ke > mydb.get_num_subsequences():
-            break
-        best_l1_so_far = cur_l1 if cur_l1 < best_l1_so_far else best_l1_so_far  # update bsf
-
-    timing_dict['gx query time'] = np.mean(gx_timing_list)
+    # save the overall difference
+    result_df = result_df.append({'diff': np.mean(overall_diff_list)}, ignore_index=True)
+    result_df.to_csv(output)
+    # terminate the spark session
     sc.stop()
-    return l1_ke_list, timing_dict
 
 
 # data_file = 'data/test/ItalyPowerDemand_TEST.csv'
 # query_file = 'data/test/ItalyPowerDemand_query.csv'
 # result_file = 'results/test/ItalyPowerDemand_result.csv'
 # experiment_genex(data_file, query_file, result_file)
+# TODO run ECG
+# Querying #9 of 15; query = (ECG-1)_(Label-2): (61:118)
+#      Running Genex Query ...
 
 
-data_file = 'data/test/ItalyPowerDemand_TEST.csv'
-result_file = 'results/test/ipd/ItalyPowerDemand_result'
-feature_num = 2
+experiment_set = {'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
+                                  'output': 'results/ECGFiveDays_result.csv',
+                                  'feature_num': 2,
+                                  'add_uuid': False},
+                  'italyPowerDemand': {'data': 'data/ItalyPowerDemand.csv',
+                                       'output': 'results/ItalyPowerDemand_result.csv',
+                                       'feature_num': 2,
+                                       'add_uuid': False}, }
 
-k_to_test = [15, 9, 1]
-result_dict = dict()
-for k in k_to_test:
-    result_dict[k] = experiment_genex(data_file, num_sample=40, num_query=40, best_k=k, feature_num=feature_num)
+experiment_genex(**experiment_set['ecgFiveDays'], num_sample=40, num_query=40)
