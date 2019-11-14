@@ -23,7 +23,7 @@ from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _pro
 def from_csv(file_name, feature_num: int, sc: SparkContext,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
-             _is_z_normalize = True):
+             _is_z_normalize=True):
     """
     build a genex_database object from given csv,
     Note: if time series are of different length, shorter sequences will be post padded to the length
@@ -43,12 +43,17 @@ def from_csv(file_name, feature_num: int, sc: SparkContext,
 
     df = pd.read_csv(file_name)
 
+    if feature_num == 0:
+        print('msg: from_csv, feature num is 0, auto-generating uuid')
+        feature_num = 1
+        df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
+
     if _memory_opt == 'uuid':
-            df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
-            feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
-            # take off the feature columns
-            df = df.drop(df.columns[list(range(1, feature_num+1))], axis=1, inplace=False)
-            data_list = _df_to_list(df, feature_num=1)  # now the only feature is the uuid
+        df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
+        feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
+        # take off the feature columns
+        df = df.drop(df.columns[list(range(1, feature_num + 1))], axis=1, inplace=False)
+        data_list = _df_to_list(df, feature_num=1)  # now the only feature is the uuid
 
     elif _memory_opt == 'encoding':
         for i in range(feature_num):
@@ -193,12 +198,13 @@ class genex_database:
         self.cluster_rdd = cluster_rdd
 
         # Combining two dictionary using **kwargs concept
-        self.cluster_meta_dict = dict(cluster_rdd.map(lambda x: (x[0], {repre: len(slist) for(repre, slist) in x[1].items()}))
-                                      .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
+        self.cluster_meta_dict = dict(
+            cluster_rdd.map(lambda x: (x[0], {repre: len(slist) for (repre, slist) in x[1].items()}))
+            .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
 
     def get_cluster(self, repre: Sequence):
         length = None
-        
+
         for k, v in self.cluster_meta_dict.items():
             if repre in v.keys():
                 length = k
@@ -221,7 +227,6 @@ class genex_database:
         clusters = (x[1] for x in self.cluster_rdd.collect())
 
         return len([item for sublist in (list(x.values()) for x in clusters) for item in sublist])
-
 
     def query_brute_force(self, query: Sequence, best_k: int):
         """
@@ -298,7 +303,6 @@ class genex_database:
             self.cluster_rdd.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
             pickle.dump(self.cluster_meta_dict, open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'wb'))
 
-
         # save data files
         pickle.dump(self.data, open(os.path.join(path, 'data.gxdb'), 'wb'))
         pickle.dump(self.data_normalized, open(os.path.join(path, 'data_normalized.gxdb'), 'wb'))
@@ -316,10 +320,11 @@ class genex_database:
     def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
               _lb_opt_repr: str = 'none', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
               _lb_opt_cluster: str = 'none', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
-              _ke = None):
+              _ke=None):
         """
         Find best k matches for given query sequence using Distributed Genex method
 
+        :param _ke:
         :param: query: Sequence to be queried
         :param best_k: Number of best matches to retrieve
         :param exclude_same_id: Whether to exclude query sequence in the retrieved matches
@@ -336,8 +341,11 @@ class genex_database:
         """
         _validate_gxdb_query_arguments(locals())
 
-        if _ke is None:
+        if _ke is None or _ke < best_k:
             _ke = best_k
+        else:
+            if _ke > self.get_num_subsequences():
+                raise Exception('query: _ke cannot be greater than the number of subsequences in the database.')
 
         query.fetch_and_set_data(self._get_data_normalized())
         query = self.sc.broadcast(query)
@@ -348,13 +356,15 @@ class genex_database:
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         # for debug purposes
-        # a = _query_partition(cluster=self.cluster_rdd.glom().collect()[0], q=query, k=best_k, ke=100, data_normalized=data_normalized, dist_type=dist_type,
-        #                      _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
-        #                      exclude_same_id=exclude_same_id, overlap=overlap,
-        #
-        #                      repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
-        #                      cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
-        #                      )
+        a = _query_partition(cluster=self.cluster_rdd.collect(), q=query, k=best_k, ke=self.get_num_subsequences(),
+                             data_normalized=data_normalized, dist_type=dist_type,
+                             _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
+                             exclude_same_id=exclude_same_id, overlap=overlap,
+
+                             repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
+                             cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
+                             )
+
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
             _query_partition(cluster=x, q=query, k=best_k, ke=_ke, data_normalized=data_normalized, dist_type=dist_type,
