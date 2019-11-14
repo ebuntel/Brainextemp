@@ -52,13 +52,13 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
     # print('Running Brute Force Query ...')
     bf_result_dict = dict()
     bf_time_list = list()
-    # for i, q in enumerate(query_set):
-    #     print('Brute Force Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
-    #     start = time.time()
-    #     query_result_bf = mydb.query_brute_force(query=query_set[0], best_k=best_k)
-    #     bf_time_list.append(time.time() - start)
-    #     bf_result_dict[q] = query_result_bf
-    # timing_dict['bf query time'] = np.mean(bf_time_list)
+    for i, q in enumerate(query_set):
+        print('Brute Force Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
+        start = time.time()
+        query_result_bf = mydb.query_brute_force(query=query_set[0], best_k=best_k)
+        bf_time_list.append(time.time() - start)
+        bf_result_dict[q] = query_result_bf
+    timing_dict['bf query time'] = np.mean(bf_time_list)
 
     print('Running Genex Query ...')
     gx_timing_list = list()
@@ -97,9 +97,8 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
 # query_file = 'data/test/ItalyPowerDemand_query.csv'
 # result_file = 'results/test/ItalyPowerDemand_result.csv'
 # experiment_genex(data_file, query_file, result_file)
-# TODO run ECG
-# Querying #9 of 15; query = (ECG-1)_(Label-2): (61:118)
-#      Running Genex Query ...
+
+
 data_file = 'data/test/ItalyPowerDemand_TEST.csv'
 result_file = 'results/test/ipd/ItalyPowerDemand_result'
 feature_num = 2

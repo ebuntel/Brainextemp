@@ -20,7 +20,7 @@ from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _pro
     _validate_gxdb_query_arguments, _create_f_uuid_map
 
 
-def from_csv(file_name, feature_num: int, sc: SparkContext,
+def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
              _is_z_normalize=True):
@@ -44,8 +44,12 @@ def from_csv(file_name, feature_num: int, sc: SparkContext,
     df = pd.read_csv(file_name)
 
     if feature_num == 0:
-        print('msg: from_csv, feature num is 0, auto-generating uuid')
-        feature_num = 1
+        add_uuid = True
+        print('msg: from_csv, feature num is 0')
+
+    if add_uuid:
+        print('auto-generating uuid')
+        feature_num = feature_num + 1
         df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
 
     if _memory_opt == 'uuid':
@@ -356,14 +360,14 @@ class genex_database:
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         # for debug purposes
-        a = _query_partition(cluster=self.cluster_rdd.collect(), q=query, k=best_k, ke=self.get_num_subsequences(),
-                             data_normalized=data_normalized, dist_type=dist_type,
-                             _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
-                             exclude_same_id=exclude_same_id, overlap=overlap,
-
-                             repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
-                             cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
-                             )
+        # a = _query_partition(cluster=self.cluster_rdd.collect(), q=query, k=best_k, ke=self.get_num_subsequences(),
+        #                      data_normalized=data_normalized, dist_type=dist_type,
+        #                      _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
+        #                      exclude_same_id=exclude_same_id, overlap=overlap,
+        #
+        #                      repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
+        #                      cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
+        #                      )
 
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
