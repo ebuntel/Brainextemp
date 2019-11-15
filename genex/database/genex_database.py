@@ -7,7 +7,6 @@ import random
 import uuid
 
 from pyspark import SparkContext
-from pyspark.sql import SQLContext
 import pandas as pd
 import numpy as np
 import shutil
@@ -21,9 +20,10 @@ from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _pro
     _validate_gxdb_query_arguments, _create_f_uuid_map
 
 
-def from_csv(file_name, feature_num: int, sc: SparkContext,
+def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
              _rows_to_consider: int = None,
-             _memory_opt: str = None):
+             _memory_opt: str = None,
+             _is_z_normalize=True):
     """
     build a genex_database object from given csv,
     Note: if time series are of different length, shorter sequences will be post padded to the length
@@ -43,12 +43,21 @@ def from_csv(file_name, feature_num: int, sc: SparkContext,
 
     df = pd.read_csv(file_name)
 
+    if feature_num == 0:
+        add_uuid = True
+        print('msg: from_csv, feature num is 0')
+
+    if add_uuid:
+        print('auto-generating uuid')
+        feature_num = feature_num + 1
+        df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
+
     if _memory_opt == 'uuid':
-            df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
-            feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
-            # take off the feature columns
-            df = df.drop(df.columns[list(range(1, feature_num+1))], axis=1, inplace=False)
-            data_list = _df_to_list(df, feature_num=1)  # now the only feature is the uuid
+        df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
+        feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
+        # take off the feature columns
+        df = df.drop(df.columns[list(range(1, feature_num + 1))], axis=1, inplace=False)
+        data_list = _df_to_list(df, feature_num=1)  # now the only feature is the uuid
 
     elif _memory_opt == 'encoding':
         for i in range(feature_num):
@@ -60,9 +69,15 @@ def from_csv(file_name, feature_num: int, sc: SparkContext,
         data_list = _df_to_list(df, feature_num=feature_num)
 
     if _rows_to_consider is not None:
-        data_list = data_list[_rows_to_consider[0]:_rows_to_consider[1]]
+        if type(_rows_to_consider) == list:
+            assert len(_rows_to_consider) == 2
+            data_list = data_list[_rows_to_consider[0]:_rows_to_consider[1]]
+        elif type(_rows_to_consider) == int:
+            data_list = data_list[:_rows_to_consider]
+        else:
+            raise Exception('_rows_to_consider must be either a list or an integer')
 
-    data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=True)
+    data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
 
     # return Genex_database
     return genex_database(data=data_list, data_normalized=data_norm_list, global_max=global_max, global_min=global_min,
@@ -80,6 +95,9 @@ def from_db(sc: SparkContext, path: str):
     """
 
     # TODO the input fold_name is not existed
+    if os.path.exists(path) is False:
+        raise ValueError('There is no such database, check the path again.')
+
     data = pickle.load(open(os.path.join(path, 'data.gxdb'), 'rb'))
     data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
 
@@ -87,9 +105,11 @@ def from_db(sc: SparkContext, path: str):
     init_params = {'data': data, 'data_normalized': data_normalized, 'spark_context': sc,
                    'global_max': conf['global_max'], 'global_min': conf['global_min']}
     db = genex_database(**init_params)
-
-    db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
     db.set_conf(conf)
+
+    if os.path.exists(os.path.join(path, 'clusters.gxdb')):
+        db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
+        db.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'rb')))
 
     return db
 
@@ -113,6 +133,7 @@ class genex_database:
         self.data_normalized = kwargs['data_normalized']
         self.sc = kwargs['spark_context']
         self.cluster_rdd = None
+        self.cluster_meta_dict = None
 
         self.conf = {'build_conf': None,
                      'global_max': kwargs['global_max'],
@@ -176,9 +197,40 @@ class genex_database:
             groups=x, st=similarity_threshold, dist_type=dist_type, log_level=verbose)).cache()
         # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
 
-        cluster_rdd.collect()
+        cluster_rdd.count()
 
         self.cluster_rdd = cluster_rdd
+
+        # Combining two dictionary using **kwargs concept
+        self.cluster_meta_dict = dict(
+            cluster_rdd.map(lambda x: (x[0], {repre: len(slist) for (repre, slist) in x[1].items()}))
+            .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
+
+    def get_cluster(self, repre: Sequence):
+        length = None
+
+        for k, v in self.cluster_meta_dict.items():
+            if repre in v.keys():
+                length = k
+                break
+
+        if length is None:
+            raise ValueError('get_cluster: Couldn\'t find the representative in the cluster, please check the input.')
+
+        target_cluster_rdd = self.cluster_rdd.filter(lambda x: repre in x[1].keys()).collect()
+
+        cluster = target_cluster_rdd[0][1].get(repre)
+
+        return cluster
+
+    def get_num_subsequences(self):
+        try:
+            assert self.cluster_rdd is not None
+        except AssertionError:
+            raise Exception('get_num_subsequences: the database must be build before calling this function')
+        clusters = (x[1] for x in self.cluster_rdd.collect())
+
+        return len([item for sublist in (list(x.values()) for x in clusters) for item in sublist])
 
     def query_brute_force(self, query: Sequence, best_k: int):
         """
@@ -224,12 +276,19 @@ class genex_database:
 
         return slice_rdd.collect()
 
-    def get_random_seq_of_len(self, sequence_len):
+    def get_random_seq_of_len(self, sequence_len, seed=0):
+        random.seed(seed)
+
         target = random.choice(self.data_normalized)
 
         start = random.randint(0, len(target[1]) - sequence_len)
         seq = Sequence(target[0], start, start + sequence_len - 1)
 
+        try:
+            assert len(seq.fetch_data(self.data)) == sequence_len
+        except AssertionError:
+            raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
+                            'an implementation error, please report to the Repository as an issue.')
         return seq
 
     def save(self, path: str):
@@ -248,6 +307,7 @@ class genex_database:
         # save the clusters if the db is built
         if self.cluster_rdd is not None:
             self.cluster_rdd.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
+            pickle.dump(self.cluster_meta_dict, open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'wb'))
 
         # save data files
         pickle.dump(self.data, open(os.path.join(path, 'data.gxdb'), 'wb'))
@@ -266,10 +326,11 @@ class genex_database:
     def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
               _lb_opt_repr: str = 'none', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
               _lb_opt_cluster: str = 'none', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
-              ):
+              _ke=None):
         """
         Find best k matches for given query sequence using Distributed Genex method
 
+        :param _ke:
         :param: query: Sequence to be queried
         :param best_k: Number of best matches to retrieve
         :param exclude_same_id: Whether to exclude query sequence in the retrieved matches
@@ -286,6 +347,12 @@ class genex_database:
         """
         _validate_gxdb_query_arguments(locals())
 
+        if _ke is None or _ke < best_k:
+            _ke = best_k
+        else:
+            if _ke > self.get_num_subsequences():
+                raise Exception('query: _ke cannot be greater than the number of subsequences in the database.')
+
         query.fetch_and_set_data(self._get_data_normalized())
         query = self.sc.broadcast(query)
 
@@ -295,16 +362,18 @@ class genex_database:
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         # for debug purposes
-        # a = _query_partition(cluster=self.cluster_rdd.glom().collect()[0], q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
+        # a = _query_partition(cluster=self.cluster_rdd.collect(), q=query, k=best_k, ke=self.get_num_subsequences(),
+        #                      data_normalized=data_normalized, dist_type=dist_type,
         #                      _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
         #                      exclude_same_id=exclude_same_id, overlap=overlap,
         #
         #                      repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
         #                      cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
         #                      )
+
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
-            _query_partition(cluster=x, q=query, k=best_k, data_normalized=data_normalized, dist_type=dist_type,
+            _query_partition(cluster=x, q=query, k=best_k, ke=_ke, data_normalized=data_normalized, dist_type=dist_type,
                              _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
                              exclude_same_id=exclude_same_id, overlap=overlap,
 
@@ -320,6 +389,12 @@ class genex_database:
             best_matches.append(heapq.heappop(aggre_query_result))
 
         return best_matches
+
+    def set_cluster_meta_dict(self, cluster_meta_dict):
+        self.cluster_meta_dict = cluster_meta_dict
+
+    def get_max_seq_len(self):
+        return max([len(x[1]) for x in self.data_normalized])
 
 
 def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:

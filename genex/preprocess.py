@@ -215,7 +215,8 @@ def genex_normalize(input_list, z_normalization=False):
     # perform z normalization
     if z_normalization:
         z_normalized_input_list = _z_normalize(input_list)
-
+    else:
+        print('Not using z-normalization')
     # get a flatten z normalized list so to obtain the global min and max
     flattened_list = flatten([x[1] for x in z_normalized_input_list])
     global_max = np.max(flattened_list)
