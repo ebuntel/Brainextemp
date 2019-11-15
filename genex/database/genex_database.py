@@ -375,6 +375,7 @@ class genex_database:
         #                      repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
         #                      cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
         #                      )
+        # seq_num = self.get_num_subsequences()
 
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
@@ -386,6 +387,16 @@ class genex_database:
                              cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
                              )
         )
+
+        #### testing distribute query vs. one-core query
+        # result_distributed = query_rdd.collect()
+        # result_distributed.sort(key=lambda x: x[0])
+        # result_distributed = result_distributed[:10]
+        # result_one_core = a
+        # result_one_core.sort(key=lambda x: x[0])
+        # result_one_core = result_one_core[:10]
+        # is_same = np.equal(result_distributed, result_one_core)
+
         aggre_query_result = query_rdd.collect()
         heapq.heapify(aggre_query_result)
         best_matches = []

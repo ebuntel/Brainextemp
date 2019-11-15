@@ -54,7 +54,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid)
         print('Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
         start = time.time()
         print('     Running Genex Query ...')
-        query_result_gx = mydb.query(query=q, best_k=15)
+        query_result_gx = mydb.query(query=q, best_k=15, _ke=3*15)
         gx_time = time.time() - start
 
         start = time.time()
@@ -89,7 +89,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid)
 
 # data_file = 'data/test/ItalyPowerDemand_TEST.csv'
 # query_file = 'data/test/ItalyPowerDemand_query.csv'
-# result_file = 'results/test/ItalyPowerDemand_result.csv'
+# result_file = 'results/test/ItalyPowerDemand_result_regular.csv'
 # experiment_genex(data_file, query_file, result_file)
 # TODO run ECG
 # Querying #9 of 15; query = (ECG-1)_(Label-2): (61:118)
