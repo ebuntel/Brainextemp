@@ -228,9 +228,14 @@ class genex_database:
             assert self.cluster_rdd is not None
         except AssertionError:
             raise Exception('get_num_subsequences: the database must be build before calling this function')
-        clusters = (x[1] for x in self.cluster_rdd.collect())
 
-        return len([item for sublist in (list(x.values()) for x in clusters) for item in sublist])
+        rtn = 0
+        clusters = [x[1] for x in self.cluster_meta_dict.items()]
+
+        for c in clusters:
+            for key, value in c.items():
+                rtn += value
+        return rtn
 
     def query_brute_force(self, query: Sequence, best_k: int):
         """

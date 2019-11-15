@@ -12,7 +12,7 @@ import pandas as pd
 
 
 # create the spark context
-def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
+def experiment_genex(data_file, num_sample, num_query, best_k, feature_num, add_uuid):
     num_cores = 12
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
@@ -25,7 +25,7 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
     # set up where to save the results
 
     print('Performing clustering ...')
-    mydb = gxdb.from_csv(data_file, sc=sc, feature_num=feature_num, _rows_to_consider=num_sample)
+    mydb = gxdb.from_csv(data_file, sc=sc, feature_num=feature_num, add_uuid=add_uuid, _rows_to_consider=num_sample)
 
     print('Generating query of max seq len ...')
     # generate the query sets
@@ -46,10 +46,6 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
     mydb.build(similarity_threshold=0.1)
     timing_dict['cluster time'] = time.time() - cluster_start_time
 
-    print('Evaluating ... best k is ' + str(best_k))
-
-    # first we calculate the bf distance only once
-    # print('Running Brute Force Query ...')
     bf_result_dict = dict()
     bf_time_list = list()
     for i, q in enumerate(query_set):
@@ -99,8 +95,8 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
 # experiment_genex(data_file, query_file, result_file)
 
 
-data_file = 'data/test/ItalyPowerDemand.csv'
-result_file = 'results/test/ipd/ItalyPowerDemand_result'
+data_file = 'data/ItalyPower.csv'
+result_file = 'results/ipd/ItalyPowerDemand_result'
 feature_num = 2
 add_uuid = False
 
