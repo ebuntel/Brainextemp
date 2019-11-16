@@ -254,18 +254,23 @@ class genex_database:
         input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
 
         start, end = self.conf.get('build_conf').get('loi')
-        slice_rdd = input_rdd.mapPartitions(
-            lambda x: _slice_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+        # slice_rdd = input_rdd.mapPartitions(
+        #     lambda x: _slice_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
 
+        group_rdd = input_rdd.mapPartitions(
+            lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+
+        slice_rdd = group_rdd.flatMap(lambda x: x[1])
         # for debug purpose
         # a = slice_rdd.collect()
-
         dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x, dist_type=dist_type), x))
 
         candidate_list = dist_rdd.collect()
-        candidate_list.sort(key=lambda x: x[0])
 
-        query_result = candidate_list[:best_k]
+        heapq.heapify(candidate_list)
+        query_result = list()
+        while len(query_result) < best_k and len(candidate_list) > 0:
+            query_result.append(heapq.heappop(candidate_list))
         return query_result
 
     def group_sequences(self):
@@ -281,7 +286,7 @@ class genex_database:
 
         return slice_rdd.collect()
 
-    def get_random_seq_of_len(self, sequence_len, seed=0):
+    def get_random_seq_of_len(self, sequence_len, seed):
         random.seed(seed)
 
         target = random.choice(self.data_normalized)

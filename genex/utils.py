@@ -175,6 +175,8 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type,
     candidates = (x for x in candidates if x.seq_id != q.seq_id) if exclude_same_id else candidates
     [x.fetch_and_set_data(data_normalized) for x in candidates]  # fetch data for the candidates]
 
+    print('Number of Sequences in the candidate list is: ' + str(len(candidates)))
+
     # lbh pruneing #####################################################################
     if (_lb_opt_cluster == 'lbh' or _lb_opt_cluster == 'lbh_bsf') and \
             len(candidates) > (k / cluster_keogh_rf) / cluster_kim_rf:

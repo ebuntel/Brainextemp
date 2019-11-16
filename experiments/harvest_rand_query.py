@@ -14,11 +14,11 @@ import pandas as pd
 
 # create the spark context
 def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid):
-    num_cores = 8
+    num_cores = 12
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
-        setAppName("Genex").set('spark.driver.memory', '15G'). \
-        set('spark.driver.maxResultSize', '15G')
+        setAppName("Genex").set('spark.driver.memory', '32G'). \
+        set('spark.driver.maxResultSize', '32G')
     sc = SparkContext(conf=conf)
 
     # create gxdb from a csv file
@@ -38,7 +38,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid)
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
     for i in range(num_query):
-        query_set.append(mydb.get_random_seq_of_len(int(mydb.get_max_seq_len()/2)))
+        query_set.append(mydb.get_random_seq_of_len(int(mydb.get_max_seq_len()/2), seed=i))
 
     cluster_start_time = time.time()
     mydb.build(similarity_threshold=0.1)
@@ -54,12 +54,12 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid)
         print('Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
         start = time.time()
         print('     Running Genex Query ...')
-        query_result_gx = mydb.query(query=q, best_k=15, _ke=3*15)
+        query_result_gx = mydb.query(query=q, best_k=15)
         gx_time = time.time() - start
 
         start = time.time()
         print('     Running Brute Force Query ...')
-        query_result_bf = mydb.query_brute_force(query=query_set[0], best_k=15)
+        query_result_bf = mydb.query_brute_force(query=q, best_k=15)
         bf_time = time.time() - start
 
         # save the results
