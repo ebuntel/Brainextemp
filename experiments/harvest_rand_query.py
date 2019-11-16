@@ -4,6 +4,7 @@ import time
 import genex.database.genex_database as gxdb
 from pyspark import SparkContext, SparkConf
 
+from experiments.harvest_ke import experiment_genex_ke
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq
 from genex.parse import generate_query
@@ -87,13 +88,15 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid)
     return mydb
 
 
-# data_file = 'data/test/ItalyPowerDemand_TEST.csv'
-# query_file = 'data/test/ItalyPowerDemand_query.csv'
-# result_file = 'results/test/ItalyPowerDemand_result_regular.csv'
-# experiment_genex(data_file, query_file, result_file)
-# TODO run ECG
-# Querying #9 of 15; query = (ECG-1)_(Label-2): (61:118)
-#      Running Genex Query ...
+
+data_file = 'data/ItalyPower.csv'
+result_file = 'results/ipd/ItalyPowerDemand_result'
+feature_num = 2
+add_uuid = False
+k_to_test = [15, 9, 1]
+ke_result_dict = dict()
+for k in k_to_test:
+    ke_result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid, feature_num=feature_num)
 
 
 experiment_set = {'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
@@ -103,9 +106,19 @@ experiment_set = {'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
                   'italyPowerDemand': {'data': 'data/ItalyPower.csv',
                                        'output': 'results/ItalyPowerDemand_result.csv',
                                        'feature_num': 2,
-                                       'add_uuid': False}, }
+                                       'add_uuid': False},
+                  'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
+                                       'output': 'results/Gun_Point_TRAIN_result.csv',
+                                       'feature_num': 1,
+                                       'add_uuid': True},
+                  'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
+                                      'output': 'results/synthetic_control_TRAIN_result.csv',
+                                      'feature_num': 1,
+                                      'add_uuid': True},
+                  }
 
-mydb = experiment_genex(**experiment_set['italyPowerDemand'], num_sample=40, num_query=40)
+for key, value in experiment_set.items():
+    mydb = experiment_genex(**value, num_sample=40, num_query=40)
 
 
 # q = Sequence(seq_id=('Italy_power25', '2'), start=7, end=18)

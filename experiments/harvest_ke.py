@@ -12,7 +12,7 @@ import pandas as pd
 
 
 # create the spark context
-def experiment_genex(data_file, num_sample, num_query, best_k, feature_num, add_uuid):
+def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, add_uuid):
     num_cores = 12
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
@@ -34,7 +34,7 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num, add_
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
     for i in range(num_query):
-        query_set.append(mydb.get_random_seq_of_len(mydb.get_max_seq_len()))
+        query_set.append(mydb.get_random_seq_of_len(mydb.get_max_seq_len(), seed=i))
 
     best_l1_so_far = math.inf
     l1_ke_list = [[], []]
@@ -51,7 +51,7 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num, add_
     for i, q in enumerate(query_set):
         print('Brute Force Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
         start = time.time()
-        query_result_bf = mydb.query_brute_force(query=query_set[0], best_k=best_k)
+        query_result_bf = mydb.query_brute_force(query=q, best_k=best_k)
         bf_time_list.append(time.time() - start)
         bf_result_dict[q] = query_result_bf
     timing_dict['bf query time'] = np.mean(bf_time_list)
@@ -103,4 +103,4 @@ add_uuid = False
 k_to_test = [15, 9, 1]
 result_dict = dict()
 for k in k_to_test:
-    result_dict[k] = experiment_genex(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid, feature_num=feature_num)
+    result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid, feature_num=feature_num)
