@@ -80,7 +80,8 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
 
     # return Genex_database
-    return genex_database(data=data_list, data_normalized=data_norm_list, global_max=global_max, global_min=global_min,
+    return genex_database(data_raw=df, data=data_list, data_normalized=data_norm_list, global_max=global_max,
+                          global_min=global_min,
                           spark_context=sc)
 
 
@@ -98,11 +99,12 @@ def from_db(sc: SparkContext, path: str):
     if os.path.exists(path) is False:
         raise ValueError('There is no such database, check the path again.')
 
+    data_raw = pd.read_csv(os.path.join(path, 'data_raw.csv'))
     data = pickle.load(open(os.path.join(path, 'data.gxdb'), 'rb'))
     data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
-    init_params = {'data': data, 'data_normalized': data_normalized, 'spark_context': sc,
+    init_params = {'data_raw': data_raw, 'data': data, 'data_normalized': data_normalized, 'spark_context': sc,
                    'global_max': conf['global_max'], 'global_min': conf['global_min']}
     db = genex_database(**init_params)
     db.set_conf(conf)
@@ -129,6 +131,7 @@ class genex_database:
 
         :param kwargs:
         """
+        self.data_raw = kwargs['data_raw']
         self.data = kwargs['data']
         self.data_normalized = kwargs['data_normalized']
         self.sc = kwargs['spark_context']
@@ -204,7 +207,7 @@ class genex_database:
         # Combining two dictionary using **kwargs concept
         self.cluster_meta_dict = dict(
             cluster_rdd.map(lambda x: (x[0], {repre: len(slist) for (repre, slist) in x[1].items()}))
-            .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
+                .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
 
     def get_cluster(self, repre: Sequence):
         length = None
@@ -322,6 +325,7 @@ class genex_database:
         # save data files
         pickle.dump(self.data, open(os.path.join(path, 'data.gxdb'), 'wb'))
         pickle.dump(self.data_normalized, open(os.path.join(path, 'data_normalized.gxdb'), 'wb'))
+        self.data_raw.to_csv(os.path.join(path, 'data_raw.csv'))
 
         # save configs
         with open(path + '/conf.json', 'w') as f:
