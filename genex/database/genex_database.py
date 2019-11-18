@@ -80,7 +80,8 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
 
     # return Genex_database
-    return genex_database(data=data_list, data_normalized=data_norm_list, global_max=global_max, global_min=global_min,
+    return genex_database(data_raw=df, data=data_list, data_normalized=data_norm_list, global_max=global_max,
+                          global_min=global_min,
                           spark_context=sc)
 
 
@@ -98,11 +99,12 @@ def from_db(sc: SparkContext, path: str):
     if os.path.exists(path) is False:
         raise ValueError('There is no such database, check the path again.')
 
+    data_raw = pd.read_csv(os.path.join(path, 'data_raw.csv'))
     data = pickle.load(open(os.path.join(path, 'data.gxdb'), 'rb'))
     data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
-    init_params = {'data': data, 'data_normalized': data_normalized, 'spark_context': sc,
+    init_params = {'data_raw': data_raw, 'data': data, 'data_normalized': data_normalized, 'spark_context': sc,
                    'global_max': conf['global_max'], 'global_min': conf['global_min']}
     db = genex_database(**init_params)
     db.set_conf(conf)
@@ -129,6 +131,7 @@ class genex_database:
 
         :param kwargs:
         """
+        self.data_raw = kwargs['data_raw']
         self.data = kwargs['data']
         self.data_normalized = kwargs['data_normalized']
         self.sc = kwargs['spark_context']
@@ -204,7 +207,7 @@ class genex_database:
         # Combining two dictionary using **kwargs concept
         self.cluster_meta_dict = dict(
             cluster_rdd.map(lambda x: (x[0], {repre: len(slist) for (repre, slist) in x[1].items()}))
-            .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
+                .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
 
     def get_cluster(self, repre: Sequence):
         length = None
@@ -228,9 +231,14 @@ class genex_database:
             assert self.cluster_rdd is not None
         except AssertionError:
             raise Exception('get_num_subsequences: the database must be build before calling this function')
-        clusters = (x[1] for x in self.cluster_rdd.collect())
 
-        return len([item for sublist in (list(x.values()) for x in clusters) for item in sublist])
+        rtn = 0
+        clusters = [x[1] for x in self.cluster_meta_dict.items()]
+
+        for c in clusters:
+            for key, value in c.items():
+                rtn += value
+        return rtn
 
     def query_brute_force(self, query: Sequence, best_k: int):
         """
@@ -249,18 +257,23 @@ class genex_database:
         input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
 
         start, end = self.conf.get('build_conf').get('loi')
-        slice_rdd = input_rdd.mapPartitions(
-            lambda x: _slice_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+        # slice_rdd = input_rdd.mapPartitions(
+        #     lambda x: _slice_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
 
+        group_rdd = input_rdd.mapPartitions(
+            lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+
+        slice_rdd = group_rdd.flatMap(lambda x: x[1])
         # for debug purpose
         # a = slice_rdd.collect()
-
         dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x, dist_type=dist_type), x))
 
         candidate_list = dist_rdd.collect()
-        candidate_list.sort(key=lambda x: x[0])
 
-        query_result = candidate_list[:best_k]
+        heapq.heapify(candidate_list)
+        query_result = list()
+        while len(query_result) < best_k and len(candidate_list) > 0:
+            query_result.append(heapq.heappop(candidate_list))
         return query_result
 
     def group_sequences(self):
@@ -276,7 +289,9 @@ class genex_database:
 
         return slice_rdd.collect()
 
-    def get_random_seq_of_len(self, sequence_len):
+    def get_random_seq_of_len(self, sequence_len, seed):
+        random.seed(seed)
+
         target = random.choice(self.data_normalized)
 
         start = random.randint(0, len(target[1]) - sequence_len)
@@ -310,6 +325,7 @@ class genex_database:
         # save data files
         pickle.dump(self.data, open(os.path.join(path, 'data.gxdb'), 'wb'))
         pickle.dump(self.data_normalized, open(os.path.join(path, 'data_normalized.gxdb'), 'wb'))
+        self.data_raw.to_csv(os.path.join(path, 'data_raw.csv'))
 
         # save configs
         with open(path + '/conf.json', 'w') as f:
@@ -368,6 +384,7 @@ class genex_database:
         #                      repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
         #                      cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
         #                      )
+        # seq_num = self.get_num_subsequences()
 
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
@@ -379,6 +396,16 @@ class genex_database:
                              cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
                              )
         )
+
+        #### testing distribute query vs. one-core query
+        # result_distributed = query_rdd.collect()
+        # result_distributed.sort(key=lambda x: x[0])
+        # result_distributed = result_distributed[:10]
+        # result_one_core = a
+        # result_one_core.sort(key=lambda x: x[0])
+        # result_one_core = result_one_core[:10]
+        # is_same = np.equal(result_distributed, result_one_core)
+
         aggre_query_result = query_rdd.collect()
         heapq.heapify(aggre_query_result)
         best_matches = []

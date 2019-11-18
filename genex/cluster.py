@@ -4,6 +4,7 @@ import random
 # distance libraries
 import time
 
+from dtw import dtw
 from fastdtw import fastdtw
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
@@ -31,8 +32,10 @@ def sim_between_seq(seq1: Sequence, seq2: Sequence, dist_type: str):
     except AssertionError as ae:
         raise Exception('sim_between_seq: one or both of the given sequence do(es) not have their(its) data set!')
     if dist_type == 'eu':  #TODO trillion optimizaiton here
-        dist = fastdtw(seq1.data, seq2.data, dist=euclidean)[0]
-        # print("distance using fastdtw is " + dist)
+        # dist = fastdtw(seq1.data, seq2.data, dist=euclidean)[0]
+
+        eu_norm = lambda x, y: np.abs(x-y)
+        dist, cost_matrix, acc_cost_matrix, path = dtw(seq1.data, seq2.data, dist=eu_norm)
         return dist  # fastdtw returns a tuple with the first item being the distance
 
     if dist_type == 'ma':
