@@ -12,7 +12,7 @@ import pandas as pd
 
 
 # create the spark context
-def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
+def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, add_uuid):
     num_cores = 12
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
@@ -25,7 +25,7 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
     # set up where to save the results
 
     print('Performing clustering ...')
-    mydb = gxdb.from_csv(data_file, sc=sc, feature_num=feature_num, _rows_to_consider=num_sample)
+    mydb = gxdb.from_csv(data_file, sc=sc, feature_num=feature_num, add_uuid=add_uuid, _rows_to_consider=num_sample)
 
     print('Generating query of max seq len ...')
     # generate the query sets
@@ -34,28 +34,23 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
     for i in range(num_query):
-        query_set.append(mydb.get_random_seq_of_len(mydb.get_max_seq_len()))
+        query_set.append(mydb.get_random_seq_of_len(mydb.get_max_seq_len(), seed=i))
 
     best_l1_so_far = math.inf
     l1_ke_list = [[], []]
     timing_dict = dict()
-    current_ke = 1
 
     # perform clustering
     cluster_start_time = time.time()
     mydb.build(similarity_threshold=0.1)
     timing_dict['cluster time'] = time.time() - cluster_start_time
 
-    print('Evaluating ... best k is ' + str(best_k))
-
-    # first we calculate the bf distance only once
-    # print('Running Brute Force Query ...')
     bf_result_dict = dict()
     bf_time_list = list()
     for i, q in enumerate(query_set):
         print('Brute Force Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
         start = time.time()
-        query_result_bf = mydb.query_brute_force(query=query_set[0], best_k=best_k)
+        query_result_bf = mydb.query_brute_force(query=q, best_k=best_k)
         bf_time_list.append(time.time() - start)
         bf_result_dict[q] = query_result_bf
     timing_dict['bf query time'] = np.mean(bf_time_list)
@@ -65,6 +60,7 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
     while best_l1_so_far > 0.0001:
         diff_list = []
         # calculate diff for all queries
+        current_ke = best_k
         for i, q in enumerate(query_set):
             print('Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
             start = time.time()
@@ -95,16 +91,17 @@ def experiment_genex(data_file, num_sample, num_query, best_k, feature_num):
 
 # data_file = 'data/test/ItalyPowerDemand_TEST.csv'
 # query_file = 'data/test/ItalyPowerDemand_query.csv'
-# result_file = 'results/test/ItalyPowerDemand_result.csv'
+# result_file = 'results/test/ItalyPowerDemand_result_regular.csv'
 # experiment_genex(data_file, query_file, result_file)
 
 
-data_file = 'data/test/ItalyPowerDemand.csv'
-result_file = 'results/test/ipd/ItalyPowerDemand_result'
-feature_num = 2
-add_uuid = False
-
-k_to_test = [15, 9, 1]
-result_dict = dict()
-for k in k_to_test:
-    result_dict[k] = experiment_genex(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid, feature_num=feature_num)
+# data_file = 'data/ItalyPower.csv'
+# result_file = 'results/ipd/ItalyPowerDemand_result'
+# feature_num = 2
+# add_uuid = False
+#
+# k_to_test = [15, 9, 1]
+# result_dict = dict()
+# for k in k_to_test:
+#     result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid,
+#                                          feature_num=feature_num)
