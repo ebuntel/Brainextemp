@@ -39,7 +39,6 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
     best_l1_so_far = math.inf
     l1_ke_list = [[], []]
     timing_dict = dict()
-    current_ke = 1
 
     # perform clustering
     cluster_start_time = time.time()
@@ -61,6 +60,7 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
     while best_l1_so_far > 0.0001:
         diff_list = []
         # calculate diff for all queries
+        current_ke = best_k
         for i, q in enumerate(query_set):
             print('Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
             start = time.time()
@@ -95,12 +95,13 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
 # experiment_genex(data_file, query_file, result_file)
 
 
-data_file = 'data/ItalyPower.csv'
-result_file = 'results/ipd/ItalyPowerDemand_result'
-feature_num = 2
-add_uuid = False
-
-k_to_test = [15, 9, 1]
-result_dict = dict()
-for k in k_to_test:
-    result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid, feature_num=feature_num)
+# data_file = 'data/ItalyPower.csv'
+# result_file = 'results/ipd/ItalyPowerDemand_result'
+# feature_num = 2
+# add_uuid = False
+#
+# k_to_test = [15, 9, 1]
+# result_dict = dict()
+# for k in k_to_test:
+#     result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid,
+#                                          feature_num=feature_num)

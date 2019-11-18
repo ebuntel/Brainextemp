@@ -145,7 +145,6 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type,
 
     candidates = []
     query_result = []
-    prune_count = 0
 
     # note that we are using ke here
     while len(cluster_dict) > 0 and len(candidates) < ke:
@@ -184,22 +183,64 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type,
                                   kim_reduction=cluster_kim_rf, keogh_reduction=cluster_keogh_rf)
     # end of lbh pruneing ##############################################################
 
-    candidate_dist_list = [(sim_between_seq(x, q, dist_type), x) for x in candidates]
-    heapq.heapify(candidate_dist_list)
+    if _lb_opt_cluster == 'bsf':
+        print('Using BSF')
+        return bsf_search(q=q, k=k, candidates=candidates, dist_type=dist_type)
+    else:
+        # not using bsf ################################################################
+        candidate_dist_list = [(sim_between_seq(x, q, dist_type), x) for x in candidates]
+        heapq.heapify(candidate_dist_list)
 
-    # note that we are using k here
-    while len(candidate_dist_list) > 0 and len(query_result) < k:
-        c_dist = heapq.heappop(candidate_dist_list)
-        if overlap == 1.0 or not exclude_same_id:
-            # print('Adding to querying result')
-            query_result.append(c_dist)
-        else:
-            if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
-                       query_result):  # check for overlap against all the matches so far
+        # note that we are using k here
+        while len(candidate_dist_list) > 0 and len(query_result) < k:
+            c_dist = heapq.heappop(candidate_dist_list)
+            if overlap == 1.0 or not exclude_same_id:
                 # print('Adding to querying result')
                 query_result.append(c_dist)
+            else:
+                if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
+                           query_result):  # check for overlap against all the matches so far
+                    # print('Adding to querying result')
+                    query_result.append(c_dist)
+        ##################################################################################
 
     return query_result
+
+
+def bsf_search(q, k, candidates, dist_type):
+    # use ranked heap
+    prune_count = 0
+    query_result = list()
+    # print('Num seq in the querying cluster: ' + str(len(querying_cluster)))
+    for c in candidates:
+        # print('Using bsf')
+        if len(query_result) < k:
+            # take the negative distance so to have a maxheap
+            heapq.heappush(query_result, (-sim_between_seq(q, c, dist_type), c))
+        else:  # len(dist_heap) == k or >= k
+            # if the new seq is better than the heap head
+            if -lb_kim_sequence(c.data, q.data) < query_result[0][0]:
+                prune_count += 1
+                continue
+            # interpolate for keogh calculation
+            if len(c) != len(q):
+                candidate_interp_data = np.interp(np.linspace(0, 1, len(q)),
+                                                  np.linspace(0, 1, len(c.data)), c.data)
+            else:
+                candidate_interp_data = c.data
+            if -lb_keogh_sequence(candidate_interp_data, q.data) < query_result[0][0]:
+                prune_count += 1
+                continue
+            if -lb_keogh_sequence(q.data, candidate_interp_data) < query_result[0][0]:
+                prune_count += 1
+                continue
+            dist = -sim_between_seq(q, c, dist_type)
+            if dist > query_result[0][0]:  # first index denotes the top of the heap, second gets the dist
+                heapq.heappop(query_result)
+                heapq.heappush(query_result, (dist, c))
+    if (len(query_result)) >= k:
+        print(str(prune_count) + ' of ' + str(len(candidates)) + ' pruned')
+        return [(-x[0], x[1]) for x in query_result]
 
     # while len(target_reprs) > 0:
     #         this_repr = heapq.heappop(target_reprs)
