@@ -6,6 +6,7 @@ import pickle
 import random
 import uuid
 
+from deprecated import deprecated
 from pyspark import SparkContext
 import pandas as pd
 import numpy as np
