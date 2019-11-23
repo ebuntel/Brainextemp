@@ -21,7 +21,7 @@ from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _pro
     _validate_gxdb_query_arguments, _create_f_uuid_map
 
 
-def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
+def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False, is_header=True,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
              _is_z_normalize=True):
@@ -30,6 +30,8 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
 
+    :param is_header:
+    :param add_uuid:
     :param file_name:
     :param feature_num:
     :param sc: spark context on which the database will run
@@ -47,6 +49,14 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
     if feature_num == 0:
         add_uuid = True
         print('msg: from_csv, feature num is 0')
+
+    # checking whether the original id is unique
+    dfc = df.iloc[:, :feature_num].copy()
+    gb = dfc.groupby(list(dfc.columns[:])).first()
+
+    if len(gb) < len(df):
+        add_uuid = True
+        print('msg: the key for each time series is not unique')
 
     if add_uuid:
         print('auto-generating uuid')
