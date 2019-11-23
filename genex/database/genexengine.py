@@ -91,6 +91,14 @@ def from_csv(file_name, feature_num: int,
         add_uuid = True
         print('msg: from_csv, feature num is 0')
 
+    # checking whether the original id is unique
+    dfc = df.iloc[:, :feature_num].copy()
+    gb = dfc.groupby(list(dfc.columns[:])).first()
+
+    if len(gb) < len(df):
+        add_uuid = True
+        print('msg: the key for each time series is not unique')
+
     if add_uuid:
         print('auto-generating uuid')
         feature_num = feature_num + 1
