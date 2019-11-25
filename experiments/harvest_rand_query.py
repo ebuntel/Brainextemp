@@ -167,8 +167,8 @@ for key, value in experiment_set_dist_ch.items():
 # k_to_test = [15, 9, 1]
 # ke_result_dict = dict()
 # for k in k_to_test:
-#     ke_result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid,
-#                                             feature_num=feature_num)
+# ke_result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid,
+#                                         feature_num=feature_num)
 
 # q = Sequence(seq_id=('Italy_power25', '2'), start=7, end=18)
 # seq1 = Sequence(seq_id=('Italy_power25', '2'), start=6, end=18)
