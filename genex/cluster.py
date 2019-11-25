@@ -4,7 +4,7 @@ import random
 # distance libraries
 import time
 
-from dtw import dtw
+from dtw import dtw,accelerated_dtw
 from fastdtw import fastdtw
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
@@ -31,21 +31,27 @@ def sim_between_seq(seq1: Sequence, seq2: Sequence, dist_type: str):
         assert seq1.data is not None and seq2.data is not None
     except AssertionError as ae:
         raise Exception('sim_between_seq: one or both of the given sequence do(es) not have their(its) data set!')
-    if dist_type == 'eu':  #TODO trillion optimizaiton here
+    if dist_type == 'eu':  # TODO trillion optimizaiton here
         # dist = fastdtw(seq1.data, seq2.data, dist=euclidean)[0]
 
-        eu_norm = lambda x, y: np.abs(x-y)
-        dist, cost_matrix, acc_cost_matrix, path = dtw(seq1.data, seq2.data, dist=eu_norm)
+        # eu_norm = lambda x, y: np.abs(x-y)
+        dist, cost_matrix, acc_cost_matrix, path = accelerated_dtw(seq1.data, seq2.data, dist='euclidean')
         return dist  # fastdtw returns a tuple with the first item being the distance
 
     if dist_type == 'ma':
-        return fastdtw(seq1.data, seq2.data, dist=cityblock)[0]  # 1st item is the shortest path
+        # ma_norm = lambda x, y:
+        dist, cost_matrix, acc_cost_matrix, path = accelerated_dtw(seq1.data, seq2.data, dist='cityblock')
+        return dist
+        # return fastdtw(seq1.data, seq2.data, dist=cityblock)[0]  # 1st item is the shortest path
     if dist_type == 'mi':
-        return fastdtw(seq1.data, seq2.data, dist=minkowski)[0]
+        dist, cost_matrix, acc_cost_matrix, path = accelerated_dtw(seq1.data, seq2.data, dist='minkowski')
+        return dist
     if dist_type == 'ch':
-        return fastdtw(seq1.data, seq2.data, dist=chebyshev)[0]
+        dist, cost_matrix, acc_cost_matrix, path = accelerated_dtw(seq1.data, seq2.data, dist='chebyshev')
+        return dist
     else:
         raise Exception("sim_between_seq: cluster: invalid distance type: " + dist_type)
+
 
 def lb_keogh_sequence(seq_matching, seq_enveloped):
     """
@@ -62,6 +68,7 @@ def lb_keogh_sequence(seq_matching, seq_enveloped):
     lb_k_sim = metrics.lb_keogh(seq_matching,
                                 envelope_candidate=(envelope_down, envelope_up))
     return lb_k_sim
+
 
 def lb_kim_sequence(candidate_seq, query_sequence):
     """
