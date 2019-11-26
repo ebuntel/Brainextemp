@@ -57,10 +57,11 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
 
     print('Running Genex Query ...')
     gx_timing_list = list()
+    current_ke = best_k
+
     while best_l1_so_far > 0.0001:
         diff_list = []
         # calculate diff for all queries
-        current_ke = best_k
         for i, q in enumerate(query_set):
             print('Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
             start = time.time()

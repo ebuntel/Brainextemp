@@ -106,7 +106,7 @@ def get_target_length(available_lens, current_len):
     return min(list(available_lens), key=lambda x: abs(x - current_len))
 
 
-def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type,
+def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type: str,
                      _lb_opt_cluster: str, repr_kim_rf: float, repr_keogh_rf: float,
                      _lb_opt_repr: str, cluster_kim_rf: float, cluster_keogh_rf: float,
                      loi=None, exclude_same_id: bool = False, overlap: float = 1.0, ):
@@ -186,7 +186,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type,
     if _lb_opt_cluster == 'bsf':
         print('Using BSF')
         return bsf_search(q=q, k=k, candidates=candidates, dist_type=dist_type)
-    else:
+    elif _lb_opt_cluster == 'none':
         # not using bsf ################################################################
         candidate_dist_list = [(sim_between_seq(x, q, dist_type), x) for x in candidates]
         heapq.heapify(candidate_dist_list)
@@ -203,6 +203,8 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type,
                     # print('Adding to querying result')
                     query_result.append(c_dist)
         ##################################################################################
+    else:
+        raise Exception('_query_partition: unsupported _lb_opt_cluster: ' + str(_lb_opt_cluster))
 
     return query_result
 

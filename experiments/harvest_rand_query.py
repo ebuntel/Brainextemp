@@ -16,7 +16,7 @@ import pandas as pd
 
 # create the spark context
 def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
-                     _lb_opt_cluster):
+                     _dist_type='eu', _lb_opt_cluster='none'):
     num_cores = 12
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
@@ -44,7 +44,8 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
         query_set.append(mydb.get_random_seq_of_len(int(mydb.get_max_seq_len() / 2), seed=i))
 
     cluster_start_time = time.time()
-    mydb.build(similarity_threshold=0.1)
+    print('Using dist_type = ' + str(_dist_type))
+    mydb.build(similarity_threshold=0.1, dist_type=_dist_type)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
 
@@ -90,39 +91,85 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     return mydb
 
 
-experiment_set = {'italyPowerDemand': {'data': 'data/ItalyPower.csv',
-                                       'output': 'results/ItalyPowerDemand_result.csv',
-                                       'feature_num': 2,
-                                       'add_uuid': False},
+experiment_set_dist_eu = {'italyPowerDemand': {'data': 'data/ItalyPower.csv',
+                                               'output': 'results/ItalyPowerDemand_result_dist_eu.csv',
+                                               'feature_num': 2,
+                                               'add_uuid': False},
 
-                  'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
-                                  'output': 'results/ECGFiveDays_result.csv',
-                                  'feature_num': 2,
-                                  'add_uuid': False},
+                          'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
+                                          'output': 'results/ECGFiveDays_result_dist_eu.csv',
+                                          'feature_num': 2,
+                                          'add_uuid': False},
 
-                  'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
-                                      'output': 'results/Gun_Point_TRAIN_result.csv',
-                                      'feature_num': 1,
-                                      'add_uuid': True},
-                  'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
-                                              'output': 'results/synthetic_control_TRAIN_result.csv',
+                          'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
+                                              'output': 'results/Gun_Point_TRAIN_result_dist_eu.csv',
                                               'feature_num': 1,
                                               'add_uuid': True},
-                  }
+                          'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
+                                                      'output': 'results/synthetic_control_TRAIN_result_dist_eu.csv',
+                                                      'feature_num': 1,
+                                                      'add_uuid': True},
+                          }
 
-for key, value in experiment_set.items():
-    mydb = experiment_genex(**value, num_sample=40, num_query=40, _lb_opt_cluster='bsf')
-    break
+experiment_set_dist_ma = {'italyPowerDemand': {'data': 'data/ItalyPower.csv',
+                                               'output': 'results/ItalyPowerDemand_result_dist_ma.csv',
+                                               'feature_num': 2,
+                                               'add_uuid': False},
 
-data_file = 'data/ItalyPower.csv'
-result_file = 'results/ipd/ItalyPowerDemand_result'
-feature_num = 2
-add_uuid = False
-k_to_test = [15, 9, 1]
-ke_result_dict = dict()
-for k in k_to_test:
-    ke_result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid,
-                                            feature_num=feature_num)
+                          'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
+                                          'output': 'results/ECGFiveDays_result_dist_ma.csv',
+                                          'feature_num': 2,
+                                          'add_uuid': False},
+
+                          'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
+                                              'output': 'results/Gun_Point_TRAIN_result_dist_ma.csv',
+                                              'feature_num': 1,
+                                              'add_uuid': True},
+                          'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
+                                                      'output': 'results/synthetic_control_TRAIN_result_dist_ma.csv',
+                                                      'feature_num': 1,
+                                                      'add_uuid': True},
+                          }
+
+experiment_set_dist_ch = {
+    'italyPowerDemand': {'data': 'data/ItalyPower.csv',
+                         'output': 'results/ItalyPowerDemand_result_dist_ch.csv',
+                         'feature_num': 2,
+                         'add_uuid': False},
+
+    'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
+                    'output': 'results/ECGFiveDays_result_dist_ch.csv',
+                    'feature_num': 2,
+                    'add_uuid': False},
+
+    'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
+                        'output': 'results/Gun_Point_TRAIN_result_dist_ch.csv',
+                        'feature_num': 1,
+                        'add_uuid': True},
+    'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
+                                'output': 'results/synthetic_control_TRAIN_result_dist_ch.csv',
+                                'feature_num': 1,
+                                'add_uuid': True},
+}
+
+# for key, value in experiment_set_dist_eu.items():
+#     mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='eu')
+
+for key, value in experiment_set_dist_ma.items():
+    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ma')
+
+for key, value in experiment_set_dist_ch.items():
+    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ch')
+
+# data_file = 'data/ItalyPower.csv'
+# result_file = 'results/ipd/ItalyPowerDemand_result'
+# feature_num = 2
+# add_uuid = False
+# k_to_test = [15, 9, 1]
+# ke_result_dict = dict()
+# for k in k_to_test:
+# ke_result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid,
+#                                         feature_num=feature_num)
 
 # q = Sequence(seq_id=('Italy_power25', '2'), start=7, end=18)
 # seq1 = Sequence(seq_id=('Italy_power25', '2'), start=6, end=18)
