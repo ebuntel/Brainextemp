@@ -21,7 +21,7 @@ from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _pro
     _validate_gxdb_query_arguments, _create_f_uuid_map
 
 
-def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False, is_header=True,
+def from_csv(file_name, feature_num: int, sc: SparkContext, is_header=True, add_uuid=False,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
              _is_z_normalize=True):
@@ -30,10 +30,10 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False, is_h
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
 
-    :param is_header:
+    :param is_header: a boolean value indicated whether the names of the id columns are provided
     :param add_uuid:
-    :param file_name:
-    :param feature_num:
+    :param file_name: path of the input data file
+    :param feature_num: number of components to consist one id of time series
     :param sc: spark context on which the database will run
 
     :param _rows_to_consider: experiment parameter that takes a iterable of two integers.
@@ -43,8 +43,10 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False, is_h
 
     :return: a genex_database object that holds the original time series
     """
-
-    df = pd.read_csv(file_name)
+    if is_header is False:
+        df = pd.read_csv(file_name, names=[str(x) for x in range(1, feature_num + 1)])
+    else:
+        df = pd.read_csv(file_name)
 
     if feature_num == 0:
         add_uuid = True
