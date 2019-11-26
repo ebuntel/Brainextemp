@@ -58,6 +58,7 @@ dist_type_index = {'eu': 0,
 def from_csv(file_name, feature_num: int,
              num_worker: int,
              use_spark: bool = True, driver_mem: int = 16, max_result_mem: int = 16,
+             is_header=True,
              add_uuid=False,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
@@ -67,6 +68,7 @@ def from_csv(file_name, feature_num: int,
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
 
+    :param is_header: a boolean value indicated whether the names of the id columns are provided
     :param add_uuid:
     :param _is_z_normalize:
     :param _memory_opt:
@@ -84,8 +86,10 @@ def from_csv(file_name, feature_num: int,
 
     :return: a genex_database object that holds the original time series
     """
-
-    df = pd.read_csv(file_name)
+    if is_header is False:
+        df = pd.read_csv(file_name, names=[str(x) for x in range(1, feature_num + 1)])
+    else:
+        df = pd.read_csv(file_name)
 
     if feature_num == 0:
         add_uuid = True
