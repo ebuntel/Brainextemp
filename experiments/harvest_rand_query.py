@@ -111,61 +111,54 @@ experiment_set_dist_eu = {'italyPowerDemand': {'data': 'data/ItalyPower.csv',
                                                       'add_uuid': True},
                           }
 
-# experiment_set_dist_ma = {'italyPowerDemand': {'data': 'data/ItalyPower.csv',
-#                                                 'output': 'results/ItalyPowerDemand_result_dist_ma.csv',
-#                                                 'feature_num': 2,
-#                                                 'add_uuid': False},
-#
-#                            'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
-#                                            'output': 'results/ECGFiveDays_result_dist_ma.csv',
-#                                            'feature_num': 2,
-#                                            'add_uuid': False},
-#
-#                            'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
-#                                                'output': 'results/Gun_Point_TRAIN_result_dist_ma.csv',
-#                                                'feature_num': 1,
-#                                                'add_uuid': True},
-#                            'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
-#                                                        'output': 'results/synthetic_control_TRAIN_result_dist_ma.csv',
-#                                                        'feature_num': 1,
-#                                                        'add_uuid': True},
-#                            }
-experiment_set_dist_ma = {
-
-    'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
-                        'output': 'results/Gun_Point_TRAIN_result_dist_ma.csv',
-                        'feature_num': 1,
-                        'add_uuid': True},
-
-}
-experiment_set_dist_ch = {'italyPowerDemand': {'data': 'data/ItalyPower.csv',
-                                               'output': 'results/ItalyPowerDemand_result_dist_ch.csv',
+experiment_set_dist_ma = {'italyPowerDemand': {'data': 'data/ItalyPower.csv',
+                                               'output': 'results/ItalyPowerDemand_result_dist_ma.csv',
                                                'feature_num': 2,
                                                'add_uuid': False},
 
                           'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
-                                          'output': 'results/ECGFiveDays_result_dist_ch.csv',
+                                          'output': 'results/ECGFiveDays_result_dist_ma.csv',
                                           'feature_num': 2,
                                           'add_uuid': False},
 
                           'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
-                                              'output': 'results/Gun_Point_TRAIN_result_dist_ch.csv',
+                                              'output': 'results/Gun_Point_TRAIN_result_dist_ma.csv',
                                               'feature_num': 1,
                                               'add_uuid': True},
                           'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
-                                                      'output': 'results/synthetic_control_TRAIN_result_dist_ch.csv',
+                                                      'output': 'results/synthetic_control_TRAIN_result_dist_ma.csv',
                                                       'feature_num': 1,
                                                       'add_uuid': True},
                           }
+
+experiment_set_dist_ch = {
+    'italyPowerDemand': {'data': 'data/ItalyPower.csv',
+                         'output': 'results/ItalyPowerDemand_result_dist_ch.csv',
+                         'feature_num': 2,
+                         'add_uuid': False},
+
+    'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
+                    'output': 'results/ECGFiveDays_result_dist_ch.csv',
+                    'feature_num': 2,
+                    'add_uuid': False},
+
+    'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
+                        'output': 'results/Gun_Point_TRAIN_result_dist_ch.csv',
+                        'feature_num': 1,
+                        'add_uuid': True},
+    'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
+                                'output': 'results/synthetic_control_TRAIN_result_dist_ch.csv',
+                                'feature_num': 1,
+                                'add_uuid': True},
+}
 
 # for key, value in experiment_set.items():
 #     mydb = experiment_genex(**value, num_sample=40, num_query=40, _lb_opt_cluster='bsf')
 
 
-for key, value in experiment_set_dist_eu.items():
-    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='eu')
-
-
+# for key, value in experiment_set_dist_eu.items():
+#     mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='eu')
+#
 for key, value in experiment_set_dist_ma.items():
     mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ma')
 
