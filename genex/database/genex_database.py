@@ -294,8 +294,12 @@ class genex_database:
 
         target = random.choice(self.data_normalized)
 
-        start = random.randint(0, len(target[1]) - sequence_len)
-        seq = Sequence(target[0], start, start + sequence_len - 1)
+        try:
+            start = random.randint(0, len(target[1]) - sequence_len)
+            seq = Sequence(target[0], start, start + sequence_len - 1)
+        except ValueError:
+            raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
+                            'an implementation error, please report to the Repository as an issue.')
 
         try:
             assert len(seq.fetch_data(self.data)) == sequence_len
