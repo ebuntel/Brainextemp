@@ -9,6 +9,7 @@ from genex.parse import generate_query
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 # create the spark context
@@ -70,7 +71,7 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
 
             # calculating l1 distance
             for gx_r, bf_r in zip(query_result_gx, bf_result_dict[q]):  # retrive bf result from the result dict
-                diff_list.append(abs(gx_r[0] - bf_r[0]))
+                diff_list.append(np.sqrt(abs(gx_r[0] - bf_r[0])))
 
         print('Diff list is ' + str(diff_list))
         cur_l1 = np.mean(diff_list)
@@ -79,7 +80,7 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
         l1_ke_list[0].append(cur_l1)
         l1_ke_list[1].append(current_ke)
 
-        current_ke = int(current_ke + mydb.get_num_subsequences() * 0.05)  # increment ke
+        current_ke = int(current_ke + mydb.get_num_subsequences() * 0.01)  # increment ke
         # break the loop if current_ke exceeds the number of subsequences
         if current_ke > mydb.get_num_subsequences():
             break
@@ -87,7 +88,8 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
 
     timing_dict['gx query time'] = np.mean(gx_timing_list)
     sc.stop()
-    return l1_ke_list, timing_dict
+    return l1_ke_list, gx_timing_list, bf_time_list, timing_dict,
+    # return l1_ke_list
 
 
 # data_file = 'data/test/ItalyPowerDemand_TEST.csv'
@@ -106,3 +108,40 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
 # for k in k_to_test:
 #     result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid,
 #                                          feature_num=feature_num)
+
+experiment_set = {
+    'italyPowerDemand': {'data': 'data/ItalyPower.csv',
+                         'feature_num': 2,
+                         'add_uuid': False},
+
+    'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
+                    'feature_num': 2,
+                    'add_uuid': False},
+
+    # 'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
+    #                     'feature_num': 1,
+    #                     'add_uuid': True},
+    # 'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
+    #                             'feature_num': 1,
+    #                             'add_uuid': True},
+}
+
+k_to_test = [50, 15, 9, 1]
+result_dict = dict()
+for dataset_name, config in experiment_set.items():
+    ke_result_dict = dict()
+    fig, ax = plt.subplots()
+    for k in k_to_test:
+        ke_result_dict[k] = experiment_genex_ke(config['data'], num_sample=40, num_query=40, best_k=k,
+                                                add_uuid=config['add_uuid'], feature_num=config['feature_num'])
+        ax.plot(ke_result_dict[k][0][1], ke_result_dict[k][0][0], label='k=' + str(k))
+    ax.set_ylabel('RMSE')
+    ax.set_xlabel('Ke')
+    ax.set_title(dataset_name + ' l1-ke')
+    ax.legend()
+    plt.show()
+    result_dict[dataset_name] = ke_result_dict
+
+
+
+
