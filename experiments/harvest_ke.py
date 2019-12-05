@@ -11,10 +11,17 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import findspark
+import os
+
+spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
+java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre' # Set your own
+os.environ['JAVA_HOME'] = java8_location
+findspark.init(spark_home=spark_location)
 
 # create the spark context
 def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, add_uuid):
-    num_cores = 12
+    num_cores = 16
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
         setAppName("Genex").set('spark.driver.memory', '32G'). \
@@ -110,20 +117,20 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
 #                                          feature_num=feature_num)
 
 experiment_set = {
-    'italyPowerDemand': {'data': 'data/ItalyPower.csv',
-                         'feature_num': 2,
-                         'add_uuid': False},
+    # 'italyPowerDemand': {'data': 'data/ItalyPower.csv',
+    #                      'feature_num': 2,
+    #                      'add_uuid': False},
+    #
+    # 'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
+    #                 'feature_num': 2,
+    #                 'add_uuid': False},
 
-    'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
-                    'feature_num': 2,
-                    'add_uuid': False},
-
-    # 'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
-    #                     'feature_num': 1,
-    #                     'add_uuid': True},
-    # 'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
-    #                             'feature_num': 1,
-    #                             'add_uuid': True},
+    'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
+                        'feature_num': 1,
+                        'add_uuid': True},
+    'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
+                                'feature_num': 1,
+                                'add_uuid': True},
 }
 
 k_to_test = [50, 15, 9, 1]
