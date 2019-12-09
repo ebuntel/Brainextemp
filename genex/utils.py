@@ -7,7 +7,6 @@ from sklearn.preprocessing import MinMaxScaler
 from genex.Gcluster_utils import _isOverlap
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, lb_kim_sequence, lb_keogh_sequence
-from genex.preprocess import normalize_num
 import numpy as np
 
 
@@ -136,6 +135,8 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type: st
     try:
         len_range = (min(cluster_dict.keys()), max(cluster_dict.keys()))
     except ValueError as ve:
+        print('Given loi is ' + str(loi))
+        print('sequence length in the database: ' + str(list(cluster_dict.keys())))
         raise Exception('cluster does not have the given query loi!')
 
     # if given query is longer than the longest cluster sequence,
@@ -159,14 +160,17 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type: st
             target_reprs = prune_by_lbh(seq_list=target_reprs, seq_length=target_length, q=q,
                                         kim_reduction=repr_kim_rf, keogh_reduction=repr_keogh_rf)
         # end of lbh pruneing ##############################################################
-
-        target_reprs = [(sim_between_seq(x, q, dist_type=dist_type), x) for x in target_reprs]  # calculate DTW
-        heapq.heapify(target_reprs)  # heap sort R-space
-
-        while len(target_reprs) > 0 and len(
-                candidates) < ke:  # get enough sequence from the clustes represented to query
-            this_repr = heapq.heappop(target_reprs)[1]  # take the second element for the first one is the DTW dist
-            candidates += (target_cluster[this_repr])
+        if _lb_opt_repr == 'bsf':
+            candidates += get_sequences_represented(
+                bsf_search_rspace(q, k, representatives=target_reprs, cluster=target_cluster, dist_type=dist_type),
+                cluster=target_cluster)
+        else:
+            target_reprs = [(sim_between_seq(x, q, dist_type=dist_type), x) for x in target_reprs]  # calculate DTW
+            heapq.heapify(target_reprs)  # heap sort R-space
+            while len(target_reprs) > 0 and len(
+                    candidates) < ke:  # get enough sequence from the clustes represented to query
+                this_repr = heapq.heappop(target_reprs)[1]  # take the second element for the first one is the DTW dist
+                candidates += (target_cluster[this_repr])
 
         cluster_dict.pop(target_length)
 
@@ -241,8 +245,52 @@ def bsf_search(q, k, candidates, dist_type):
                 heapq.heappop(query_result)
                 heapq.heappush(query_result, (dist, c))
     if (len(query_result)) >= k:
-        print(str(prune_count) + ' of ' + str(len(candidates)) + ' pruned')
+        print(str(prune_count) + ' of ' + str(len(candidates)) + ' candidate(s) pruned')
         return [(-x[0], x[1]) for x in query_result]
+
+
+def bsf_search_rspace(q, ke, representatives, cluster, dist_type):
+    """
+
+    :param q:
+    :param ke:
+    :param representatives:
+    :param cluster: dict, repr -> list of sequences representated
+    :param dist_type:
+    :return:
+    """
+    # use ranked heap
+    prune_count = 0
+    repr_list = list()
+
+    for r in representatives:
+        # print('Using bsf')
+        if len(get_sequences_represented([r[1] for r in repr_list], cluster)) < ke:  # keep track of how many sequences are we querying right now
+            # take the negative distance so to have a maxheap
+            heapq.heappush(repr_list, (-sim_between_seq(q, r, dist_type), r))
+        else:  # len(dist_heap) == k or >= k
+            if -lb_kim_sequence(r.data, q.data) < repr_list[0][0]:
+                prune_count += 1
+                continue
+            # interpolate for keogh calculation
+            if len(r) != len(q):
+                candidate_interp_data = np.interp(np.linspace(0, 1, len(q)),
+                                                  np.linspace(0, 1, len(r.data)), r.data)
+            else:
+                candidate_interp_data = r.data
+            if -lb_keogh_sequence(candidate_interp_data, q.data) < repr_list[0][0]:
+                prune_count += 1
+                continue
+            if -lb_keogh_sequence(q.data, candidate_interp_data) < repr_list[0][0]:
+                prune_count += 1
+                continue
+            dist = -sim_between_seq(q, r, dist_type)
+            if dist > repr_list[0][0]:  # first index denotes the top of the heap, second gets the dist
+                heapq.heappop(repr_list)
+                heapq.heappush(repr_list, (dist, r))
+    if len(get_sequences_represented([r[1] for r in repr_list], cluster)) >= ke:
+        print(str(prune_count) + ' of ' + str(len(representatives)) + ' representative(s) pruned')
+        return [x[1] for x in repr_list]  # only return the representatives
 
     # while len(target_reprs) > 0:
     #         this_repr = heapq.heappop(target_reprs)
@@ -329,6 +377,19 @@ def bsf_search(q, k, candidates, dist_type):
     # return query_result
 
 
+def get_sequences_represented(reprs, cluster):
+    """
+
+    :param reprs: list of Sequences that are representatives
+    :param cluster: repr -> list of sequences representated, mapping from representativs to their clusters
+    """
+    return flatten([cluster[r] for r in reprs]) if reprs is not None else list()
+
+
+def flatten(l):
+    return [item for sublist in l for item in sublist]
+
+
 def _validate_gxdb_build_arguments(args: dict):
     """
     sanity check function for the arguments of build as a class method @ genex_databse object
@@ -360,7 +421,7 @@ def _validate_gxdb_query_arguments(args: dict):
     :return:
     """
 
-    _lb_opt_repr_options = ['lbh', 'none']
+    _lb_opt_repr_options = ['lbh', 'bsf', 'none']
     _lb_opt_cluster_options = ['lbh', 'bsf', 'lbh_bst', 'none']
     try:
         assert args['_lb_opt_repr'] in _lb_opt_repr_options
@@ -492,3 +553,90 @@ def merge_dict(dicts: list):
         print(str(ae))
         raise Exception('duplicate dict keys: dict item replaced!')
     return merged_dict
+
+
+def normalize_num(num, global_max, global_min):
+    return (num - global_min) / (global_max - global_min)
+
+
+def genex_normalize(input_list, z_normalization=False):
+    # perform z normalization
+    if z_normalization:
+        z_normalized_input_list = _z_normalize(input_list)
+    else:
+        print('Not using z-normalization')
+    # get a flatten z normalized list so to obtain the global min and max
+    flattened_list = flatten([x[1] for x in z_normalized_input_list])
+    global_max = np.max(flattened_list)
+    global_min = np.min(flattened_list)
+
+    # perform Min-max normalization
+    zmm_normlized_list = _min_max_normalize(z_normalized_input_list, global_max=global_max, global_min=global_min)
+
+    return zmm_normlized_list, global_max, global_min
+
+
+def _z_normalize(input_list):
+    z_normalized_list = [(x[0], (x[1] - np.mean(x[1])) / np.std(x[1])) for x in input_list]
+    return z_normalized_list
+
+
+def _min_max_normalize(input_list, global_max, global_min):
+    mm_normalized_list = [(x[0], (x[1] - global_min) / (global_max - global_min)) for x in input_list]
+    return mm_normalized_list
+
+
+def _group_time_series(time_series, start, end):
+    """
+    This function groups the raw time series data into sub sequences of all possible length within the given grouping
+    range
+
+    :param time_series: set of raw time series sequences
+    :param start: starting index for grouping range
+    :param end: end index for grouping range
+
+    :return: a list of lists containing groups of subsequences of different length indexed by the group length
+    """
+
+    # start must be greater than 1, this is asserted in genex_databse._process_loi
+    rtn = dict()
+
+    for ts in time_series:
+        ts_id = ts[0]
+        ts_data = ts[1]
+        # we take min because min can be math.inf
+        for i in range(start, min(end, len(ts_data))):
+            target_length = i + 1
+            if target_length not in rtn.keys():
+                rtn[target_length] = []
+            rtn[target_length] += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
+    return list(rtn.items())
+
+def _slice_time_series(time_series, start, end):
+    """
+    This function slices raw time series data into sub sequences of all possible length.
+    :param time_series: set of raw time series data
+    :param start: start index of length range
+    :param end: end index of length range
+
+    :return: list containing  subsequences of all possible lengths
+    """
+    # start must be greater than 1, this is asserted in genex_databse._process_loi
+    rtn = list()
+
+    for ts in time_series:
+        ts_id = ts[0]
+        ts_data = ts[1]
+        # we take min because min can be math.inf
+        for i in range(start, min(end, len(ts_data))):
+            rtn += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
+    return rtn
+
+def _get_sublist_as_sequences(data_list, data_id, length):
+    # if given length is greater than the size of the data_list itself, the
+    # function returns an empty list
+    rtn = []
+    for i in range(0, len(data_list) - length):  # if the second number in range() is less than 1, the iteration will not run
+        # data_list[i:i+length]  # for debug purposes
+        rtn.append(Sequence(start=i, end=i+length, seq_id=data_id, data=data_list[i:i+length+1]))
+    return rtn

@@ -15,7 +15,8 @@ from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, _cluster_groups, lb_kim_sequence, lb_keogh_sequence
-from genex.preprocess import get_subsequences, genex_normalize, _group_time_series, _slice_time_series
+from genex.utils import genex_normalize, _group_time_series, _slice_time_series
+from genex.preprocess import get_subsequences
 from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
     _validate_gxdb_query_arguments, _create_f_uuid_map
 
@@ -36,7 +37,6 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
     :param _rows_to_consider: experiment parameter that takes a iterable of two integers.
             Only rows in between the given interval will be take into the database.
     :param _is_use_uuid: experiment parameter. If set to true, the feature (id) of the time series will be
-
 
     :return: a genex_database object that holds the original time series
     """

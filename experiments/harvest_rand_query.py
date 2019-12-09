@@ -152,8 +152,8 @@ experiment_set_dist_ch = {
                                 'add_uuid': True},
 }
 
-# for key, value in experiment_set_dist_eu.items():
-#     mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='eu')
+for key, value in experiment_set_dist_eu.items():
+    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='eu')
 
 for key, value in experiment_set_dist_ma.items():
     mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ma')

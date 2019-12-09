@@ -4,14 +4,7 @@ import numpy as np
 
 from genex.cluster import _cluster, _cluster_groups
 from genex.classes.Sequence import Sequence
-
-
-def flatten(l):
-    flat_list = []
-    for sublist in l:
-        for item in sublist:
-            flat_list.append(item)
-    return flat_list
+from genex.utils import flatten
 
 
 def filter_sublists(input_list, length):
@@ -205,90 +198,3 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext, num_cores: int,
 #                               data=input_list, data_normalized=normalized_input_list, st=similarity_threshold,
 #                               cluster_dict=input_rdd, collected=False,
 #                               global_max=global_max, global_min=global_min)
-
-
-def normalize_num(num, global_max, global_min):
-    return (num - global_min) / (global_max - global_min)
-
-
-def genex_normalize(input_list, z_normalization=False):
-    # perform z normalization
-    if z_normalization:
-        z_normalized_input_list = _z_normalize(input_list)
-    else:
-        print('Not using z-normalization')
-    # get a flatten z normalized list so to obtain the global min and max
-    flattened_list = flatten([x[1] for x in z_normalized_input_list])
-    global_max = np.max(flattened_list)
-    global_min = np.min(flattened_list)
-
-    # perform Min-max normalization
-    zmm_normlized_list = _min_max_normalize(z_normalized_input_list, global_max=global_max, global_min=global_min)
-
-    return zmm_normlized_list, global_max, global_min
-
-
-def _z_normalize(input_list):
-    z_normalized_list = [(x[0], (x[1] - np.mean(x[1])) / np.std(x[1])) for x in input_list]
-    return z_normalized_list
-
-
-def _min_max_normalize(input_list, global_max, global_min):
-    mm_normalized_list = [(x[0], (x[1] - global_min) / (global_max - global_min)) for x in input_list]
-    return mm_normalized_list
-
-
-def _group_time_series(time_series, start, end):
-    """
-    This function groups the raw time series data into sub sequences of all possible length within the given grouping
-    range
-
-    :param time_series: set of raw time series sequences
-    :param start: starting index for grouping range
-    :param end: end index for grouping range
-
-    :return: a list of lists containing groups of subsequences of different length indexed by the group length
-    """
-
-    # start must be greater than 1, this is asserted in genex_databse._process_loi
-    rtn = dict()
-
-    for ts in time_series:
-        ts_id = ts[0]
-        ts_data = ts[1]
-        # we take min because min can be math.inf
-        for i in range(start, min(end, len(ts_data))):
-            target_length = i + 1
-            if target_length not in rtn.keys():
-                rtn[target_length] = []
-            rtn[target_length] += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
-    return list(rtn.items())
-
-def _slice_time_series(time_series, start, end):
-    """
-    This function slices raw time series data into sub sequences of all possible length.
-    :param time_series: set of raw time series data
-    :param start: start index of length range
-    :param end: end index of length range
-
-    :return: list containing  subsequences of all possible lengths
-    """
-    # start must be greater than 1, this is asserted in genex_databse._process_loi
-    rtn = list()
-
-    for ts in time_series:
-        ts_id = ts[0]
-        ts_data = ts[1]
-        # we take min because min can be math.inf
-        for i in range(start, min(end, len(ts_data))):
-            rtn += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
-    return rtn
-
-def _get_sublist_as_sequences(data_list, data_id, length):
-    # if given length is greater than the size of the data_list itself, the
-    # function returns an empty list
-    rtn = []
-    for i in range(0, len(data_list) - length):  # if the second number in range() is less than 1, the iteration will not run
-        # data_list[i:i+length]  # for debug purposes
-        rtn.append(Sequence(start=i, end=i+length, seq_id=data_id, data=data_list[i:i+length+1]))
-    return rtn
