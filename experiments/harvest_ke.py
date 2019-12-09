@@ -125,9 +125,9 @@ experiment_set = {
     #                 'feature_num': 2,
     #                 'add_uuid': False},
 
-    'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
-                        'feature_num': 1,
-                        'add_uuid': True},
+    # 'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
+    #                     'feature_num': 1,
+    #                     'add_uuid': True},
     'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
                                 'feature_num': 1,
                                 'add_uuid': True},

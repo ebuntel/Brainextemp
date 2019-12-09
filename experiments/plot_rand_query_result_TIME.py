@@ -20,7 +20,7 @@ dist_types = ['eu', 'ma', 'ch']
 # ch distance ##############################################################################
 # result_list = [x + '_dist_' + 'ch' + '.csv' for x in file_list]
 
-algorithm_dict = {'Brute Force': [], 'BrainEx Query': [], 'BrainEx Cluster': []}
+algorithm_dict = {'Naive': [], 'BrainEx Query': [], 'BrainEx Cluster': []}
 num_sample = 40
 num_most_k = 15
 gx_time_col_num = 3
@@ -49,7 +49,7 @@ for i, alg in enumerate(algorithm_dict.keys()):
                 gx_time_list.append(df.iloc[offset_start + (num_most_k + offset_between_sample) * j, gx_time_col_num])
         cluster_time_list.append(df.iloc[cluster_loc])
 
-        if alg == 'Brute Force':
+        if alg == 'Naive':
             timing = np.mean(bf_time_list)
         elif alg == 'BrainEx Query':
             timing = np.mean(gx_time_list)
@@ -64,9 +64,9 @@ for i, alg in enumerate(algorithm_dict.keys()):
 
 ax.set_ylabel('Time (seconds)')
 ax.set_xlabel('Distance Type')
-ax.set_title('Random Query Experiment Timing Evaluation on Four Datasets')
+ax.set_title('Query Performance Timing Evaluation for difference distance types')
 ax.set_xticks(x)
-ax.set_xticklabels(dist_types)
+ax.set_xticklabels(['Euclidean', 'Manhattan', 'Chebyshev'])
 ax.legend()
 
 fig.tight_layout()
