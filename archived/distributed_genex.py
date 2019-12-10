@@ -167,10 +167,6 @@ def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dis
             querying_cluster.sort(key=lambda x: x[0])
             querying_cluster = querying_cluster[:k*2]
 
-
-
-
-
             querying_cluster = list(
                 map(lambda cluster_seq: [
                     sim_between_seq(cluster_seq.fetch_data(normalized_input), q.data, dist_type=dist_type),

@@ -1,23 +1,27 @@
 import csv
+import os
 import time
 import datetime
 
+import findspark
+
 import genex.database.genex_database as gxdb
 from pyspark import SparkContext, SparkConf
-
-from experiments.harvest_ke import experiment_genex_ke
-from genex.classes.Sequence import Sequence
-from genex.cluster import sim_between_seq
-from genex.parse import generate_query
 
 import numpy as np
 import pandas as pd
 
 
+
+spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
+java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
+os.environ['JAVA_HOME'] = java8_location
+findspark.init(spark_home=spark_location)
+
 # create the spark context
 def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
-                     _dist_type='eu', _lb_opt_cluster='none'):
-    num_cores = 12
+                     _dist_type, _lb_opt_repr, _lb_opt_cluster):
+    num_cores = 16
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
         setAppName("Genex").set('spark.driver.memory', '32G'). \
@@ -58,7 +62,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
         print('Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
         start = time.time()
         print('     Running Genex Query ...')
-        query_result_gx = mydb.query(query=q, best_k=15, _lb_opt_cluster=_lb_opt_cluster)
+        query_result_gx = mydb.query(query=q, best_k=15, _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr)
         gx_time = time.time() - start
 
         start = time.time()
@@ -153,13 +157,13 @@ experiment_set_dist_ch = {
 }
 
 for key, value in experiment_set_dist_eu.items():
-    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='eu')
+    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='eu', _lb_opt_repr='none', _lb_opt_cluster='none')
 
 for key, value in experiment_set_dist_ma.items():
-    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ma')
+    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ma', _lb_opt_repr='none', _lb_opt_cluster='none')
 
 for key, value in experiment_set_dist_ch.items():
-    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ch')
+    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ch', _lb_opt_repr='none', _lb_opt_cluster='none')
 
 # data_file = 'data/ItalyPower.csv'
 # result_file = 'results/ipd/ItalyPowerDemand_result'

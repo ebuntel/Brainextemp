@@ -23,6 +23,7 @@ def sim_between_seq(seq1: Sequence, seq2: Sequence, dist_type: str):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
+    :param dist_type: the distance type that can be: 'eu', 'ma', 'mi', 'ch'
     :param seq1: Time series sequence
     :param seq2: Time series sequence
     :return float: return the similarity distance between sequence 1 and sequence 2
@@ -31,26 +32,23 @@ def sim_between_seq(seq1: Sequence, seq2: Sequence, dist_type: str):
         assert seq1.data is not None and seq2.data is not None
     except AssertionError as ae:
         raise Exception('sim_between_seq: one or both of the given sequence do(es) not have their(its) data set!')
-    if dist_type == 'eu':  # TODO trillion optimizaiton here
+
+    denominator = max(len(seq1), len(seq2))
+
+    if dist_type == 'eu':
         # dist = fastdtw(seq1.data, seq2.data, dist=euclidean)[0]
+        eu_norm = lambda x, y: np.abs(x-y)
+        dist, cost_matrix, acc_cost_matrix, path = dtw(seq1.data, seq2.data, dist=eu_norm)
 
-        # eu_norm = lambda x, y: np.abs(x-y)
-        dist, cost_matrix, acc_cost_matrix, path = accelerated_dtw(seq1.data, seq2.data, dist='euclidean')
-        return dist  # fastdtw returns a tuple with the first item being the distance
-
-    if dist_type == 'ma':
-        # ma_norm = lambda x, y:
-        dist, cost_matrix, acc_cost_matrix, path = accelerated_dtw(seq1.data, seq2.data, dist='cityblock')
-        return dist
-        # return fastdtw(seq1.data, seq2.data, dist=cityblock)[0]  # 1st item is the shortest path
-    if dist_type == 'mi':
-        dist, cost_matrix, acc_cost_matrix, path = accelerated_dtw(seq1.data, seq2.data, dist='minkowski')
-        return dist
-    if dist_type == 'ch':
-        dist, cost_matrix, acc_cost_matrix, path = accelerated_dtw(seq1.data, seq2.data, dist='chebyshev')
-        return dist
+    elif dist_type == 'ma':
+        dist = fastdtw(seq1.data, seq2.data, dist=cityblock)[0]  # 1st item is the shortest path
+    elif dist_type == 'mi':
+        dist = fastdtw(seq1.data, seq2.data, dist=minkowski)[0]
+    elif dist_type == 'ch':
+        dist = fastdtw(seq1.data, seq2.data, dist=chebyshev)[0]
     else:
         raise Exception("sim_between_seq: cluster: invalid distance type: " + dist_type)
+    return dist / denominator
 
 
 def lb_keogh_sequence(seq_matching, seq_enveloped):

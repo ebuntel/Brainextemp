@@ -571,9 +571,10 @@ def genex_normalize(input_list, z_normalization=False):
     global_min = np.min(flattened_list)
 
     # perform Min-max normalization
-    zmm_normlized_list = _min_max_normalize(z_normalized_input_list, global_max=global_max, global_min=global_min)
+    zmm_normalized_list = _min_max_normalize(z_normalized_input_list, global_max=global_max, global_min=global_min)
 
-    return zmm_normlized_list, global_max, global_min
+    normalized_array = np.asarray([x[1] for x in zmm_normalized_list])
+    return zmm_normalized_list, global_max, global_min
 
 
 def _z_normalize(input_list):
