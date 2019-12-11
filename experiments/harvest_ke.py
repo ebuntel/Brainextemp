@@ -14,18 +14,18 @@ import matplotlib.pyplot as plt
 import findspark
 import os
 
-spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
-java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
-os.environ['JAVA_HOME'] = java8_location
-findspark.init(spark_home=spark_location)
+# spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
+# java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
+# os.environ['JAVA_HOME'] = java8_location
+# findspark.init(spark_home=spark_location)
 
 # create the spark context
 def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, add_uuid):
-    num_cores = 16
+    num_cores = 32
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
-        setAppName("Genex").set('spark.driver.memory', '32G'). \
-        set('spark.driver.maxResultSize', '32G')
+        setAppName("Genex").set('spark.driver.memory', '64G'). \
+        set('spark.driver.maxResultSize', '64G')
     sc = SparkContext(conf=conf)
 
     # create gxdb from a csv file
@@ -96,30 +96,12 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
     timing_dict['gx query time'] = np.mean(gx_timing_list)
     sc.stop()
     return l1_ke_list, gx_timing_list, bf_time_list, timing_dict,
-    # return l1_ke_list
 
-
-# data_file = 'data/test/ItalyPowerDemand_TEST.csv'
-# query_file = 'data/test/ItalyPowerDemand_query.csv'
-# result_file = 'results/test/ItalyPowerDemand_result_regular.csv'
-# experiment_genex(data_file, query_file, result_file)
-
-
-# data_file = 'data/ItalyPower.csv'
-# result_file = 'results/ipd/ItalyPowerDemand_result'
-# feature_num = 2
-# add_uuid = False
-#
-# k_to_test = [15, 9, 1]
-# result_dict = dict()
-# for k in k_to_test:
-#     result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid,
-#                                          feature_num=feature_num)
 
 experiment_set = {
-    # 'italyPowerDemand': {'data': 'data/ItalyPower.csv',
-    #                      'feature_num': 2,
-    #                      'add_uuid': False},
+    'italyPowerDemand': {'data': 'data/ItalyPower.csv',
+                         'feature_num': 2,
+                         'add_uuid': False},
     #
     # 'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
     #                 'feature_num': 2,
@@ -128,9 +110,9 @@ experiment_set = {
     # 'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
     #                     'feature_num': 1,
     #                     'add_uuid': True},
-    'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
-                                'feature_num': 1,
-                                'add_uuid': True},
+    # 'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
+    #                             'feature_num': 1,
+    #                             'add_uuid': True},
 }
 
 k_to_test = [50, 15, 9, 1]
