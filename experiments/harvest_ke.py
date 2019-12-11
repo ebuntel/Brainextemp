@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import findspark
 import os
 
+
 # spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
 # java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
 # os.environ['JAVA_HOME'] = java8_location
@@ -71,7 +72,9 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
         diff_list = []
         # calculate diff for all queries
         for i, q in enumerate(query_set):
-            print('Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
+            print(
+                'Best k = ' + str(best_k) + '- Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(
+                    q))
             start = time.time()
             query_result_gx = mydb.query(query=q, best_k=best_k, _ke=current_ke)
             gx_timing_list.append(time.time() - start)
@@ -98,39 +101,48 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
     return l1_ke_list, gx_timing_list, bf_time_list, timing_dict,
 
 
+def harvest_ke_multiple_k(k_to_test, experiment_set):
+    result_dict = dict()
+
+    for dataset_name, config in experiment_set.items():
+        ke_result_dict = dict()
+        l1_ke_k_array = list()
+        fig, ax = plt.subplots()
+        for k in k_to_test:
+            ke_result_dict[k] = experiment_genex_ke(config['data'], num_sample=40, num_query=40, best_k=k,
+                                                    add_uuid=config['add_uuid'], feature_num=config['feature_num'])
+
+            a = np.transpose(ke_result_dict[k][0])
+            b = np.expand_dims([k for i in range(len(a))], axis=1)
+            c = np.concatenate([a, b], axis=1)
+            l1_ke_k_array.append(c)
+            ax.plot(ke_result_dict[k][0][1], ke_result_dict[k][0][0], label='k=' + str(k))
+        ax.set_ylabel('RMSE')
+        ax.set_xlabel('Ke')
+        ax.set_title(dataset_name + ' l1-ke')
+        ax.legend()
+        plt.show()
+        result_dict[dataset_name] = [ke_result_dict, l1_ke_k_array]
+
+    return result_dict
+
+
+k_to_test = [50, 15, 9, 1]
 experiment_set = {
     'italyPowerDemand': {'data': 'data/ItalyPower.csv',
                          'feature_num': 2,
                          'add_uuid': False},
-    #
-    # 'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
-    #                 'feature_num': 2,
-    #                 'add_uuid': False},
 
-    # 'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
-    #                     'feature_num': 1,
-    #                     'add_uuid': True},
-    # 'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
-    #                             'feature_num': 1,
-    #                             'add_uuid': True},
+    'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
+                    'feature_num': 2,
+                    'add_uuid': False},
+
+    'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
+                        'feature_num': 1,
+                        'add_uuid': True},
+    'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
+                                'feature_num': 1,
+                                'add_uuid': True},
 }
 
-k_to_test = [50, 15, 9, 1]
-result_dict = dict()
-for dataset_name, config in experiment_set.items():
-    ke_result_dict = dict()
-    fig, ax = plt.subplots()
-    for k in k_to_test:
-        ke_result_dict[k] = experiment_genex_ke(config['data'], num_sample=40, num_query=40, best_k=k,
-                                                add_uuid=config['add_uuid'], feature_num=config['feature_num'])
-        ax.plot(ke_result_dict[k][0][1], ke_result_dict[k][0][0], label='k=' + str(k))
-    ax.set_ylabel('RMSE')
-    ax.set_xlabel('Ke')
-    ax.set_title(dataset_name + ' l1-ke')
-    ax.legend()
-    plt.show()
-    result_dict[dataset_name] = ke_result_dict
-
-
-
-
+result_dict = harvest_ke_multiple_k(k_to_test, experiment_set)
