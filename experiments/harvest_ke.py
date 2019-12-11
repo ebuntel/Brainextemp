@@ -67,7 +67,7 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
     gx_timing_list = list()
     current_ke = best_k
 
-    while best_l1_so_far > 0.0001:
+    while best_l1_so_far > 0.0001 and current_ke < mydb.get_num_subsequences():
         diff_list = []
         # calculate diff for all queries
         for i, q in enumerate(query_set):
@@ -78,7 +78,7 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
 
             # calculating l1 distance
             for gx_r, bf_r in zip(query_result_gx, bf_result_dict[q]):  # retrive bf result from the result dict
-                diff_list.append(np.sqrt(abs(gx_r[0] - bf_r[0])))
+                diff_list.append(abs(gx_r[0] - bf_r[0]))
 
         print('Diff list is ' + str(diff_list))
         cur_l1 = np.mean(diff_list)

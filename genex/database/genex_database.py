@@ -249,9 +249,7 @@ class genex_database:
         :param best_k: Number of best matches to retrieve for the given query
 
         :return: a list containing best k matches for given query sequence
-
         """
-
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         query.fetch_and_set_data(self.data_normalized)
@@ -272,14 +270,11 @@ class genex_database:
             candidate_list = dist_rdd.collect()
             self.bf_query_buffer[bf_query_key] = candidate_list
         else:
-            print('bf_query: using buffered bf results, key=' + [str(x) for x in bf_query_key])
+            print('bf_query: using buffered bf results, key=' + str([str(x) for x in bf_query_key]))
             candidate_list = self.bf_query_buffer[bf_query_key]  # retrive the buffer candidate list
 
-        heapq.heapify(candidate_list)
-        query_result = list()
-        while len(query_result) < best_k and len(candidate_list) > 0:
-            query_result.append(heapq.heappop(candidate_list))
-        return query_result
+        candidate_list.sort(key=lambda x: x[0])
+        return candidate_list[:best_k]
 
     def group_sequences(self):
         """
