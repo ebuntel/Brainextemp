@@ -141,6 +141,7 @@ class genex_database:
         self.conf = {'build_conf': None,
                      'global_max': kwargs['global_max'],
                      'global_min': kwargs['global_min']}
+        self.bf_query_buffer = dict()
 
     def set_conf(self, conf):
         self.conf = conf
@@ -248,33 +249,32 @@ class genex_database:
         :param best_k: Number of best matches to retrieve for the given query
 
         :return: a list containing best k matches for given query sequence
-
         """
-
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         query.fetch_and_set_data(self.data_normalized)
         input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
 
         start, end = self.conf.get('build_conf').get('loi')
-        # slice_rdd = input_rdd.mapPartitions(
-        #     lambda x: _slice_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
 
-        group_rdd = input_rdd.mapPartitions(
-            lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+        bf_query_key = (dist_type, query, start, end)
 
-        slice_rdd = group_rdd.flatMap(lambda x: x[1])
-        # for debug purpose
-        # a = slice_rdd.collect()
-        dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x, dist_type=dist_type), x))
+        if bf_query_key not in self.bf_query_buffer.keys():
+            group_rdd = input_rdd.mapPartitions(
+                lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
 
-        candidate_list = dist_rdd.collect()
+            slice_rdd = group_rdd.flatMap(lambda x: x[1])
+            # for debug purpose
+            # a = slice_rdd.collect()
+            dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x, dist_type=dist_type), x))
+            candidate_list = dist_rdd.collect()
+            self.bf_query_buffer[bf_query_key] = candidate_list
+        else:
+            print('bf_query: using buffered bf results, key=' + str([str(x) for x in bf_query_key]))
+            candidate_list = self.bf_query_buffer[bf_query_key]  # retrive the buffer candidate list
 
-        heapq.heapify(candidate_list)
-        query_result = list()
-        while len(query_result) < best_k and len(candidate_list) > 0:
-            query_result.append(heapq.heappop(candidate_list))
-        return query_result
+        candidate_list.sort(key=lambda x: x[0])
+        return candidate_list[:best_k]
 
     def group_sequences(self):
         """
