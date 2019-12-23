@@ -21,7 +21,7 @@ import os
 # findspark.init(spark_home=spark_location)
 
 # create the spark context
-def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, add_uuid):
+def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, add_uuid, dist_type):
     num_cores = 32
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
@@ -34,7 +34,8 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
     # set up where to save the results
 
     print('Performing clustering ...')
-    mydb = gxdb.from_csv(data_file, sc=sc, feature_num=feature_num, add_uuid=add_uuid, _rows_to_consider=num_sample)
+    mydb = gxdb.from_csv(data_file, sc=sc, feature_num=feature_num, add_uuid=add_uuid,
+                         _rows_to_consider=num_sample)
 
     print('Generating query of max seq len ...')
     # generate the query sets
@@ -51,7 +52,7 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
 
     # perform clustering
     cluster_start_time = time.time()
-    mydb.build(similarity_threshold=0.1)
+    mydb.build(similarity_threshold=0.1, dist_type=dist_type)
     timing_dict['cluster time'] = time.time() - cluster_start_time
 
     bf_result_dict = dict()
@@ -73,7 +74,7 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
         # calculate diff for all queries
         for i, q in enumerate(query_set):
             print(
-                'Best k = ' + str(best_k) + '- Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(
+                'dist_type: ' + dist_type + '. Best k = ' + str(best_k) + '- Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(
                     q))
             start = time.time()
             query_result_gx = mydb.query(query=q, best_k=best_k, _ke=current_ke)
@@ -110,7 +111,8 @@ def harvest_ke_multiple_k(k_to_test, experiment_set):
         fig, ax = plt.subplots()
         for k in k_to_test:
             ke_result_dict[k] = experiment_genex_ke(config['data'], num_sample=40, num_query=40, best_k=k,
-                                                    add_uuid=config['add_uuid'], feature_num=config['feature_num'])
+                                                    add_uuid=config['add_uuid'], feature_num=config['feature_num'],
+                                                    dist_type=config['dist_type'])
 
             a = np.transpose(ke_result_dict[k][0])
             b = np.expand_dims([k for i in range(len(a))], axis=1)
@@ -128,21 +130,25 @@ def harvest_ke_multiple_k(k_to_test, experiment_set):
 
 
 k_to_test = [50, 15, 9, 1]
-experiment_set = {
+experiment_set_ma = {
     'italyPowerDemand': {'data': 'data/ItalyPower.csv',
                          'feature_num': 2,
-                         'add_uuid': False},
+                         'add_uuid': False,
+                         'dist_type': 'ma'},
 
     'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
                     'feature_num': 2,
-                    'add_uuid': False},
+                    'add_uuid': False,
+                    'dist_type': 'ma'},
 
     'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
                         'feature_num': 1,
-                        'add_uuid': True},
+                        'add_uuid': True,
+                        'dist_type': 'ma'},
     'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
                                 'feature_num': 1,
-                                'add_uuid': True},
+                                'add_uuid': True,
+                                'dist_type': 'ma'},
 }
 
-result_dict = harvest_ke_multiple_k(k_to_test, experiment_set)
+result_dict = harvest_ke_multiple_k(k_to_test, experiment_set_ma)
