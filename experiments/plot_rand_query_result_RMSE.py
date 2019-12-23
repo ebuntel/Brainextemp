@@ -33,27 +33,17 @@ def autolabel(rects, ax, dataset):
 
 
 if __name__ == '__main__':
+
+    date = '122219'
+    dist_type = 'ch'
+    title = 'Chebyshev Random Query Experiment RMSE on Four Datasets'
+
     # eu distance
-    file_dict = {'Gun Point': 'results/rand_query_result/Gun_Point_TRAIN_result_dist_eu.csv',
-                 'ECG Five Days': 'results/rand_query_result/ECGFiveDays_result_dist_eu.csv',
-                 'Italy Power Demand': 'results/rand_query_result/ItalyPowerDemand_result_dist_eu.csv',
-                 'Synthetic Control': 'results/rand_query_result/synthetic_control_TRAIN_result_dist_eu.csv'
+    file_dict = {'Gun Point': 'results/' + date + '/Gun_Point_TRAIN_result_dist_' + dist_type + '.csv',
+                 'ECG Five Days': 'results/' + date + '/ECGFiveDays_result_dist_' + dist_type + '.csv',
+                 'Italy Power Demand': 'results/' + date + '/ItalyPowerDemand_result_dist_' + dist_type + '.csv',
+                 'Synthetic Control': 'results/' + date + '/synthetic_control_TRAIN_result_dist_' + dist_type + '.csv'
                  }
-    title = 'Euclidean Random Query Experiment RMSE on Four Datasets'
-
-    # ma distance ##############################################################################
-    # file_dict = {'Gun Point': 'results/rand_query_result/Gun_Point_TRAIN_result_dist_ma.csv',
-    #              'ECG Five Days': 'results/rand_query_result/ECGFiveDays_result_dist_ma.csv',
-    #              'Italy Power Demand': 'results/rand_query_result/ItalyPowerDemand_result_dist_ma.csv',
-    #              'Synthetic Control': 'results/rand_query_result/synthetic_control_TRAIN_result_dist_ma.csv'}
-    # title = 'Manhattan Random Query Experiment RMSE on Four Datasets'
-
-    # ch distance ##############################################################################
-    # file_dict = {'Gun Point': 'results/rand_query_result/Gun_Point_TRAIN_result_dist_ch.csv',
-    #              'ECG Five Days': 'results/rand_query_result/ECGFiveDays_result_dist_ch.csv',
-    #              'Italy Power Demand': 'results/rand_query_result/ItalyPowerDemand_result_dist_ch.csv',
-    #              'Synthetic Control': 'results/rand_query_result/synthetic_control_TRAIN_result_dist_ch.csv'}
-    # title = 'Chebyshev Random Query Experiment RMSE on Four Datasets'
 
     dataset_mse_dict = {'Gun Point': [],
                         'ECG Five Days': [],
@@ -79,7 +69,7 @@ if __name__ == '__main__':
         rect = ax.bar(x + 4 * i * width/len(dataset_mse_dict), dataset_mse_dict[dataset_name], width, label=dataset_name)
         autolabel(rect, ax, dataset_mse_dict)
 
-    ax.set_ylabel('RMSE')
+    ax.set_ylabel('Percentage Error')
     ax.set_xlabel('Best K')
     ax.set_title(title)
     ax.set_xticks(x)

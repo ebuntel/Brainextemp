@@ -5,11 +5,13 @@ import numpy as np
 
 from experiments.plot_rand_query_result_RMSE import autolabel
 
+date = '122219'
+
 file_list = [
-    'results/rand_query_result/Gun_Point_TRAIN_result',
-    'results/rand_query_result/ECGFiveDays_result',
-    'results/rand_query_result/ItalyPowerDemand_result',
-    'results/rand_query_result/synthetic_control_TRAIN_result'
+    'results/' + date + '/Gun_Point_TRAIN_result',
+    'results/' + date + '/ECGFiveDays_result',
+    'results/' + date + '/ItalyPowerDemand_result',
+    'results/' + date + '/synthetic_control_TRAIN_result'
 ]
 
 dist_types = ['eu', 'ma', 'ch']
