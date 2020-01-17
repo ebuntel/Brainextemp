@@ -76,7 +76,7 @@ class Sequence:
         try:
             assert isinstance(features, str) or isinstance(features, list) or isinstance(features, tuple)
         except AssertionError:
-            raise Exception('Invalide features in _check_feature for the Sequence object')
+            raise Exception('Invalid features in _check_feature for the Sequence object')
 
         if isinstance(features, str):
             return features in self.seq_id

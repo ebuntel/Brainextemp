@@ -22,27 +22,28 @@ conf = SparkConf(). \
 sc = SparkContext(conf=conf)
 
 # create gxdb from a csv file
-data_file = 'experiments/data/ItalyPower.csv'
-db_path = 'results/test_db'
+data_file = 'data/ItalyPower.csv'
+# db_path = 'results/test_db'
 
 mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
-mydb.save(path=db_path)
-del mydb  # test saving before building
+# mydb.save(path=db_path)
+# del mydb  # test saving before building
 
-mydb = gxdb.from_db(path=db_path, sc=sc)
-mydb.build(similarity_threshold=0.1, loi=slice(14, 15))
+# mydb = gxdb.from_db(path=db_path, sc=sc)
+mydb.build(similarity_threshold=0.1)
+# mydb.build(similarity_threshold=0.1)
 
-mydb.save(path=db_path)
-del mydb  # test saving after building
+# mydb.save(path=db_path)
+# del mydb  # test saving after building
 
-mydb = gxdb.from_db(path=db_path, sc=sc)
+# mydb = gxdb.from_db(path=db_path, sc=sc)
 
 # generate the query sets
 q = mydb.get_random_seq_of_len(24, seed=1)
 
 start = time.time()
 # query_result = mydb.query(query=q, best_k=5, _lb_opt_repr='bsf', _lb_opt_cluster='bsf')
-query_result = mydb.query(query=q, best_k=5)
+query_result = mydb.query(query=q, best_k=5, _radius=1)
 
 duration = time.time() - start
 # TODO memory optimization: brainstorm memory optimization, encode features (ids), length batches

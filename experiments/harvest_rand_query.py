@@ -11,20 +11,20 @@ from pyspark import SparkContext, SparkConf
 import numpy as np
 import pandas as pd
 
-spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7'  # Set your own
-java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
-os.environ['JAVA_HOME'] = java8_location
-findspark.init(spark_home=spark_location)
+# spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7'  # Set your own
+# java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
+# os.environ['JAVA_HOME'] = java8_location
+# findspark.init(spark_home=spark_location)
 
 
 # create the spark context
 def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
-                     _dist_type, _lb_opt_repr, _lb_opt_cluster):
-    num_cores = 16
+                     _dist_type, _lb_opt_repr, _lb_opt_cluster, _radius):
+    num_cores = 32
     conf = SparkConf(). \
         setMaster("local[" + str(num_cores) + "]"). \
-        setAppName("Genex").set('spark.driver.memory', '32G'). \
-        set('spark.driver.maxResultSize', '32G')
+        setAppName("Genex").set('spark.driver.memory', '64G'). \
+        set('spark.driver.maxResultSize', '64G')
     sc = SparkContext(conf=conf)
 
     # create gxdb from a csv file
@@ -51,7 +51,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     mydb.build(similarity_threshold=0.1, dist_type=_dist_type)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
-
+    print('Clustering took ' + int(cluster_time) + ' sec')
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
     overall_diff_list = []
@@ -60,17 +60,20 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     for i, q in enumerate(query_set):
         print('Dataset: ' + data + 'dist_type: '+ _dist_type + '- Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
         start = time.time()
-        print('     Running Genex Query ...')
-        query_result_gx = mydb.query(query=q, best_k=15, _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr)
+        print('Running Genex Query ...')
+        query_result_gx = mydb.query(query=q, best_k=15,
+                                     _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
+                                     _radius=_radius)
         gx_time = time.time() - start
 
         start = time.time()
-        print('     Running Brute Force Query ...')
+        print('Genex  query took ' + str(gx_time) + ' sec')
+        print('Running Brute Force Query ...')
         query_result_bf = mydb.query_brute_force(query=q, best_k=15)
         bf_time = time.time() - start
-
+        print('Brute force query took ' + str(bf_time) + ' sec')
         # save the results
-        print('     Saving results ...')
+        print('Saving results for query #' + str(i) + ' of ' + str(len(query_set)))
         result_df = result_df.append({'query': str(q), 'gx_time': gx_time, 'bf_time': bf_time}, ignore_index=True)
         diff_list = []
         for gx_r, bf_r in zip(query_result_gx, query_result_bf):
@@ -100,15 +103,15 @@ experiment_set_dist_eu = {
                          'feature_num': 2,
                          'add_uuid': False},
 
-    # 'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
-    #                 'output': 'results/ECGFiveDays_result_dist_eu.csv',
-    #                 'feature_num': 2,
-    #                 'add_uuid': False},
-    #
-    # 'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
-    #                     'output': 'results/Gun_Point_TRAIN_result_dist_eu.csv',
-    #                     'feature_num': 1,
-    #                     'add_uuid': True},
+    'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
+                    'output': 'results/ECGFiveDays_result_dist_eu.csv',
+                    'feature_num': 2,
+                    'add_uuid': False},
+
+    'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
+                        'output': 'results/Gun_Point_TRAIN_result_dist_eu.csv',
+                        'feature_num': 1,
+                        'add_uuid': True},
     'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
                                 'output': 'results/synthetic_control_TRAIN_result_dist_eu.csv',
                                 'feature_num': 1,
@@ -156,20 +159,23 @@ experiment_set_dist_ch = {
                                 'add_uuid': True},
 }
 
-_lb_opt_repr = 'bsf'
-_lb_opt_cluster = 'bsf'
+_lb_opt_repr = 'none'
+_lb_opt_cluster = 'none'
 
+# test for radius = 1
+radius = 1
 for key, value in experiment_set_dist_eu.items():
     mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='eu', _lb_opt_repr=_lb_opt_repr,
-                            _lb_opt_cluster=_lb_opt_cluster)
+                            _lb_opt_cluster=_lb_opt_cluster, _radius=radius)
 
 for key, value in experiment_set_dist_ma.items():
     mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ma', _lb_opt_repr=_lb_opt_repr,
-                            _lb_opt_cluster=_lb_opt_cluster)
+                            _lb_opt_cluster=_lb_opt_cluster, _radius=radius)
 
 for key, value in experiment_set_dist_ch.items():
     mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ch', _lb_opt_repr=_lb_opt_repr,
-                            _lb_opt_cluster=_lb_opt_cluster)
+                            _lb_opt_cluster=_lb_opt_cluster, _radius=radius)
+# test for radius = 0
 
 # data_file = 'data/ItalyPower.csv'
 # result_file = 'results/ipd/ItalyPowerDemand_result'

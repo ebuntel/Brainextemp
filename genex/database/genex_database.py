@@ -199,7 +199,7 @@ class genex_database:
         #                           dist_type=dist_type, verbose=1)  # for debug purposes
         cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(
             groups=x, st=similarity_threshold, dist_type=dist_type, log_level=verbose)).cache()
-        cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
+        # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
 
         cluster_rdd.count()
 
@@ -344,11 +344,11 @@ class genex_database:
     def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
               _lb_opt_repr: str = 'none', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
               _lb_opt_cluster: str = 'none', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
-              _ke=None, radius: int = 0):
+              _ke=None, _radius: int = 0):
         """
         Find best k matches for given query sequence using Distributed Genex method
 
-        :param radius:
+        :param _radius:
         :param _ke:
         :param: query: Sequence to be queried
         :param best_k: Number of best matches to retrieve
@@ -365,9 +365,9 @@ class genex_database:
         :return: a list containing k best matches for given query sequence
         """
         _validate_gxdb_query_arguments(locals())
-
+        _ke_factor = 1
         if _ke is None or _ke < best_k:
-            _ke = best_k
+            _ke = best_k * _ke_factor
         else:
             if _ke > self.get_num_subsequences():
                 raise Exception('query: _ke cannot be greater than the number of subsequences in the database.')
@@ -381,15 +381,15 @@ class genex_database:
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         # for debug purposes
-        a = _query_partition(cluster=self.cluster_rdd.collect(), q=query, k=best_k, ke=self.get_num_subsequences(),
-                             data_normalized=data_normalized, dist_type=dist_type,
-                             _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
-                             exclude_same_id=exclude_same_id, overlap=overlap,
-
-                             repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
-                             cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
-                              radius=radius
-                             )
+        # a = _query_partition(cluster=self.cluster_rdd.collect(), q=query, k=best_k, ke=_ke,
+        #                      data_normalized=data_normalized, dist_type=dist_type,
+        #                      _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
+        #                      exclude_same_id=exclude_same_id, overlap=overlap,
+        #
+        #                      repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
+        #                      cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
+        #                       radius=_radius
+        #                      )
         # seq_num = self.get_num_subsequences()
 
         query_rdd = self.cluster_rdd.mapPartitions(
@@ -400,7 +400,7 @@ class genex_database:
 
                              repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
                              cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
-                             radius=radius
+                             radius=_radius
                              )
         )
 
