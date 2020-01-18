@@ -79,14 +79,14 @@ def experiment_genex(data_file, query_file, result_file):
     sc.stop()
 
 
-# data_file = 'data/test/ItalyPowerDemand_TEST.csv'
-# query_file = 'data/test/ItalyPowerDemand_query.csv'
-# result_file = 'results/test/ItalyPowerDemand_result_regular.csv'
+# data_file = 'data_original/test_result/ItalyPowerDemand_TEST.csv'
+# query_file = 'data_original/test_result/ItalyPowerDemand_query.csv'
+# result_file = 'results/test_result/ItalyPowerDemand_result_regular.csv'
 # experiment_genex(data_file, query_file, result_file)
 # TODO run ECG
 # Querying #9 of 15; query = (ECG-1)_(Label-2): (61:118)
 #      Running Genex Query ...
-data_file = 'data/test/ECGFiveDays_TEST .csv'
-query_file = 'data/test/ECGFiveDays_query_1.csv'
-result_file = 'results/test/ECGFiveDays_result_1.csv'
+data_file = 'data_original/test_result/ECGFiveDays_TEST .csv'
+query_file = 'data_original/test_result/ECGFiveDays_query_1.csv'
+result_file = 'results/test_result/ECGFiveDays_result_1.csv'
 experiment_genex(data_file, query_file, result_file)

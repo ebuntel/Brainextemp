@@ -47,7 +47,7 @@ class Sequence:
 
     def get_data(self):
         if self.data is None:
-            raise Exception('Sequence: data not stored, please use fetch_data instead')
+            raise Exception('Sequence: data_original not stored, please use fetch_data instead')
         return self.data
 
     def fetch_and_set_data(self, input_list):
@@ -65,9 +65,9 @@ class Sequence:
         except KeyError and IndexError as e:
             print(self)
             if type(e) is KeyError:
-                raise Exception('Given data list does not have a sequence with this sequence id')
+                raise Exception('Given data_original list does not have a sequence with this sequence id')
             elif type(e) is IndexError:
-                raise Exception('This sequence is out of bound with given data list')
+                raise Exception('This sequence is out of bound with given data_original list')
 
     def _check_feature(self, features):
         """

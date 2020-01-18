@@ -80,7 +80,7 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
 
     # return Genex_database
-    return genex_database(data_raw=df, data=data_list, data_normalized=data_norm_list, global_max=global_max,
+    return genex_database(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
                           global_min=global_min,
                           spark_context=sc)
 
@@ -92,7 +92,7 @@ def from_db(sc: SparkContext, path: str):
     :param sc: spark context on which the database will run
     :param path: path of the saved gxdb object
 
-    :return: a genex database object that holds clusters of time series data
+    :return: a genex database object that holds clusters of time series data_original
     """
 
     # TODO the input fold_name is not existed
@@ -100,11 +100,11 @@ def from_db(sc: SparkContext, path: str):
         raise ValueError('There is no such database, check the path again.')
 
     data_raw = pd.read_csv(os.path.join(path, 'data_raw.csv'))
-    data = pickle.load(open(os.path.join(path, 'data.gxdb'), 'rb'))
+    data = pickle.load(open(os.path.join(path, 'data_original.gxdb'), 'rb'))
     data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
-    init_params = {'data_raw': data_raw, 'data': data, 'data_normalized': data_normalized, 'spark_context': sc,
+    init_params = {'data_raw': data_raw, 'data_original': data, 'data_normalized': data_normalized, 'spark_context': sc,
                    'global_max': conf['global_max'], 'global_min': conf['global_min']}
     db = genex_database(**init_params)
     db.set_conf(conf)
@@ -121,7 +121,7 @@ class genex_database:
     Genex Database
 
     Init parameters
-    data
+    data_original
     data_normalized
     scale_funct
     """
@@ -132,7 +132,7 @@ class genex_database:
         :param kwargs:
         """
         self.data_raw = kwargs['data_raw']
-        self.data = kwargs['data']
+        self.data = kwargs['data_original']
         self.data_normalized = kwargs['data_normalized']
         self.sc = kwargs['spark_context']
         self.cluster_rdd = None
@@ -168,9 +168,9 @@ class genex_database:
                                       between 0 and 1)
         :param dist_type: Distance type used for similarity calculation between sequences
         :param loi: default value is none, otherwise using slice notation [start, stop: step]
-        :param verbose: Print logs when grouping and clustering the data
+        :param verbose: Print logs when grouping and clustering the data_original
         :param batch_size:
-        :param _is_cluster: Decide whether time series data is clustered or not
+        :param _is_cluster: Decide whether time series data_original is clustered or not
 
         """
         _validate_gxdb_build_arguments(locals())
@@ -186,21 +186,21 @@ class genex_database:
 
         # determine the distance calculation function
         try:
-            dist_func = dist_index[dist_type]
+            dist_func = dist_func_index[dist_type]
         except ValueError:
             raise Exception('Unknown distance type: ' + str(dist_type))
 
         # validate and save the loi to gxdb class fields
-        # distribute the data
+        # distribute the data_original
         input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
         # partition_input = input_rdd.glom().collect() #  for debug purposes
-        # Grouping the data
+        # Grouping the data_original
         # group = _group_time_series(input_rdd.glom().collect()[0], start, end) # for debug purposes
         group_rdd = input_rdd.mapPartitions(
             lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
         # group_partition = group_rdd.glom().collect()  # for debug purposes
         # group = group_rdd.collect()  # for debug purposes
-        # Cluster the data with Gcluster
+        # Cluster the data_original with Gcluster
         # cluster = _cluster_groups(groups=group_rdd.glom().collect()[0], st=similarity_threshold,
         #                           dist_func=dist_func, verbose=1)  # for debug purposes
         cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(
@@ -332,8 +332,8 @@ class genex_database:
             self.cluster_rdd.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
             pickle.dump(self.cluster_meta_dict, open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'wb'))
 
-        # save data files
-        pickle.dump(self.data, open(os.path.join(path, 'data.gxdb'), 'wb'))
+        # save data_original files
+        pickle.dump(self.data, open(os.path.join(path, 'data_original.gxdb'), 'wb'))
         pickle.dump(self.data_normalized, open(os.path.join(path, 'data_normalized.gxdb'), 'wb'))
         self.data_raw.to_csv(os.path.join(path, 'data_raw.csv'))
 

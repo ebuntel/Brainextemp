@@ -12,20 +12,30 @@ from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, lb_kim_sequence, lb_keogh_sequence
 import numpy as np
 
+# dist_func_index = {'eu': np.vectorize(lambda x, y: euclidean(x, y) / np.sqrt(len(x))),
+#                    'ma': np.vectorize(lambda x, y: cityblock(x, y) / len(x)),
+#                    'min': np.vectorize(lambda x, y: minkowski(x, y) / np.sqrt(len(x))),
+#                    'ch': np.vectorize(chebyshev)}
+
+dist_func_index = {'eu': lambda x, y: euclidean(x, y) / np.sqrt(len(x)),
+                   'ma': lambda x, y: cityblock(x, y) / len(x),
+                   'min': lambda x, y: minkowski(x, y) / np.sqrt(len(x)),
+                   'ch': chebyshev}
+
 
 def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
     """
-    Use min max and z normalization to normalize time series data
+    Use min max and z normalization to normalize time series data_original
 
     :param seq: Time series sequence
     :param max: maximum value in sequence
     :param min: minimum value in sequence
-    :param z_normalize: whether data is z normalized or not
+    :param z_normalize: whether data_original is z normalized or not
 
     """
 
     if seq.data is None:
-        raise Exception('Given sequence does not have data set, use fetch_data to set its data first')
+        raise Exception('Given sequence does not have data_original set, use fetch_data to set its data_original first')
     data = seq.data
     if z_normalize:
         data = [(x - np.mean(data) / np.std(data)) for x in data]
@@ -111,7 +121,7 @@ def get_target_length(available_lens, current_len):
 def _query_partition(cluster, q, k: int, ke: int, data_normalized,
                      _lb_opt_cluster: str, repr_kim_rf: float, repr_keogh_rf: float,
                      _lb_opt_repr: str, cluster_kim_rf: float, cluster_keogh_rf: float, overlap: float,
-                     exclude_same_id: bool, radius:int, loi=None):
+                     exclude_same_id: bool, radius: int, loi=None):
     """
     This function finds k best matches for given query sequence on the worker node
 
@@ -162,7 +172,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized,
             this_candidates = []
             target_cluster = cluster_dict[target_l]
             target_reprs = target_cluster.keys()
-            [x.fetch_and_set_data(data_normalized) for x in target_reprs]  # fetch data for the representatives
+            [x.fetch_and_set_data(data_normalized) for x in target_reprs]  # fetch data_original for the representatives
 
             # lbh pruneing #####################################################################
             if _lb_opt_repr == 'lbh':
@@ -178,14 +188,15 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized,
                 heapq.heapify(target_reprs)  # heap sort R-space
                 while len(target_reprs) > 0 and len(
                         this_candidates) < ke:  # get enough sequence from the clusters represented to query
-                    this_repr = heapq.heappop(target_reprs)[1]  # take the second element for the first one is the DTW dist
+                    this_repr = heapq.heappop(target_reprs)[
+                        1]  # take the second element for the first one is the DTW dist
                     this_candidates += (target_cluster[this_repr])
             all_candidates += this_candidates
             cluster_dict.pop(target_l)
 
     # process exclude same id
     all_candidates = (x for x in all_candidates if x.seq_id != q.seq_id) if exclude_same_id else all_candidates
-    [x.fetch_and_set_data(data_normalized) for x in all_candidates]  # fetch data for the candidates]
+    [x.fetch_and_set_data(data_normalized) for x in all_candidates]  # fetch data_original for the candidates]
 
     print('Number of Sequences in the candidate list is: ' + str(len(all_candidates)))
 
@@ -273,7 +284,8 @@ def bsf_search_rspace(q, ke, representatives, cluster):
 
     for r in representatives:
         # print('Using bsf')
-        if len(get_sequences_represented([r[1] for r in repr_list], cluster)) < ke:  # keep track of how many sequences are we querying right now
+        if len(get_sequences_represented([r[1] for r in repr_list],
+                                         cluster)) < ke:  # keep track of how many sequences are we querying right now
             # take the negative distance so to have a maxheap
             heapq.heappush(repr_list, (-sim_between_seq(q, r), r))
         else:  # len(dist_heap) == k or >= k
@@ -311,7 +323,7 @@ def bsf_search_rspace(q, ke, representatives, cluster):
     #                 # to the next iteration
     #                 continue
     #
-    #         # fetch data for the target cluster
+    #         # fetch data_original for the target cluster
     #         [x.fetch_and_set_data(data_normalized) for x in querying_cluster_seq]
     #
     #         if (_lb_opt_cluster == 'lbh' or _lb_opt_cluster == 'lbh_bsf') and \
@@ -330,20 +342,20 @@ def bsf_search_rspace(q, ke, representatives, cluster):
     #                     heapq.heappush(query_result, (-sim_between_seq(q, candidate, dist_type), candidate))
     #                 else:  # len(dist_heap) == k or >= k
     #                     # if the new seq is better than the heap head
-    #                     # a = -lb_kim_sequence(candidate.data, q.data)
-    #                     if -lb_kim_sequence(candidate.data, q.data) < query_result[0][0]:
+    #                     # a = -lb_kim_sequence(candidate.data_original, q.data_original)
+    #                     if -lb_kim_sequence(candidate.data_original, q.data_original) < query_result[0][0]:
     #                         prune_count += 1
     #                         continue
     #                     # interpolate for keogh calculaton
     #                     if target_length != q_length:
     #                         candidate_interp_data = np.interp(np.linspace(0, 1, q_length),
-    #                                                           np.linspace(0, 1, len(candidate.data)), candidate.data)
-    #                     # b = -lb_keogh_sequence(candidate_interp_data, q.data)
-    #                     if -lb_keogh_sequence(candidate_interp_data, q.data) < query_result[0][0]:
+    #                                                           np.linspace(0, 1, len(candidate.data_original)), candidate.data_original)
+    #                     # b = -lb_keogh_sequence(candidate_interp_data, q.data_original)
+    #                     if -lb_keogh_sequence(candidate_interp_data, q.data_original) < query_result[0][0]:
     #                         prune_count += 1
     #                         continue
-    #                     # c = -lb_keogh_sequence(q.data, candidate_interp_data)
-    #                     if -lb_keogh_sequence(q.data, candidate_interp_data) < query_result[0][0]:
+    #                     # c = -lb_keogh_sequence(q.data_original, candidate_interp_data)
+    #                     if -lb_keogh_sequence(q.data_original, candidate_interp_data) < query_result[0][0]:
     #                         prune_count += 1
     #                         continue
     #                     dist = -sim_between_seq(q, candidate, dist_type)
@@ -468,9 +480,10 @@ def _row_to_feature_and_data(row, feature_num):
     try:
         data = [x for x in row[feature_num:] if not np.isnan(x)]
     except TypeError as te:
-        raise Exception('Genex: this may due to an incorrect feature_num, please check you data file for the number '
-                        'of features\n '
-                        + 'Exception: ' + str(te))
+        raise Exception(
+            'Genex: this may due to an incorrect feature_num, please check you data_original file for the number '
+            'of features\n '
+            + 'Exception: ' + str(te))
     return seq_id, data
 
 
@@ -502,7 +515,7 @@ def _process_loi(loi: slice):
 #             querying_cluster)  # now entries are (seq, interp_data)
 #
 #     # sorting the sequence using LB_KIM bound
-#     querying_cluster = [(x[0], x[1], lb_kim_sequence(x[1], q.data)) for x in querying_cluster]
+#     querying_cluster = [(x[0], x[1], lb_kim_sequence(x[1], q.data_original)) for x in querying_cluster]
 #     querying_cluster.sort(key=lambda x: x[2])
 #     # checking how much we reduce the cluster
 #     if type(reduction_factor_lbkim) == str:
@@ -513,8 +526,8 @@ def _process_loi(loi: slice):
 #         raise Exception('Type of reduction factor must be str or int')
 #
 #     # Sorting the sequence using LB Keogh bound
-#     querying_cluster = [(x[0], x[1], lb_keogh_sequence(x[1], q.data)) for x in
-#                         querying_cluster]  # now entries are (seq, data, lb_heuristic)
+#     querying_cluster = [(x[0], x[1], lb_keogh_sequence(x[1], q.data_original)) for x in
+#                         querying_cluster]  # now entries are (seq, data_original, lb_heuristic)
 #     querying_cluster.sort(key=lambda x: x[2])  # sort by the lb_heuristic
 #     # checking how much we reduce the cluster
 #     if type(reduction_factor_lbkeogh) == str:
@@ -524,7 +537,7 @@ def _process_loi(loi: slice):
 #     else:
 #         raise Exception('Type of reduction factor must be str or int')
 #
-#     querying_cluster_reduced = [(sim_between_seq(x[1], q.data, dist_type=dist_type), x[0]) for x in
+#     querying_cluster_reduced = [(sim_between_seq(x[1], q.data_original, dist_type=dist_type), x[0]) for x in
 #                                 querying_cluster]  # now entries are (dist, seq)
 
 
@@ -554,7 +567,7 @@ def merge_dict(dicts: list):
     merged_len = 0
     for d in dicts:
         merged_len += len(d)
-        merged_dict = {**merged_dict, **d}    # make sure there is no replacement of elements
+        merged_dict = {**merged_dict, **d}  # make sure there is no replacement of elements
     try:
         assert merged_len == len(merged_dict)
     except AssertionError as ae:
@@ -597,7 +610,7 @@ def _min_max_normalize(input_list, global_max, global_min):
 
 def _group_time_series(time_series, start, end):
     """
-    This function groups the raw time series data into sub sequences of all possible length within the given grouping
+    This function groups the raw time series data_original into sub sequences of all possible length within the given grouping
     range
 
     :param time_series: set of raw time series sequences
@@ -614,17 +627,18 @@ def _group_time_series(time_series, start, end):
         ts_id = ts[0]
         ts_data = ts[1]
         # we take min because min can be math.inf
-        for i in range(start-1, min(end, len(ts_data))):
+        for i in range(start - 1, min(end, len(ts_data))):
             target_length = i + 1
             if target_length not in rtn.keys():
                 rtn[target_length] = []
             rtn[target_length] += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
     return list(rtn.items())
 
+
 def _slice_time_series(time_series, start, end):
     """
-    This function slices raw time series data into sub sequences of all possible length.
-    :param time_series: set of raw time series data
+    This function slices raw time series data_original into sub sequences of all possible length.
+    :param time_series: set of raw time series data_original
     :param start: start index of length range
     :param end: end index of length range
 
@@ -649,11 +663,5 @@ def _get_sublist_as_sequences(data_list, data_id, length):
     for i in range(0, len(data_list) - length):
         # if the second number in range() is less than 1, the iteration will not run
         # data_list[i:i+length]  # for debug purposes
-        rtn.append(Sequence(start=i, end=i+length, seq_id=data_id, data=np.array(data_list[i:i+length+1])))
+        rtn.append(Sequence(start=i, end=i + length, seq_id=data_id, data=np.array(data_list[i:i + length + 1])))
     return rtn
-
-
-dist_index = {'eu': euclidean,
-              'ma': cityblock,
-              'min': minkowski,
-              'ch': chebyshev}

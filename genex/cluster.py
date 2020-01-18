@@ -27,7 +27,7 @@ def sim_between_seq(seq1: Sequence, seq2: Sequence):
     :param seq2: Time series sequence
     :return float: return the Normalized DTW distance between sequence 1 (seq1) and sequence 2 (seq2)
     """
-    dist = fastdtw(seq1.get_data(), seq2.get_data(), dist=lambda x, y: np.abs(x-y))[0] / max(len(seq1), len(seq2))
+    dist = fastdtw(seq1.get_data(), seq2.get_data(), dist=lambda x, y: np.abs(x-y))[0] / (max(len(seq1), len(seq2)) * 2)
 
     return dist
 
@@ -62,13 +62,14 @@ def lb_kim_sequence(candidate_seq, query_sequence):
     return lb_kim_sim
 
 
-def randomize(arr):
+def randomize(arr, seed=42):
     """
     Apply the randomize in place algorithm to the given array
     Adopted from https://www.geeksforgeeks.org/shuffle-a-given-array-using-fisher-yates-shuffle-algorithm/
     :param array arr: the arr to randomly permute
     :return: the random;uy permuted array
     """
+    random.seed(seed)
     if len(arr) == 0:
         return arr
     for i in range(len(arr) - 1, 0, -1):
@@ -298,54 +299,46 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, lo
 
     :return a dictionary of clusters
     """
-    cluster = dict()
-    length = sequence_len
-    subsequences = group
-    threshold = math.sqrt(length) * st / 2
-    # print("Clustering length of: " + str(length) + ", number of subsequences is " + str(len(group[1])))
+    cluster = {}
 
     # randomize the sequence in the group to remove clusters-related bias
-    subsequences = randomize(subsequences)
+    group = randomize(group)
 
-    count = 0
-
-    for ss in subsequences:
-        if log_level == 1:
-            # print('Cluster length: ' + str(length) + ':   ' + str(count + 1) + '/' + str(len(group)) + ' Num clusters: ' + str(len(cluster)))
-            count += 1
-
+    for s in group:
         if not cluster.keys():  # if there's no representatives, the first subsequence becomes a representative
-            cluster[ss] = [ss]
+            cluster[s] = [s]
         else:
+            # find the closest representative
             min_dist = math.inf
-            min_rprst = None
-            # rprst is a time_series obj
-            for rprst in list(cluster.keys()):  # iterate though all the similarity clusters, rprst = representative
-                dist = dist_func(ss.get_data(), rprst.get_data())
+            min_representative = None
 
-                # update the minimal similarity
+            for r in list(cluster.keys()):
+                dist = dist_func(r.data, s.data)
                 if dist < min_dist:
                     min_dist = dist
-                    min_rprst = rprst
+                    min_representative = r
+            # representatives = list(cluster.keys())  # keep a ordered list of representatives
+            # dists = [dist_func(r.get_data(), s.get_data()) for r in representatives]  # use the vectorized dist func
+            # min_dist = np.min(dists)
+            # min_representative = representatives[np.argmin(dists)]
 
-            if min_dist <= threshold:  # if the calculated min similarity is smaller than the
+            if min_dist <= st:  # if the calculated min similarity is smaller than the
                 # similarity threshold, put subsequence in the similarity cluster keyed by the min representative
-                cluster[min_rprst].append(ss)
+                cluster[min_representative].append(s)
 
             else:
                 # if the minSim is greater than the similarity threshold, we create a new similarity group
                 # with this sequence being its representative
-                if ss not in cluster.keys():
-                    cluster[ss] = [ss]
-    print()
-    print('Cluster length: ' + str(length) + '   Done!----------------------------------------------')
+                if s not in cluster.keys():
+                    cluster[s] = [s]
+    print('Cluster length: ' + str(sequence_len) + '   Done!----------------------------------------------')
 
     if del_data:
         for value in cluster.values():
-            for ss in value:
-                ss.del_data()
+            for s in value:
+                s.del_data()
 
-    return length, cluster
+    return sequence_len, cluster
 
 
 def _cluster(group: list, st: float, log_level: int = 1, dist_type: str = 'eu', del_data: bool = True) -> dict:

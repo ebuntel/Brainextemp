@@ -10,7 +10,7 @@ conf = SparkConf(). \
 sc = SparkContext(conf=conf)
 
 # create gxdb from a csv file
-data_file = '/home/apocalyvec/PycharmProjects/Genex/experiments/data/ItalyPower.csv'
+data_file = '/home/apocalyvec/PycharmProjects/Genex/experiments/data_original/ItalyPower.csv'
 #
 mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
 mydb.build(similarity_threshold=0.5)

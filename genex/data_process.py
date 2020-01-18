@@ -25,12 +25,12 @@ def get_data(tid, time_series_dict, start=None, end=None):
 
 def get_data_for_timeSeriesObj(time_series_obj, time_series_dict):
     """
-    This function returns data for given time series object
+    This function returns data_original for given time series object
 
     :type time_series_obj: TimeSeriesObj
     :param time_series_obj: Time series object
-    :param time_series_dict: dictionary of raw time series data
-    :return: a dictionary containing data points for given time series id from start to end point
+    :param time_series_dict: dictionary of raw time series data_original
+    :return: a dictionary containing data_original points for given time series id from start to end point
     """
     tid = time_series_obj.id
     if tid not in time_series_dict.keys():

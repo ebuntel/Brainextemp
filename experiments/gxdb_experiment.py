@@ -22,7 +22,7 @@ conf = SparkConf(). \
 sc = SparkContext(conf=conf)
 
 # create gxdb from a csv file
-data_file = 'data/ItalyPower.csv'
+data_file = 'data_original/ItalyPower.csv'
 db_path = 'results/test_db'
 
 mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
@@ -32,7 +32,9 @@ mydb.save(path=db_path)
 del mydb
 mydb = gxdb.from_db(path=db_path, sc=sc)
 
+start = time.time()
 mydb.build(similarity_threshold=0.1)
+print('Building took ' + str(time.time() - start) + ' sec')
 
 # Save reloading built Genex database
 mydb.save(path=db_path)
