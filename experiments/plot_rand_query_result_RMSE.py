@@ -34,9 +34,9 @@ def autolabel(rects, ax, dataset):
 
 if __name__ == '__main__':
 
-    date = '122219'
-    dist_type = 'ch'
-    title = 'Chebyshev Random Query Experiment RMSE on Four Datasets'
+    date = '011720'
+    dist_type = 'eu'
+    title = 'Euclidean Random Query Experiment RMSE on Four Datasets [Radius = 1]'
 
     # eu distance
     file_dict = {'Gun Point': 'results/' + date + '/Gun_Point_TRAIN_result_dist_' + dist_type + '.csv',

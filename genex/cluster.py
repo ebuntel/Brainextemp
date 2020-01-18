@@ -4,7 +4,7 @@ import random
 # distance libraries
 import time
 
-from dtw import dtw,accelerated_dtw
+from dtw import dtw, accelerated_dtw
 from fastdtw import fastdtw
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
@@ -15,40 +15,21 @@ import math
 import numpy as np
 from tslearn import metrics
 
-from genex.classes import Sequence
-from .data_process import get_data
+from genex.classes.Sequence import Sequence
 
 
-def sim_between_seq(seq1: Sequence, seq2: Sequence, dist_type: str):
+def sim_between_seq(seq1: Sequence, seq2: Sequence):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
     :param dist_type: the distance type that can be: 'eu', 'ma', 'mi', 'ch'
     :param seq1: Time series sequence
     :param seq2: Time series sequence
-    :return float: return the similarity distance between sequence 1 and sequence 2
+    :return float: return the Normalized DTW distance between sequence 1 (seq1) and sequence 2 (seq2)
     """
-    try:
-        assert seq1.data is not None and seq2.data is not None
-    except AssertionError as ae:
-        raise Exception('sim_between_seq: one or both of the given sequence do(es) not have their(its) data set!')
+    dist = fastdtw(seq1.get_data(), seq2.get_data(), dist=lambda x, y: np.abs(x-y))[0] / max(len(seq1), len(seq2))
 
-    denominator = max(len(seq1), len(seq2))
-
-    if dist_type == 'eu':
-        # dist = fastdtw(seq1.data, seq2.data, dist=euclidean)[0]
-        eu_norm = lambda x, y: np.abs(x-y)
-        dist, cost_matrix, acc_cost_matrix, path = dtw(seq1.data, seq2.data, dist=eu_norm)
-
-    elif dist_type == 'ma':
-        dist = fastdtw(seq1.data, seq2.data, dist=cityblock)[0]  # 1st item is the shortest path
-    elif dist_type == 'mi':
-        dist = fastdtw(seq1.data, seq2.data, dist=minkowski)[0]
-    elif dist_type == 'ch':
-        dist = fastdtw(seq1.data, seq2.data, dist=chebyshev)[0]
-    else:
-        raise Exception("sim_between_seq: cluster: invalid distance type: " + dist_type)
-    return dist / denominator
+    return dist
 
 
 def lb_keogh_sequence(seq_matching, seq_enveloped):
@@ -288,28 +269,31 @@ def randomize(arr):
 from itertools import groupby
 
 
-def _cluster_groups(groups: list, st: float, dist_type, log_level: int = 1,
+def _cluster_groups(groups: list, st: float, dist_func, log_level: int = 1,
                     del_data: bool = True) -> list:
     result = []
     for seq_len, grp in groups:
-        result.append(cluster_with_filter(grp, st, seq_len, dist_type=dist_type))
+        result.append(cluster_with_filter(grp, st, seq_len, dist_func=dist_func))
 
     return result
 
 
-def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: int = 1, dist_type: str = 'eu',
+def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, log_level: int = 1,
                         del_data: bool = True) -> dict:
     """
     all subsequence in 'group' must be of the same length
     For example:
     [[1,4,2],[6,1,4],[1,2,3],[3,2,1]] is a valid 'sub-sequences'
 
+    :param del_data:
+    :param log_level:
+    :param sequence_len:
     :param group: list of sebsequences of a specific length, entry = sequence object
     :param int length: the length of the group to be clustered
     :param float st: similarity threshold to determine whether a sub-sequence
     :param float global_min: used for minmax normalization
     :param float global_min: used for minmax normalization
-    :param dist_type: distance types including eu = euclidean, ma = mahalanobis, mi = minkowski
+    :param dist_func: distance types including eu = euclidean, ma = mahalanobis, mi = minkowski
     belongs to a group
 
     :return a dictionary of clusters
@@ -327,7 +311,7 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
 
     for ss in subsequences:
         if log_level == 1:
-            print('Cluster length: ' + str(length) + ':   ' + str(count + 1) + '/' + str(len(group)) + ' Num clusters: ' + str(len(cluster)))
+            # print('Cluster length: ' + str(length) + ':   ' + str(count + 1) + '/' + str(len(group)) + ' Num clusters: ' + str(len(cluster)))
             count += 1
 
         if not cluster.keys():  # if there's no representatives, the first subsequence becomes a representative
@@ -337,28 +321,8 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, log_level: in
             min_rprst = None
             # rprst is a time_series obj
             for rprst in list(cluster.keys()):  # iterate though all the similarity clusters, rprst = representative
-                # ss is also a time_series obj
-                ss_raw_data = ss.get_data()
-                rprst_raw_data = rprst.get_data()
+                dist = dist_func(ss.get_data(), rprst.get_data())
 
-                # check the distance type
-                try:
-                    if dist_type == 'eu':
-                        dist = euclidean(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                    elif dist_type == 'ma':
-                        dist = cityblock(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                    elif dist_type == 'mi':
-                        dist = minkowski(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                    elif dist_type == 'ch':
-                        dist = chebyshev(np.asarray(ss_raw_data), np.asarray(rprst_raw_data))
-                    else:
-                        raise Exception("cluster_operations: cluster: invalid distance type: " + dist_type)
-                except TypeError as te:
-                    print('first: ' + str(ss_raw_data))
-                    print('type of the first: ' + str(type(ss_raw_data[0])))
-                    print('second:' + str(rprst_raw_data))
-                    print(te)
-                    raise TypeError
                 # update the minimal similarity
                 if dist < min_dist:
                     min_dist = dist

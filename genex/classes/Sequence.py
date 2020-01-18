@@ -1,9 +1,11 @@
+import numpy as np
+
 wrap_in_parantheses = lambda x: "(" + str(x) + ")"
 
 
 class Sequence:
 
-    def __init__(self, seq_id: tuple, start: int, end: int, data: list = None):
+    def __init__(self, seq_id: tuple, start: int, end: int, data: np.ndarray = None):
         self.seq_id = seq_id
         self.start = start
         self.end = end

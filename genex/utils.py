@@ -3,7 +3,10 @@ import math
 
 # from genex.Gcluster_utils import _isOverlap
 from sklearn.preprocessing import MinMaxScaler
-
+from scipy.spatial.distance import cityblock
+from scipy.spatial.distance import minkowski
+from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import chebyshev
 from genex.Gcluster_utils import _isOverlap
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, lb_kim_sequence, lb_keogh_sequence
@@ -105,7 +108,7 @@ def get_target_length(available_lens, current_len):
     return min(list(available_lens), key=lambda x: abs(x - current_len))
 
 
-def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type: str,
+def _query_partition(cluster, q, k: int, ke: int, data_normalized,
                      _lb_opt_cluster: str, repr_kim_rf: float, repr_keogh_rf: float,
                      _lb_opt_repr: str, cluster_kim_rf: float, cluster_keogh_rf: float, overlap: float,
                      exclude_same_id: bool, radius:int, loi=None):
@@ -116,7 +119,6 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type: st
     :param q: Query sequence
     :param k: number of best matches to retrieve
     :param data_normalized:
-    :param dist_type: type of distance used for similarity calculation
     :param _lb_opt_cluster:Type of optimization used for clusters ('bsf', 'lbh', 'lbh_bst, 'none')
     :param _lb_opt_repr:Type of optimization used for representatives ('lbh', 'none')
     :param loi: Length of interest, default value is none
@@ -169,10 +171,10 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type: st
             # end of lbh pruneing ##############################################################
             if _lb_opt_repr == 'bsf':
                 this_candidates += get_sequences_represented(
-                    bsf_search_rspace(q, k, representatives=target_reprs, cluster=target_cluster, dist_type=dist_type),
+                    bsf_search_rspace(q, k, representatives=target_reprs, cluster=target_cluster),
                     cluster=target_cluster)
             else:
-                target_reprs = [(sim_between_seq(x, q, dist_type=dist_type), x) for x in target_reprs]  # calculate DTW
+                target_reprs = [(sim_between_seq(x, q), x) for x in target_reprs]  # calculate DTW
                 heapq.heapify(target_reprs)  # heap sort R-space
                 while len(target_reprs) > 0 and len(
                         this_candidates) < ke:  # get enough sequence from the clusters represented to query
@@ -185,7 +187,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type: st
     all_candidates = (x for x in all_candidates if x.seq_id != q.seq_id) if exclude_same_id else all_candidates
     [x.fetch_and_set_data(data_normalized) for x in all_candidates]  # fetch data for the candidates]
 
-    # print('Number of Sequences in the candidate list is: ' + str(len(all_candidates)))
+    print('Number of Sequences in the candidate list is: ' + str(len(all_candidates)))
 
     # # lbh pruneing #####################################################################
     # if (_lb_opt_cluster == 'lbh' or _lb_opt_cluster == 'lbh_bsf') and \
@@ -196,10 +198,10 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type: st
 
     if _lb_opt_cluster == 'bsf':
         print('Using BSF')
-        return bsf_search(q=q, k=k, candidates=all_candidates, dist_type=dist_type)
+        return bsf_search(q=q, k=k, candidates=all_candidates)
     elif _lb_opt_cluster == 'none':
         # not using bsf ################################################################
-        candidate_dist_list = [(sim_between_seq(x, q, dist_type), x) for x in all_candidates]
+        candidate_dist_list = [(sim_between_seq(x, q), x) for x in all_candidates]
         heapq.heapify(candidate_dist_list)
 
         # note that we are using k here
@@ -220,7 +222,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, dist_type: st
     return query_result
 
 
-def bsf_search(q, k, candidates, dist_type):
+def bsf_search(q, k, candidates):
     # use ranked heap
     prune_count = 0
     query_result = list()
@@ -229,7 +231,7 @@ def bsf_search(q, k, candidates, dist_type):
         # print('Using bsf')
         if len(query_result) < k:
             # take the negative distance so to have a maxheap
-            heapq.heappush(query_result, (-sim_between_seq(q, c, dist_type), c))
+            heapq.heappush(query_result, (-sim_between_seq(q, c), c))
         else:  # len(dist_heap) == k or >= k
             # if the new seq is better than the heap head
             if -lb_kim_sequence(c.data, q.data) < query_result[0][0]:
@@ -247,7 +249,7 @@ def bsf_search(q, k, candidates, dist_type):
             if -lb_keogh_sequence(q.data, candidate_interp_data) < query_result[0][0]:
                 prune_count += 1
                 continue
-            dist = -sim_between_seq(q, c, dist_type)
+            dist = -sim_between_seq(q, c)
             if dist > query_result[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(query_result)
                 heapq.heappush(query_result, (dist, c))
@@ -256,14 +258,13 @@ def bsf_search(q, k, candidates, dist_type):
         return [(-x[0], x[1]) for x in query_result]
 
 
-def bsf_search_rspace(q, ke, representatives, cluster, dist_type):
+def bsf_search_rspace(q, ke, representatives, cluster):
     """
 
     :param q:
     :param ke:
     :param representatives:
     :param cluster: dict, repr -> list of sequences representated
-    :param dist_type:
     :return:
     """
     # use ranked heap
@@ -274,7 +275,7 @@ def bsf_search_rspace(q, ke, representatives, cluster, dist_type):
         # print('Using bsf')
         if len(get_sequences_represented([r[1] for r in repr_list], cluster)) < ke:  # keep track of how many sequences are we querying right now
             # take the negative distance so to have a maxheap
-            heapq.heappush(repr_list, (-sim_between_seq(q, r, dist_type), r))
+            heapq.heappush(repr_list, (-sim_between_seq(q, r), r))
         else:  # len(dist_heap) == k or >= k
             if -lb_kim_sequence(r.data, q.data) < repr_list[0][0]:
                 prune_count += 1
@@ -291,7 +292,7 @@ def bsf_search_rspace(q, ke, representatives, cluster, dist_type):
             if -lb_keogh_sequence(q.data, candidate_interp_data) < repr_list[0][0]:
                 prune_count += 1
                 continue
-            dist = -sim_between_seq(q, r, dist_type)
+            dist = -sim_between_seq(q, r)
             if dist > repr_list[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(repr_list)
                 heapq.heappush(repr_list, (dist, r))
@@ -640,11 +641,19 @@ def _slice_time_series(time_series, start, end):
             rtn += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
     return rtn
 
+
 def _get_sublist_as_sequences(data_list, data_id, length):
     # if given length is greater than the size of the data_list itself, the
     # function returns an empty list
     rtn = []
-    for i in range(0, len(data_list) - length):  # if the second number in range() is less than 1, the iteration will not run
+    for i in range(0, len(data_list) - length):
+        # if the second number in range() is less than 1, the iteration will not run
         # data_list[i:i+length]  # for debug purposes
-        rtn.append(Sequence(start=i, end=i+length, seq_id=data_id, data=data_list[i:i+length+1]))
+        rtn.append(Sequence(start=i, end=i+length, seq_id=data_id, data=np.array(data_list[i:i+length+1])))
     return rtn
+
+
+dist_index = {'eu': euclidean,
+              'ma': cityblock,
+              'min': minkowski,
+              'ch': chebyshev}

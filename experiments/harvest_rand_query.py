@@ -51,14 +51,14 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     mydb.build(similarity_threshold=0.1, dist_type=_dist_type)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
-    print('Clustering took ' + int(cluster_time) + ' sec')
+    print('Clustering took ' + str(cluster_time) + ' sec')
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
     overall_diff_list = []
 
     print('Evaluating ...')
     for i, q in enumerate(query_set):
-        print('Dataset: ' + data + 'dist_type: '+ _dist_type + '- Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
+        print('Dataset: ' + data + ' - dist_type: '+ _dist_type + '- Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
         start = time.time()
         print('Running Genex Query ...')
         query_result_gx = mydb.query(query=q, best_k=15,
@@ -163,7 +163,7 @@ _lb_opt_repr = 'none'
 _lb_opt_cluster = 'none'
 
 # test for radius = 1
-radius = 1
+radius = 0
 for key, value in experiment_set_dist_eu.items():
     mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='eu', _lb_opt_repr=_lb_opt_repr,
                             _lb_opt_cluster=_lb_opt_cluster, _radius=radius)

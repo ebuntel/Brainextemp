@@ -11,15 +11,15 @@ import pandas as pd
 import numpy as np
 import shutil
 
-from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, _cluster_groups, lb_kim_sequence, lb_keogh_sequence
 from genex.utils import genex_normalize, _group_time_series, _slice_time_series
 from genex.preprocess import get_subsequences
 from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
     _validate_gxdb_query_arguments, _create_f_uuid_map
-
+from genex.utils import *
 
 def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
              _rows_to_consider: int = None,
@@ -184,6 +184,12 @@ class genex_database:
         if not _is_cluster:
             return
 
+        # determine the distance calculation function
+        try:
+            dist_func = dist_index[dist_type]
+        except ValueError:
+            raise Exception('Unknown distance type: ' + str(dist_type))
+
         # validate and save the loi to gxdb class fields
         # distribute the data
         input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
@@ -196,9 +202,9 @@ class genex_database:
         # group = group_rdd.collect()  # for debug purposes
         # Cluster the data with Gcluster
         # cluster = _cluster_groups(groups=group_rdd.glom().collect()[0], st=similarity_threshold,
-        #                           dist_type=dist_type, verbose=1)  # for debug purposes
+        #                           dist_func=dist_func, verbose=1)  # for debug purposes
         cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(
-            groups=x, st=similarity_threshold, dist_type=dist_type, log_level=verbose)).cache()
+            groups=x, st=similarity_threshold, dist_func=dist_func, log_level=verbose)).cache()
         # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
 
         cluster_rdd.count()
@@ -266,7 +272,7 @@ class genex_database:
             slice_rdd = group_rdd.flatMap(lambda x: x[1])
             # for debug purpose
             # a = slice_rdd.collect()
-            dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x, dist_type=dist_type), x))
+            dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x), x))
             candidate_list = dist_rdd.collect()
             self.bf_query_buffer[bf_query_key] = candidate_list
         else:
@@ -348,6 +354,7 @@ class genex_database:
         """
         Find best k matches for given query sequence using Distributed Genex method
 
+        :param query:
         :param _radius:
         :param _ke:
         :param: query: Sequence to be queried
@@ -394,7 +401,7 @@ class genex_database:
 
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
-            _query_partition(cluster=x, q=query, k=best_k, ke=_ke, data_normalized=data_normalized, dist_type=dist_type,
+            _query_partition(cluster=x, q=query, k=best_k, ke=_ke, data_normalized=data_normalized,
                              _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
                              exclude_same_id=exclude_same_id, overlap=overlap,
 

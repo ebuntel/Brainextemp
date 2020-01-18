@@ -108,7 +108,7 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext, num_cores: int,
     input_rdd = sc.parallelize(normalized_input_list, numSlices=num_cores)
     group_rdd = input_rdd.flatMap(lambda x: get_subsequences(x, loi))
     cluster_rdd = group_rdd.mapPartitions(
-        lambda x: _cluster_groups(groups=x, st=similarity_threshold, log_level=log_level, dist_type=dist_type),
+        lambda x: _cluster_groups(groups=x, st=similarity_threshold, log_level=log_level, dist_func=dist_type),
         preservesPartitioning=False).cache()
 
     # if is_collect:

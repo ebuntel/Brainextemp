@@ -5,7 +5,7 @@ import numpy as np
 
 from experiments.plot_rand_query_result_RMSE import autolabel
 
-date = '122219'
+date = '011620'
 
 file_list = [
     'results/' + date + '/Gun_Point_TRAIN_result',
