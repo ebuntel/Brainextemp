@@ -18,9 +18,9 @@ from pyspark import SparkContext
 #     except AssertionError as ae:
 #         raise Exception('Object in the given list must all be Gclusters and have been collected.')
 #
-#     # validate if the clusters are from the same original data
+#     # validate if the clusters are from the same original data_original
 #     try:
-#         data_list = list(map(lambda x: x.data, gclusters))
+#         data_list = list(map(lambda x: x.data_original, gclusters))
 #         norm_data_list = list(map(lambda x: x.norm_data, gclusters))
 #         all_feature_lists = list(map(lambda x: x.feature_list, gclusters))
 #         global_max_list = list(map(lambda x: x.global_max, gclusters))
@@ -34,7 +34,7 @@ from pyspark import SparkContext
 #                all(x == global_min_list[0] for x in global_min_list) and \
 #                all(x == st_list[0] for x in st_list)
 #     except AssertionError as ae:
-#         raise Exception('Gclusters to merge must be from the same original data and have the same Similarity Threshold')
+#         raise Exception('Gclusters to merge must be from the same original data_original and have the same Similarity Threshold')
 #
 #     # merge the clusters
 #     merged_clusters = {}
@@ -43,7 +43,7 @@ from pyspark import SparkContext
 #         merged_clusters.update(gc.clusters)
 #
 #     return genex_database(feature_list=all_feature_lists[0],
-#                           data=data_list[0], data_normalized=norm_data_list[0], st=st_list[0],
+#                           data_original=data_list[0], data_normalized=norm_data_list[0], st=st_list[0],
 #                           cluster_dict=merged_clusters, collected=True,
 #                           # this two attribute are different based on is_collect set to true or false
 #                           global_max=global_max_list[0], global_min=global_min_list[0])
@@ -96,7 +96,7 @@ from pyspark import SparkContext
 #     r_heap = list(r_heap.items())
 #
 #     bc_norm_data = sc.broadcast(
-#         gcluster.norm_data)  # broadcast the normalized data so that the Sequence objects can find data faster
+#         gcluster.norm_data)  # broadcast the normalized data_original so that the Sequence objects can find data_original faster
 #     rheap_rdd = sc.parallelize(r_heap, numSlices=data_slices)
 #     rheap_rdd = rheap_rdd.flatMap(lambda x: x[1])  # retrieve all the sequences and flatten
 #
@@ -126,7 +126,7 @@ from pyspark import SparkContext
 #         if ex_sameID:  # filter by not same id
 #             query_cluster_rdd = query_cluster_rdd.filter(lambda x: x.id != query_sequence.id)
 #
-#         # TODO do not fetch data everytime for the query sequence
+#         # TODO do not fetch data_original everytime for the query sequence
 #         query_cluster_rdd = query_cluster_rdd.map(lambda x: (
 #             sim_between_seq(query_sequence.fetch_data(bc_norm_data.value), x.fetch_data(bc_norm_data.value), dist_type=dist_type), x))
 #         qheap = query_cluster_rdd.collect()

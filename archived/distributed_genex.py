@@ -52,7 +52,7 @@ start_time = time.time()
 cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(groups=x, st=0.05, log_level=1),
                                       preservesPartitioning=False).cache()
 cluster_partition = cluster_rdd.glom().collect()
-# ------------------------data schema
+# ------------------------data_original schema
 idStruct = StructType([
         (StructField("Subject Name", StringType())),
         (StructField("Event Name", StringType())),
@@ -83,7 +83,7 @@ def formSchema(genex_sequence):
     d = {'id': id, 'start':  genex_sequence.start, 'end':  genex_sequence.end}
     return d
 
-# ---test single representative and its cluster goes here here
+# ---test_result single representative and its cluster goes here here
 # testEle = next(iter(cluster_partition[0][0][1].items()))
 # data_list = list(map(lambda x: formSchema(x), testEle[1]))
 # single_data = formSchema(testEle[0])
@@ -167,10 +167,6 @@ def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dis
             querying_cluster.sort(key=lambda x: x[0])
             querying_cluster = querying_cluster[:k*2]
 
-
-
-
-
             querying_cluster = list(
                 map(lambda cluster_seq: [
                     sim_between_seq(cluster_seq.fetch_data(normalized_input), q.data, dist_type=dist_type),
@@ -214,7 +210,7 @@ for query in query_set:
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # query = next((item for item in query_set if item.id in dict(input_list).keys()), None)
     # print(query)
-    # fetch the data for the query
+    # fetch the data_original for the query
     query.set_data(query.fetch_data(input_list))
 
     normalize_sequence(query, global_max, global_min)

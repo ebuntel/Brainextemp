@@ -63,7 +63,7 @@ rows_to_consider = [0, 50]
 if __name__ == '__main__':
     sample_per_length = 16
 
-    data_file = 'data/' + dataset_name + '.csv'
+    data_file = 'data_original/' + dataset_name + '.csv'
     validation_result = validate_brute_force(data_file_path=data_file, feature_num=5, len_to_test=len_to_test,
                                              sample_per_length=sample_per_length, rows_to_consider=rows_to_consider)
 

@@ -287,7 +287,7 @@ def gquery(self, query_sequence: Sequence, sc: SparkContext,
     r_heap = list(r_heap.items())
 
     bc_norm_data = sc.broadcast(
-        self.norm_data)  # broadcast the normalized data so that the Sequence objects can find data faster
+        self.norm_data)  # broadcast the normalized data_original so that the Sequence objects can find data_original faster
     rheap_rdd = sc.parallelize(r_heap, numSlices=data_slices)
     rheap_rdd = rheap_rdd.flatMap(lambda x: x[1])  # retrieve all the sequences and flatten
 
@@ -319,7 +319,7 @@ def gquery(self, query_sequence: Sequence, sc: SparkContext,
         if ex_sameID:  # filter by not same id
             query_cluster_rdd = query_cluster_rdd.filter(lambda x: x.id != query_sequence.seq_id)
 
-        # TODO do not fetch data everytime for the query sequence
+        # TODO do not fetch data_original everytime for the query sequence
         query_cluster_rdd = query_cluster_rdd.map(lambda x: (
             sim_between_seq(query_sequence.fetch_data(bc_norm_data.value), x.fetch_data(bc_norm_data.value),
                             dist_type=dist_type), x))

@@ -11,14 +11,15 @@ import pandas as pd
 import numpy as np
 import shutil
 
-from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, _cluster_groups, lb_kim_sequence, lb_keogh_sequence
-from genex.preprocess import get_subsequences, genex_normalize, _group_time_series, _slice_time_series
+from genex.utils import genex_normalize, _group_time_series, _slice_time_series
+from genex.preprocess import get_subsequences
 from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
     _validate_gxdb_query_arguments, _create_f_uuid_map
-
+from genex.utils import *
 
 def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
              _rows_to_consider: int = None,
@@ -36,7 +37,6 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
     :param _rows_to_consider: experiment parameter that takes a iterable of two integers.
             Only rows in between the given interval will be take into the database.
     :param _is_use_uuid: experiment parameter. If set to true, the feature (id) of the time series will be
-
 
     :return: a genex_database object that holds the original time series
     """
@@ -80,7 +80,7 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
 
     # return Genex_database
-    return genex_database(data_raw=df, data=data_list, data_normalized=data_norm_list, global_max=global_max,
+    return genex_database(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
                           global_min=global_min,
                           spark_context=sc)
 
@@ -92,7 +92,7 @@ def from_db(sc: SparkContext, path: str):
     :param sc: spark context on which the database will run
     :param path: path of the saved gxdb object
 
-    :return: a genex database object that holds clusters of time series data
+    :return: a genex database object that holds clusters of time series data_original
     """
 
     # TODO the input fold_name is not existed
@@ -100,11 +100,11 @@ def from_db(sc: SparkContext, path: str):
         raise ValueError('There is no such database, check the path again.')
 
     data_raw = pd.read_csv(os.path.join(path, 'data_raw.csv'))
-    data = pickle.load(open(os.path.join(path, 'data.gxdb'), 'rb'))
+    data = pickle.load(open(os.path.join(path, 'data_original.gxdb'), 'rb'))
     data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
-    init_params = {'data_raw': data_raw, 'data': data, 'data_normalized': data_normalized, 'spark_context': sc,
+    init_params = {'data_raw': data_raw, 'data_original': data, 'data_normalized': data_normalized, 'spark_context': sc,
                    'global_max': conf['global_max'], 'global_min': conf['global_min']}
     db = genex_database(**init_params)
     db.set_conf(conf)
@@ -121,7 +121,7 @@ class genex_database:
     Genex Database
 
     Init parameters
-    data
+    data_original
     data_normalized
     scale_funct
     """
@@ -132,7 +132,7 @@ class genex_database:
         :param kwargs:
         """
         self.data_raw = kwargs['data_raw']
-        self.data = kwargs['data']
+        self.data = kwargs['data_original']
         self.data_normalized = kwargs['data_normalized']
         self.sc = kwargs['spark_context']
         self.cluster_rdd = None
@@ -141,6 +141,7 @@ class genex_database:
         self.conf = {'build_conf': None,
                      'global_max': kwargs['global_max'],
                      'global_min': kwargs['global_min']}
+        self.bf_query_buffer = dict()
 
     def set_conf(self, conf):
         self.conf = conf
@@ -167,9 +168,9 @@ class genex_database:
                                       between 0 and 1)
         :param dist_type: Distance type used for similarity calculation between sequences
         :param loi: default value is none, otherwise using slice notation [start, stop: step]
-        :param verbose: Print logs when grouping and clustering the data
+        :param verbose: Print logs when grouping and clustering the data_original
         :param batch_size:
-        :param _is_cluster: Decide whether time series data is clustered or not
+        :param _is_cluster: Decide whether time series data_original is clustered or not
 
         """
         _validate_gxdb_build_arguments(locals())
@@ -183,21 +184,27 @@ class genex_database:
         if not _is_cluster:
             return
 
+        # determine the distance calculation function
+        try:
+            dist_func = dist_func_index[dist_type]
+        except ValueError:
+            raise Exception('Unknown distance type: ' + str(dist_type))
+
         # validate and save the loi to gxdb class fields
-        # distribute the data
+        # distribute the data_original
         input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
         # partition_input = input_rdd.glom().collect() #  for debug purposes
-        # Grouping the data
+        # Grouping the data_original
         # group = _group_time_series(input_rdd.glom().collect()[0], start, end) # for debug purposes
         group_rdd = input_rdd.mapPartitions(
             lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
         # group_partition = group_rdd.glom().collect()  # for debug purposes
-
-        # Cluster the data with Gcluster
+        # group = group_rdd.collect()  # for debug purposes
+        # Cluster the data_original with Gcluster
         # cluster = _cluster_groups(groups=group_rdd.glom().collect()[0], st=similarity_threshold,
-        #                           dist_type=dist_type, verbose=1)  # for debug purposes
+        #                           dist_func=dist_func, verbose=1)  # for debug purposes
         cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(
-            groups=x, st=similarity_threshold, dist_type=dist_type, log_level=verbose)).cache()
+            groups=x, st=similarity_threshold, dist_func=dist_func, log_level=verbose)).cache()
         # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
 
         cluster_rdd.count()
@@ -248,33 +255,32 @@ class genex_database:
         :param best_k: Number of best matches to retrieve for the given query
 
         :return: a list containing best k matches for given query sequence
-
         """
-
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         query.fetch_and_set_data(self.data_normalized)
         input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
 
         start, end = self.conf.get('build_conf').get('loi')
-        # slice_rdd = input_rdd.mapPartitions(
-        #     lambda x: _slice_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
 
-        group_rdd = input_rdd.mapPartitions(
-            lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+        bf_query_key = (dist_type, query, start, end)
 
-        slice_rdd = group_rdd.flatMap(lambda x: x[1])
-        # for debug purpose
-        # a = slice_rdd.collect()
-        dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x, dist_type=dist_type), x))
+        if bf_query_key not in self.bf_query_buffer.keys():
+            group_rdd = input_rdd.mapPartitions(
+                lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
 
-        candidate_list = dist_rdd.collect()
+            slice_rdd = group_rdd.flatMap(lambda x: x[1])
+            # for debug purpose
+            # a = slice_rdd.collect()
+            dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x), x))
+            candidate_list = dist_rdd.collect()
+            self.bf_query_buffer[bf_query_key] = candidate_list
+        else:
+            print('bf_query: using buffered bf results, key=' + str([str(x) for x in bf_query_key]))
+            candidate_list = self.bf_query_buffer[bf_query_key]  # retrive the buffer candidate list
 
-        heapq.heapify(candidate_list)
-        query_result = list()
-        while len(query_result) < best_k and len(candidate_list) > 0:
-            query_result.append(heapq.heappop(candidate_list))
-        return query_result
+        candidate_list.sort(key=lambda x: x[0])
+        return candidate_list[:best_k]
 
     def group_sequences(self):
         """
@@ -294,8 +300,12 @@ class genex_database:
 
         target = random.choice(self.data_normalized)
 
-        start = random.randint(0, len(target[1]) - sequence_len)
-        seq = Sequence(target[0], start, start + sequence_len - 1)
+        try:
+            start = random.randint(0, len(target[1]) - sequence_len)
+            seq = Sequence(target[0], start, start + sequence_len - 1)
+        except ValueError:
+            raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
+                            'an implementation error, please report to the Repository as an issue.')
 
         try:
             assert len(seq.fetch_data(self.data)) == sequence_len
@@ -322,8 +332,8 @@ class genex_database:
             self.cluster_rdd.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
             pickle.dump(self.cluster_meta_dict, open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'wb'))
 
-        # save data files
-        pickle.dump(self.data, open(os.path.join(path, 'data.gxdb'), 'wb'))
+        # save data_original files
+        pickle.dump(self.data, open(os.path.join(path, 'data_original.gxdb'), 'wb'))
         pickle.dump(self.data_normalized, open(os.path.join(path, 'data_normalized.gxdb'), 'wb'))
         self.data_raw.to_csv(os.path.join(path, 'data_raw.csv'))
 
@@ -340,10 +350,12 @@ class genex_database:
     def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
               _lb_opt_repr: str = 'none', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
               _lb_opt_cluster: str = 'none', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
-              _ke=None):
+              _ke=None, _radius: int = 0):
         """
         Find best k matches for given query sequence using Distributed Genex method
 
+        :param query:
+        :param _radius:
         :param _ke:
         :param: query: Sequence to be queried
         :param best_k: Number of best matches to retrieve
@@ -360,9 +372,9 @@ class genex_database:
         :return: a list containing k best matches for given query sequence
         """
         _validate_gxdb_query_arguments(locals())
-
+        _ke_factor = 1
         if _ke is None or _ke < best_k:
-            _ke = best_k
+            _ke = best_k * _ke_factor
         else:
             if _ke > self.get_num_subsequences():
                 raise Exception('query: _ke cannot be greater than the number of subsequences in the database.')
@@ -376,24 +388,26 @@ class genex_database:
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         # for debug purposes
-        # a = _query_partition(cluster=self.cluster_rdd.collect(), q=query, k=best_k, ke=self.get_num_subsequences(),
+        # a = _query_partition(cluster=self.cluster_rdd.collect(), q=query, k=best_k, ke=_ke,
         #                      data_normalized=data_normalized, dist_type=dist_type,
         #                      _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
         #                      exclude_same_id=exclude_same_id, overlap=overlap,
         #
         #                      repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
         #                      cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
+        #                       radius=_radius
         #                      )
         # seq_num = self.get_num_subsequences()
 
         query_rdd = self.cluster_rdd.mapPartitions(
             lambda x:
-            _query_partition(cluster=x, q=query, k=best_k, ke=_ke, data_normalized=data_normalized, dist_type=dist_type,
+            _query_partition(cluster=x, q=query, k=best_k, ke=_ke, data_normalized=data_normalized,
                              _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
                              exclude_same_id=exclude_same_id, overlap=overlap,
 
                              repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
                              cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
+                             radius=_radius
                              )
         )
 
