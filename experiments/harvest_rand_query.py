@@ -140,15 +140,34 @@ es_ch = generate_exp_set(datasets, 'ch')
 
 ex_config_1 = {
     'num_sample': 40,
-    'num_query': 20,
+    'num_query': 40,
     '_lb_opt_repr': 'none',
     '_lb_opt_cluster': 'none',
     'radius': 0
 }
-
+start = time.time()
 run_exp_set(es_eu, **ex_config_1)
 run_exp_set(es_ma, **ex_config_1)
 run_exp_set(es_ch, **ex_config_1)
-
+duration = start - time.time()
 print('Finished at')
-print(datetime.datetime.now())
+print(datetime.now())
+print('The experiment with radius 0 took ' + str(duration/3600) + ' hrs')
+
+
+ex_config_2 = {
+    'num_sample': 40,
+    'num_query': 40,
+    '_lb_opt_repr': 'none',
+    '_lb_opt_cluster': 'none',
+    'radius': 1
+}
+start = time.time()
+run_exp_set(es_eu, **ex_config_2)
+run_exp_set(es_ma, **ex_config_2)
+run_exp_set(es_ch, **ex_config_2)
+duration = start - time.time()
+print('Finished at')
+print(datetime.now())
+print('The experiment with radius 1 took ' + str(duration/3600) + ' hrs')
+

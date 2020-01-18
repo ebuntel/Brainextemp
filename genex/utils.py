@@ -59,25 +59,6 @@ def scale(ts_df, feature_num):
     return df_normalized, scaler
 
 
-# def reduction_to_mult(reduction_factor):
-# if the reduction factor is a string, reduction is performed based on the cluster size
-# if the reduction factor is a number n, reduction is performed by taking the top n
-# the reduction factors are only for experiment purposes
-#     if type(reduction_factor) == int:
-#         return reduction_factor
-#     elif type(reduction_factor) == str:
-#         if reduction_factor == 'half':
-#             rtn = 0.5
-#         elif reduction_factor == '1quater':
-#             rtn = 0.25
-#         elif reduction_factor == '3quater':
-#             rtn = 0.75
-#         else:
-#             raise Exception('reduction factor must be one of the specified string, given: ' + reduction_factor)
-#     else:
-#         raise Exception('reduction facotr must be an int or one of the specified string, given: ' + reduction_factor)
-#     return rtn
-
 def prune_by_lbh(seq_list: list, seq_length: int, q: Sequence, kim_reduction: float = 0.75,
                  keogh_reduction: float = 0.25):
     """
@@ -312,90 +293,6 @@ def bsf_search_rspace(q, ke, representatives, cluster):
         print(str(prune_count) + ' of ' + str(len(representatives)) + ' representative(s) pruned')
         return [x[1] for x in repr_list]  # only return the representatives
 
-    # while len(target_reprs) > 0:
-    #         this_repr = heapq.heappop(target_reprs)
-    #         querying_cluster_seq = target_cluster[this_repr[1]]
-    #
-    #         # filter by id
-    #         if exclude_same_id:
-    #             querying_cluster_seq = (x for x in querying_cluster_seq if x.id != q.id)
-    #             if len(querying_cluster_seq) == 0:  # if after filtering, there's no sequence left, then simply continue
-    #                 # to the next iteration
-    #                 continue
-    #
-    #         # fetch data_original for the target cluster
-    #         [x.fetch_and_set_data(data_normalized) for x in querying_cluster_seq]
-    #
-    #         if (_lb_opt_cluster == 'lbh' or _lb_opt_cluster == 'lbh_bsf') and \
-    #                 len(querying_cluster_seq) > (k / cluster_keogh_rf) / cluster_kim_rf:
-    #             querying_cluster_seq = prune_by_lbh(seq_list=querying_cluster_seq, seq_length=target_length, q=q,
-    #                                             kim_reduction=cluster_kim_rf, keogh_reduction=cluster_keogh_rf)
-    #
-    #         if _lb_opt_cluster == 'bsf' or _lb_opt_cluster == 'lbh_bsf':
-    #             # use ranked heap
-    #             query_result = list()
-    #             # print('Num seq in the querying cluster: ' + str(len(querying_cluster)))
-    #             for candidate in querying_cluster_seq:
-    #                 # print('Using bsf')
-    #                 if len(query_result) < k:
-    #                     # take the negative distance so to have a maxheap
-    #                     heapq.heappush(query_result, (-sim_between_seq(q, candidate, dist_type), candidate))
-    #                 else:  # len(dist_heap) == k or >= k
-    #                     # if the new seq is better than the heap head
-    #                     # a = -lb_kim_sequence(candidate.data_original, q.data_original)
-    #                     if -lb_kim_sequence(candidate.data_original, q.data_original) < query_result[0][0]:
-    #                         prune_count += 1
-    #                         continue
-    #                     # interpolate for keogh calculaton
-    #                     if target_length != q_length:
-    #                         candidate_interp_data = np.interp(np.linspace(0, 1, q_length),
-    #                                                           np.linspace(0, 1, len(candidate.data_original)), candidate.data_original)
-    #                     # b = -lb_keogh_sequence(candidate_interp_data, q.data_original)
-    #                     if -lb_keogh_sequence(candidate_interp_data, q.data_original) < query_result[0][0]:
-    #                         prune_count += 1
-    #                         continue
-    #                     # c = -lb_keogh_sequence(q.data_original, candidate_interp_data)
-    #                     if -lb_keogh_sequence(q.data_original, candidate_interp_data) < query_result[0][0]:
-    #                         prune_count += 1
-    #                         continue
-    #                     dist = -sim_between_seq(q, candidate, dist_type)
-    #                     if dist > query_result[0][0]:  # first index denotes the top of the heap, second gets the dist
-    #                         heapq.heappop(query_result)
-    #                         heapq.heappush(query_result, (dist, candidate))
-    #             if (len(query_result)) >= k:
-    #                 print('Found k matches, returning query result')
-    #                 print(str(prune_count) + ' of ' + str(len(querying_cluster_seq)) + ' pruned')
-    #                 return [(-x[0], x[1]) for x in query_result]
-    #         else:
-    #             # print('Not using bsf')
-    #             # calculate the distances between the query and all the sequences in the cluster
-    #             dist_seq_list = [(sim_between_seq(x, q, dist_type), x) for x in querying_cluster_seq]
-    #             heapq.heapify(dist_seq_list)
-    #
-    #             while len(dist_seq_list) > 0:
-    #                 c_dist = heapq.heappop(dist_seq_list)
-    #                 if overlap == 1.0 or exclude_same_id:
-    #                     print('Adding to querying result')
-    #                     query_result.append(c_dist)
-    #                 else:
-    #                     if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
-    #                                query_result):  # check for overlap against all the matches so far
-    #                         print('Adding to querying result')
-    #                         query_result.append(c_dist)
-    #
-    #                 if (len(query_result)) >= k:
-    #                     print('Found k matches, returning query result')
-    #                     return query_result
-    #     cluster_dict.pop(target_length)  # remove this len-cluster just queried
-    #
-    #     # find the next closest sequence length
-    #     if len(cluster_dict) != 0:
-    #         target_length = min(list(cluster_dict.keys()), key=lambda x: abs(x - target_length))
-    #     else:
-    #         break
-    # # print(str(prune_count) + ' sequences pruned')
-    # return query_result
-
 
 def get_sequences_represented(reprs, cluster):
     """
@@ -505,40 +402,6 @@ def _process_loi(loi: slice):
     return start, end
 
 
-# if _lb_optimization == 'heuristic':
-#     # Sorting sequence using cascading bounds
-#     # need to make sure that the query and the candidates are of the same length when calculating LB_keogh
-#     if target_length != q_length:
-#         print('interpolating')
-#         querying_cluster = (
-#             (x[0], np.interp(np.linspace(0, 1, q_length), np.linspace(0, 1, len(x[1])), x[1])) for x in
-#             querying_cluster)  # now entries are (seq, interp_data)
-#
-#     # sorting the sequence using LB_KIM bound
-#     querying_cluster = [(x[0], x[1], lb_kim_sequence(x[1], q.data_original)) for x in querying_cluster]
-#     querying_cluster.sort(key=lambda x: x[2])
-#     # checking how much we reduce the cluster
-#     if type(reduction_factor_lbkim) == str:
-#         querying_cluster = querying_cluster[:int(len(querying_cluster) * lbkim_mult_factor)]
-#     elif type(reduction_factor_lbkim) == int:
-#         querying_cluster = querying_cluster[:reduction_factor_lbkim * k]
-#     else:
-#         raise Exception('Type of reduction factor must be str or int')
-#
-#     # Sorting the sequence using LB Keogh bound
-#     querying_cluster = [(x[0], x[1], lb_keogh_sequence(x[1], q.data_original)) for x in
-#                         querying_cluster]  # now entries are (seq, data_original, lb_heuristic)
-#     querying_cluster.sort(key=lambda x: x[2])  # sort by the lb_heuristic
-#     # checking how much we reduce the cluster
-#     if type(reduction_factor_lbkeogh) == str:
-#         querying_cluster = querying_cluster[:int(len(querying_cluster) * lbkeogh_mult_factor)]
-#     elif type(reduction_factor_lbkim) == int:
-#         querying_cluster = querying_cluster[:reduction_factor_lbkeogh * k]
-#     else:
-#         raise Exception('Type of reduction factor must be str or int')
-#
-#     querying_cluster_reduced = [(sim_between_seq(x[1], q.data_original, dist_type=dist_type), x[0]) for x in
-#                                 querying_cluster]  # now entries are (dist, seq)
 
 
 from functools import reduce
