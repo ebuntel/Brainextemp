@@ -46,7 +46,7 @@ def lb_keogh_sequence(seq_matching, seq_enveloped):
     envelope_down, envelope_up = metrics.lb_envelope(seq_enveloped, radius=1)
     lb_k_sim = metrics.lb_keogh(seq_matching,
                                 envelope_candidate=(envelope_down, envelope_up))
-    return lb_k_sim
+    return lb_k_sim / len(seq_matching)  # normalize
 
 
 def lb_kim_sequence(candidate_seq, query_sequence):
@@ -59,7 +59,7 @@ def lb_kim_sequence(candidate_seq, query_sequence):
 
     lb_kim_sim = math.sqrt((candidate_seq[0] - query_sequence[0])**2 + (candidate_seq[-1] - query_sequence[-1])**2)
 
-    return lb_kim_sim
+    return lb_kim_sim / 2.0  # normalize
 
 
 def randomize(arr, seed=42):
@@ -142,7 +142,7 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, lo
                 # with this sequence being its representative
                 if s not in cluster.keys():
                     cluster[s] = [s]
-    print('Cluster length: ' + str(sequence_len) + '   Done!----------------------------------------------')
+    # print('Cluster length: ' + str(sequence_len) + '   Done!----------------------------------------------')
 
     if del_data:
         for value in cluster.values():

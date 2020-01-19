@@ -34,15 +34,17 @@ def autolabel(rects, ax, dataset):
 
 if __name__ == '__main__':
 
-    date = '011720'
+    date = 'Jan-18-2020-23-N-NoBSF'
     dist_type = 'eu'
-    title = 'Euclidean Random Query Experiment RMSE on Four Datasets [Radius = 1]'
-
-    # eu distance
-    file_dict = {'Gun Point': 'results/' + date + '/Gun_Point_TRAIN_result_dist_' + dist_type + '.csv',
-                 'ECG Five Days': 'results/' + date + '/ECGFiveDays_result_dist_' + dist_type + '.csv',
-                 'Italy Power Demand': 'results/' + date + '/ItalyPowerDemand_result_dist_' + dist_type + '.csv',
-                 'Synthetic Control': 'results/' + date + '/synthetic_control_TRAIN_result_dist_' + dist_type + '.csv'
+    title = 'Euclidean Query Accuracy on Four Datasets [Opt: Vectorization]'
+    dist_type = 'ma'
+    title = 'Manhattan Query Accuracy on Four Datasets [Opt: Vectorization]'
+    dist_type = 'ch'
+    title = 'Chebyshev Query Accuracy on Four Datasets [Opt: Vectorization]'
+    file_dict = {'Gun Point': 'results/' + date + '/Gun_Point_TRAIN_' + dist_type + '.csv',
+                 'ECG Five Days': 'results/' + date + '/ECGFiveDays_' + dist_type + '.csv',
+                 'Italy Power Demand': 'results/' + date + '/ItalyPower_' + dist_type + '.csv',
+                 'Synthetic Control': 'results/' + date + '/synthetic_control_TRAIN_' + dist_type + '.csv'
                  }
 
     dataset_mse_dict = {'Gun Point': [],
@@ -59,7 +61,6 @@ if __name__ == '__main__':
     width = 0.20  # the width of the bars
     fig, ax = plt.subplots()
     fig.set_size_inches(15, 8)
-
 
     for i, entry in enumerate(file_dict.items()):
         dataset_name, result_file = entry

@@ -11,7 +11,6 @@ import pandas as pd
 import numpy as np
 import shutil
 
-
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, _cluster_groups, lb_kim_sequence, lb_keogh_sequence
@@ -20,6 +19,7 @@ from genex.preprocess import get_subsequences
 from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
     _validate_gxdb_query_arguments, _create_f_uuid_map
 from genex.utils import *
+
 
 def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
              _rows_to_consider: int = None,
@@ -348,6 +348,7 @@ class genex_database:
         return self.data_normalized
 
     def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
+              loi: slice = None,
               _lb_opt_repr: str = 'none', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
               _lb_opt_cluster: str = 'none', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
               _ke=None, _radius: int = 0):
@@ -389,25 +390,25 @@ class genex_database:
 
         # for debug purposes
         # a = _query_partition(cluster=self.cluster_rdd.collect(), q=query, k=best_k, ke=_ke,
-        #                      data_normalized=data_normalized, dist_type=dist_type,
+        #                      data_normalized=data_normalized, loi=loi,
         #                      _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
         #                      exclude_same_id=exclude_same_id, overlap=overlap,
         #
         #                      repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
         #                      cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
-        #                       radius=_radius
+        #                      radius=_radius, st=st
         #                      )
         # seq_num = self.get_num_subsequences()
 
         query_rdd = self.cluster_rdd.mapPartitions(
-            lambda x:
-            _query_partition(cluster=x, q=query, k=best_k, ke=_ke, data_normalized=data_normalized,
+            lambda c:
+            _query_partition(cluster=c, q=query, k=best_k, ke=_ke, data_normalized=data_normalized, loi=loi,
                              _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
                              exclude_same_id=exclude_same_id, overlap=overlap,
 
                              repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
                              cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
-                             radius=_radius
+                             radius=_radius, st=st
                              )
         )
 
