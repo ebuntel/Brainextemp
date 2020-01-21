@@ -25,7 +25,7 @@ def autolabel(rects, ax, dataset):
     """Attach a text label above each bar in *rects*, displaying its height."""
     for rect in rects:
         height = rect.get_height()
-        ax.annotate('{}'.format(round(height,2)),
+        ax.annotate('{}'.format(round(height, 4)),
                     xy=(rect.get_x() + rect.get_width()/len(dataset), height),
                     xytext=(2, 3),  # 3 points vertical offset
                     textcoords="offset points",
@@ -34,13 +34,14 @@ def autolabel(rects, ax, dataset):
 
 if __name__ == '__main__':
 
-    date = 'Jan-18-2020-23-N-NoBSF'
+    date = 'Jan-19-2020-12-N-BSFKimOnly-R1'
+
     dist_type = 'eu'
-    title = 'Euclidean Query Accuracy on Four Datasets [Opt: Vectorization]'
+    title = 'Euclidean Query Accuracy on Four Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
     dist_type = 'ma'
-    title = 'Manhattan Query Accuracy on Four Datasets [Opt: Vectorization]'
+    title = 'Manhattan Query Accuracy on Four Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
     dist_type = 'ch'
-    title = 'Chebyshev Query Accuracy on Four Datasets [Opt: Vectorization]'
+    title = 'Chebyshev Query Accuracy on Four Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
     file_dict = {'Gun Point': 'results/' + date + '/Gun_Point_TRAIN_' + dist_type + '.csv',
                  'ECG Five Days': 'results/' + date + '/ECGFiveDays_' + dist_type + '.csv',
                  'Italy Power Demand': 'results/' + date + '/ItalyPower_' + dist_type + '.csv',

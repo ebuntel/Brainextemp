@@ -134,6 +134,7 @@ datasets = [
     'synthetic_control_TRAIN'
 ]
 
+########################################################################################################################
 # ex_config_1 = {
 #     'num_sample': 40,
 #     'num_query': 40,
@@ -142,7 +143,7 @@ datasets = [
 #     'radius': 0
 # }
 # start = time.time()
-# notes_1 = 'NoBSF'
+# notes_1 = 'None'
 # es_eu_1 = generate_exp_set(datasets, 'eu', notes=notes_1)
 # es_ma_1 = generate_exp_set(datasets, 'ma', notes=notes_1)
 # es_ch_1 = generate_exp_set(datasets, 'ch', notes=notes_1)
@@ -155,23 +156,83 @@ datasets = [
 # print('The experiment with radius 0 took ' + str(duration1/3600) + ' hrs')
 
 ########################################################################################################################
-ex_config_2 = {
+# ex_config_2 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt_repr': 'bsf',
+#     '_lb_opt_cluster': 'bsf',
+#     'radius': 0
+# }
+# start = time.time()
+# notes_2 = 'BSFALL-R0'
+# es_eu_2 = generate_exp_set(datasets, 'eu', notes=notes_2)
+# es_ma_2 = generate_exp_set(datasets, 'ma', notes=notes_2)
+# es_ch_2 = generate_exp_set(datasets, 'ch', notes=notes_2)
+# run_exp_set(es_eu_2, **ex_config_2)
+# run_exp_set(es_ma_2, **ex_config_2)
+# run_exp_set(es_ch_2, **ex_config_2)
+# duration2 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment with radius 0 took ' + str(duration2/3600) + ' hrs')
+
+########################################################################################################################
+# ex_config_3 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt_repr': 'bsf',
+#     '_lb_opt_cluster': 'bsf',
+#     'radius': 0
+# }
+# start = time.time()
+# notes_3 = 'BSFKimOnly-R0'
+# es_eu_3 = generate_exp_set(datasets, 'eu', notes=notes_3)
+# es_ma_3 = generate_exp_set(datasets, 'ma', notes=notes_3)
+# es_ch_3 = generate_exp_set(datasets, 'ch', notes=notes_3)
+# run_exp_set(es_eu_3, **ex_config_3)
+# run_exp_set(es_ma_3, **ex_config_3)
+# run_exp_set(es_ch_3, **ex_config_3)
+# duration3 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment took ' + str(duration3/3600) + ' hrs')
+# ########################################################################################################################
+# ex_config_4 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt_repr': 'none',
+#     '_lb_opt_cluster': 'none',
+#     'radius': 1
+# }
+# start = time.time()
+# notes_4 = 'None-R1'
+# es_eu_4 = generate_exp_set(datasets, 'eu', notes=notes_4)
+# es_ma_4 = generate_exp_set(datasets, 'ma', notes=notes_4)
+# es_ch_4 = generate_exp_set(datasets, 'ch', notes=notes_4)
+# run_exp_set(es_eu_4, **ex_config_4)
+# run_exp_set(es_ma_4, **ex_config_4)
+# run_exp_set(es_ch_4, **ex_config_4)
+# duration4 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment took ' + str(duration4/3600) + ' hrs')
+########################################################################################################################
+ex_config_5 = {
     'num_sample': 40,
     'num_query': 40,
     '_lb_opt_repr': 'bsf',
     '_lb_opt_cluster': 'bsf',
-    'radius': 0
+    'radius': 1
 }
 start = time.time()
-notes_2 = 'BSFon-R0'
-es_eu_2 = generate_exp_set(datasets, 'eu', notes=notes_2)
-es_ma_2 = generate_exp_set(datasets, 'ma', notes=notes_2)
-es_ch_2 = generate_exp_set(datasets, 'ch', notes=notes_2)
-run_exp_set(es_eu_2, **ex_config_2)
-run_exp_set(es_ma_2, **ex_config_2)
-run_exp_set(es_ch_2, **ex_config_2)
-duration2 = time.time() - start
+notes_5 = 'BSFKimOnly-R1'
+es_eu_5 = generate_exp_set(datasets, 'eu', notes=notes_5)
+es_ma_5 = generate_exp_set(datasets, 'ma', notes=notes_5)
+es_ch_5 = generate_exp_set(datasets, 'ch', notes=notes_5)
+run_exp_set(es_eu_5, **ex_config_5)
+run_exp_set(es_ma_5, **ex_config_5)
+run_exp_set(es_ch_5, **ex_config_5)
+duration5 = time.time() - start
 print('Finished at')
 print(datetime.now())
-print('The experiment with radius 0 took ' + str(duration2/3600) + ' hrs')
-
+print('The experiment took ' + str(duration5/3600) + ' hrs')

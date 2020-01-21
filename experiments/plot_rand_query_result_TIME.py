@@ -5,7 +5,7 @@ import numpy as np
 
 from experiments.plot_rand_query_result_RMSE import autolabel
 
-date = 'Jan-18-2020-23-N-NoBSF'
+date = 'Jan-19-2020-21-N-BSFKimOnly-R1'
 
 file_list = [
     'results/' + date + '/Gun_Point_TRAIN',
@@ -66,7 +66,7 @@ for i, alg in enumerate(algorithm_dict.keys()):
 
 ax.set_ylabel('Time (seconds)')
 ax.set_xlabel('Distance Type')
-ax.set_title('Query Timing Evaluation for difference distance  \n [Opt: Vectorization]')
+ax.set_title('Query Timing Evaluation for difference distance  \n [Opt: Vectorization, BSFKimOnly, R1]')
 ax.set_xticks(x)
 ax.set_xticklabels(['Euclidean', 'Manhattan', 'Chebyshev'])
 ax.legend()

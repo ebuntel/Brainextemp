@@ -261,17 +261,17 @@ def bsf_search(q, k, candidates):
                 # prune_count += 1
                 continue
             # interpolate for keogh calculation
-            if len(c) != len(q):
-                c_interp_data = np.interp(np.linspace(0, 1, len(q)),
-                                                  np.linspace(0, 1, len(c.data)), c.data)
-            else:
-                c_interp_data = c.data
-            if -lb_keogh_sequence(c_interp_data, q.data) < query_result[0][0]:
-                # prune_count += 1
-                continue
-            if -lb_keogh_sequence(q.data, c_interp_data) < query_result[0][0]:
-                # prune_count += 1
-                continue
+            # if len(c) != len(q):
+            #     c_interp_data = np.interp(np.linspace(0, 1, len(q)),
+            #                                       np.linspace(0, 1, len(c.data)), c.data)
+            # else:
+            #     c_interp_data = c.data
+            # if -lb_keogh_sequence(c_interp_data, q.data) < query_result[0][0]:
+            #     # prune_count += 1
+            #     continue
+            # if -lb_keogh_sequence(q.data, c_interp_data) < query_result[0][0]:
+            #     # prune_count += 1
+            #     continue
             dist = -sim_between_seq(q, c)
             if dist > query_result[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(query_result)
@@ -306,19 +306,19 @@ def bsf_search_rspace(q, ke, r_list, cluster, st):
                 # prune_count += 1
                 continue
             # interpolate for keogh calculation
-            if len(r) != len(q):
-                r_interp_data = np.interp(np.linspace(0, 1, len(q)),
-                                                  np.linspace(0, 1, len(r.data)), r.data)
-            else:
-                r_interp_data = r.data
-            # b = lb_keogh_sequence(candidate_interp_data, q.data)
-            if lb_keogh_sequence(r_interp_data, q.data) > st:
-                # prune_count += 1
-                continue
-            # c = lb_keogh_sequence(q.data, candidate_interp_data)
-            if lb_keogh_sequence(q.data, r_interp_data) > st:
-                # prune_count += 1
-                continue
+            # if len(r) != len(q):
+            #     r_interp_data = np.interp(np.linspace(0, 1, len(q)),
+            #                                       np.linspace(0, 1, len(r.data)), r.data)
+            # else:
+            #     r_interp_data = r.data
+            # # b = lb_keogh_sequence(candidate_interp_data, q.data)
+            # if lb_keogh_sequence(r_interp_data, q.data) > st:
+            #     # prune_count += 1
+            #     continue
+            # # c = lb_keogh_sequence(q.data, candidate_interp_data)
+            # if lb_keogh_sequence(q.data, r_interp_data) > st:
+            #     # prune_count += 1
+            #     continue
             dist = sim_between_seq(q, r)
             if dist < result_list[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(result_list)
