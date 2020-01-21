@@ -118,7 +118,7 @@ def harvest_ke_multiple_k(k_to_test, experiment_set):
             b = np.expand_dims([k for i in range(len(a))], axis=1)
             c = np.concatenate([a, b], axis=1)
             l1_ke_k_array.append(c)
-            ax.plot(ke_result_dict[k][0][1], ke_result_dict[k][0][0], label='k=' + str(k))
+            ax.plot(ke_result_dict[k][0][1], ke_result_dict[k][0][0], label='k=' + str(k), marker='o')
         ax.set_ylabel('RMSE')
         ax.set_xlabel('Ke')
         ax.set_title(dataset_name + ' l1-ke')
