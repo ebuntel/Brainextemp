@@ -24,16 +24,16 @@ mydb.build(st=0.1)
 print('Building took ' + str(time.time() - start) + ' sec')
 
 # generate the query sets
-q = mydb.get_random_seq_of_len(15, seed=1)
-
-start = time.time()
-# query_result = mydb.query(query=q, best_k=5, _lb_opt_repr='bsf', _lb_opt_cluster='bsf')
-query_result = mydb.query(query=q, best_k=5, _radius=1, _lb_opt_repr='none')
-
-duration = time.time() - start
-# TODO memory optimization: brainstorm memory optimization, encode features (ids), length batches
-# plot the query result
-plt.plot(q.fetch_data(mydb.data_normalized), linewidth=5, color='red')
-for qr in query_result:
-    plt.plot(qr[1].fetch_data(mydb.data_normalized), color='blue')
-plt.show()
+# q = mydb.get_random_seq_of_len(15, seed=1)
+#
+# start = time.time()
+# # query_result = mydb.query(query=q, best_k=5, _lb_opt_repr='bsf', _lb_opt_cluster='bsf')
+# query_result = mydb.query(query=q, best_k=5, _radius=1, _lb_opt_repr='none')
+#
+# duration = time.time() - start
+# # TODO memory optimization: brainstorm memory optimization, encode features (ids), length batches
+# # plot the query result
+# plt.plot(q.fetch_data(mydb.data_normalized), linewidth=5, color='red')
+# for qr in query_result:
+#     plt.plot(qr[1].fetch_data(mydb.data_normalized), color='blue')
+# plt.show()
