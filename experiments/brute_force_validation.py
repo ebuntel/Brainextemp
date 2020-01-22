@@ -1,7 +1,7 @@
 import random
 import time
 
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from pyspark import SparkContext, SparkConf
 import pandas as pd
 import csv

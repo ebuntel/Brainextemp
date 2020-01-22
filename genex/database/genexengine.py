@@ -93,9 +93,9 @@ def from_csv(file_name, feature_num: int,
 
     mp_context = _multiprocess_backend(use_spark, num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
 
-    return genex_database(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
-                          global_min=global_min,
-                          mp_context=mp_context)
+    return GenexEngine(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
+                       global_min=global_min,
+                       mp_context=mp_context)
 
 
 def from_db(path: str,
@@ -128,7 +128,7 @@ def from_db(path: str,
     init_params = {'data_raw': data_raw, 'data_original': data, 'data_normalized': data_normalized,
                    'mp_context': mp_context,
                    'global_max': conf['global_max'], 'global_min': conf['global_min']}
-    db = genex_database(**init_params)
+    db = GenexEngine(**init_params)
     db.set_conf(conf)
 
     if os.path.exists(os.path.join(path, 'clusters.gxdb')):
@@ -138,7 +138,7 @@ def from_db(path: str,
     return db
 
 
-class genex_database:
+class GenexEngine:
     """
     Genex Database
 

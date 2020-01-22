@@ -1,5 +1,5 @@
 from memory_profiler import profile
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from genex.spark_utils import _create_sc
 import pickle
 

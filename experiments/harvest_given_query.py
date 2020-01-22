@@ -1,7 +1,7 @@
 import csv
 import time
 
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from pyspark import SparkContext, SparkConf
 from genex.parse import generate_query
 

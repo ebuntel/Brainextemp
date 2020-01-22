@@ -3,7 +3,7 @@ import csv
 from genex.parse import generate_source
 from genex.Gcluster_utils import _isOverlap
 
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from genex.preprocess import genex_normalize
 from genex.utils import normalize_sequence
 

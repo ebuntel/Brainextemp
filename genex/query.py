@@ -7,10 +7,10 @@ from pyspark import SparkContext
 from genex.cluster import sim_between_seq
 from genex.parse import strip_function, remove_trailing_zeros
 from .classes import Sequence
-from genex.database import genex_database
+from genex.database import genexengine
 
 
-def query(q: Sequence, gc: genex_database, loi: list, sc: SparkContext,
+def query(q: Sequence, gc: genexengine, loi: list, sc: SparkContext,
           k:int=1, ex_sameID: bool=False, overlap: float= 1.0, mode:str='genex'):
     """
 

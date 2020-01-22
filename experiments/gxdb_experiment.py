@@ -4,7 +4,7 @@ import time
 import findspark
 import matplotlib.pyplot as plt
 
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from pyspark import SparkContext, SparkConf
 
 

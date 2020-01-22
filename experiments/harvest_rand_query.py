@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 import findspark
 
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from pyspark import SparkContext, SparkConf
 
 import numpy as np
