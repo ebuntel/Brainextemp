@@ -272,7 +272,7 @@ class genex_database:
             slice_rdd = group_rdd.flatMap(lambda x: x[1])
             # for debug purpose
             # a = slice_rdd.collect()
-            dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x), x))
+            dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x, dt_index=dist_type_index[dist_type]), x))
             candidate_list = dist_rdd.collect()
             self.bf_query_buffer[bf_query_key] = candidate_list
         else:

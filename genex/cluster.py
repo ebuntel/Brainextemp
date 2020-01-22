@@ -18,18 +18,54 @@ from tslearn import metrics
 from genex.classes.Sequence import Sequence
 
 
-def sim_between_seq(seq1: Sequence, seq2: Sequence):
+def sim_between_seq(seq1: Sequence, seq2: Sequence, dt_index: int):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
-    :param dist_type: the distance type that can be: 'eu', 'ma', 'mi', 'ch'
+    :param dt_index: the distance type that can be: 0, 1, or 2
     :param seq1: Time series sequence
     :param seq2: Time series sequence
     :return float: return the Normalized DTW distance between sequence 1 (seq1) and sequence 2 (seq2)
     """
-    dist = fastdtw(seq1.get_data(), seq2.get_data(), dist=lambda x, y: np.abs(x-y))[0] / (len(seq1) + len(seq2))
+    # dist_type_index = {'eu': 0,
+    #                    'ma': 1,
+    #                    'ch': 2,
+    #                    'min': 2}
 
-    return dist
+    if dt_index == 0:
+        return np.sqrt(fastdtw(seq1.get_data(), seq2.get_data(), dist=lambda x, y: np.square(x-y))[0] /
+                       (len(seq1) + len(seq2)))
+    elif dt_index == 1:
+        return fastdtw(seq1.get_data(), seq2.get_data(), dist=lambda x, y: np.abs(x-y))[0] / (len(seq1) + len(seq2))
+    elif dt_index == 2:
+        return fastdtw(seq1.get_data(), seq2.get_data(), dist=0)[0]
+    else:
+        raise Exception('Unsupported dist type in sim_between_seq, this should never happen!')
+
+
+def sim_between_array(a1: np.ndarray, a2: np.ndarray, dt_index: int):
+    """
+    calculate the similarity between sequence 1 and sequence 2 using DTW
+
+    :param a1:
+    :param a2:
+    :param dt_index: the distance type that can be: 0, 1, or 2
+    :return float: return the Normalized DTW distance between sequence 1 (seq1) and sequence 2 (seq2)
+    """
+    # dist_type_index = {'eu': 0,
+    #                    'ma': 1,
+    #                    'ch': 2,
+    #                    'min': 2}
+
+    if dt_index == 0:
+        return np.sqrt(dtw(a1, a2, dist=lambda x, y: np.square(x-y))[0] /
+                       (len(a1) + len(a2)))
+    elif dt_index == 1:
+        return fastdtw(a1, a2, dist=lambda x, y: np.abs(x-y))[0] / (len(a1) + len(a2))
+    elif dt_index == 2:
+        return fastdtw(a1, a2, dist=0)[0]
+    else:
+        raise Exception('Unsupported dist type in sim_between_seq, this should never happen!')
 
 
 def lb_keogh_sequence(seq_matching, seq_enveloped):

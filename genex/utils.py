@@ -24,8 +24,13 @@ import numpy as np
 # note that the sequence x, y must be normalized in the first place
 dist_func_index = {'eu': lambda x, y: euclidean(x, y) / np.sqrt(len(x)),
                    'ma': lambda x, y: cityblock(x, y) / len(x),
-                   'min': lambda x, y: minkowski(x, y) / np.sqrt(len(x)),
-                   'ch': chebyshev}
+                   'ch': chebyshev,
+                   'min': chebyshev
+                   }
+dist_type_index = {'eu': 0,
+                   'ma': 1,
+                   'ch': 2,
+                   'min': 2}
 
 
 def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
@@ -131,9 +136,9 @@ def get_trgt_len_within_r(l_list, q_len, radius):
     # return trgt_l_list
 
 
-def naive_search_rspace(q, k, r_list, cluster):
+def naive_search_rspace(q, k, r_list, cluster, dt_index):
     c_list = []
-    target_reprs = [(sim_between_seq(x, q), x) for x in r_list]  # calculate DTW
+    target_reprs = [(sim_between_seq(x, q, dt_index), x) for x in r_list]  # calculate DTW
     heapq.heapify(target_reprs)  # heap sort R-space
     # get enough sequence from the clusters represented to query
     while len(target_reprs) > 0 and len(c_list) < k:
@@ -143,7 +148,7 @@ def naive_search_rspace(q, k, r_list, cluster):
     return c_list
 
 
-def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice,
+def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, dt_index: int,
                      _lb_opt_cluster: str, repr_kim_rf: float, repr_keogh_rf: float,
                      _lb_opt_repr: str, cluster_kim_rf: float, cluster_keogh_rf: float, overlap: float,
                      exclude_same_id: bool, radius: int, st: float):
@@ -201,13 +206,15 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice,
             # duration_nonopt = time.time() - start
 
             if _lb_opt_repr == 'bsf':
-                this_candidates = bsf_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, st=st)
+                this_candidates = \
+                    bsf_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, st=st, dt_index=dt_index)
             else:
-                this_candidates = naive_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster)
+                this_candidates = \
+                    naive_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, dt_index=dt_index)
 
             candidates += this_candidates
             cluster_dict.pop(target_l)
-        radius += 1 # ready to search the next length
+        radius += 1  # ready to search the next length
 
     # process exclude same id
     candidates = (x for x in candidates if x.seq_id != q.seq_id) if exclude_same_id else candidates
@@ -223,17 +230,17 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice,
 
     if _lb_opt_cluster == 'bsf':
         # print('Using bsf')
-        return bsf_search(q, k, candidates)
+        return bsf_search(q, k, candidates, dt_index=dt_index)
     elif _lb_opt_cluster == 'none':
         # print('Using naive')
-        return naive_search(q, k, candidates, overlap, exclude_same_id)
+        return naive_search(q, k, candidates, overlap, exclude_same_id, dt_index=dt_index)
     else:
         raise Exception('_query_partition: unsupported _lb_opt_cluster: ' + str(_lb_opt_cluster))
 
 
-def naive_search(q: Sequence, k: int, candidates: list, overlap: float, exclude_same_id: bool):
+def naive_search(q: Sequence, k: int, candidates: list, overlap: float, exclude_same_id: bool, dt_index: int):
     query_result = []
-    c_dist_list = [(sim_between_seq(x, q), x) for x in candidates]
+    c_dist_list = [(sim_between_seq(x, q, dt_index), x) for x in candidates]
     heapq.heapify(c_dist_list)
 
     # note that we are using k here
@@ -248,7 +255,7 @@ def naive_search(q: Sequence, k: int, candidates: list, overlap: float, exclude_
     return query_result
 
 
-def bsf_search(q, k, candidates):
+def bsf_search(q, k, candidates, dt_index: int):
     # use ranked heap
     # prune_count = 0
     query_result = list()
@@ -257,7 +264,7 @@ def bsf_search(q, k, candidates):
         # print('Using bsf')
         if len(query_result) < k:
             # take the negative distance so to have a maxheap
-            heapq.heappush(query_result, (-sim_between_seq(q, c), c))
+            heapq.heappush(query_result, (-sim_between_seq(q, c, dt_index), c))
         else:  # len(dist_heap) == k or >= k
             # if the new seq is better than the heap head
             if -lb_kim_sequence(c.data, q.data) < query_result[0][0]:
@@ -275,7 +282,7 @@ def bsf_search(q, k, candidates):
             # if -lb_keogh_sequence(q.data, c_interp_data) < query_result[0][0]:
             #     # prune_count += 1
             #     continue
-            dist = -sim_between_seq(q, c)
+            dist = -sim_between_seq(q, c, dt_index)
             if dist > query_result[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(query_result)
                 heapq.heappush(query_result, (dist, c))
@@ -284,7 +291,7 @@ def bsf_search(q, k, candidates):
         return [(-x[0], x[1]) for x in query_result]
 
 
-def bsf_search_rspace(q, ke, r_list, cluster, st):
+def bsf_search_rspace(q, ke, r_list, cluster, st, dt_index: int):
     """
 
     :param q:
@@ -302,7 +309,7 @@ def bsf_search_rspace(q, ke, r_list, cluster, st):
         if len(get_sequences_represented([r[1] for r in result_list],
                                          cluster)) < ke:  # keep track of how many sequences are we querying right now
             # take the negative distance so to have a maxheap
-            heapq.heappush(result_list, (sim_between_seq(q, r), r))
+            heapq.heappush(result_list, (sim_between_seq(q, r, dt_index), r))
         else:  # len(dist_heap) == k or >= k
             # a = lb_kim_sequence(r.data, q.data)
             if lb_kim_sequence(r.data, q.data) > st:
@@ -322,7 +329,7 @@ def bsf_search_rspace(q, ke, r_list, cluster, st):
             # if lb_keogh_sequence(q.data, r_interp_data) > st:
             #     # prune_count += 1
             #     continue
-            dist = sim_between_seq(q, r)
+            dist = sim_between_seq(q, r, dt_index)
             if dist < result_list[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(result_list)
                 heapq.heappush(result_list, (dist, r))
@@ -436,8 +443,6 @@ def _process_loi(loi: slice):
 
     assert start > 0
     return start, end
-
-
 
 
 from functools import reduce
