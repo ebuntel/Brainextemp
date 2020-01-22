@@ -133,7 +133,7 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, lo
             # min_dist = np.min(dists)
             # min_representative = representatives[np.argmin(dists)]
 
-            if min_dist <= st / 2:  # if the calculated min similarity is smaller than the
+            if min_dist <= st / 2.0:  # if the calculated min similarity is smaller than the
                 # similarity threshold, put subsequence in the similarity cluster keyed by the min representative
                 cluster[min_representative].append(s)
 
