@@ -140,7 +140,7 @@ def from_db(path: str,
 
 class GenexEngine:
     """
-    Genex Database
+    Genex Engine
 
     Init parameters
     data_original
