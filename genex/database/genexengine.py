@@ -1,6 +1,7 @@
 import heapq
 import json
 import math
+import multiprocessing
 import os
 import pickle
 import random
@@ -10,17 +11,47 @@ from pyspark import SparkContext
 import pandas as pd
 import numpy as np
 import shutil
+from scipy.spatial.distance import cityblock
+from scipy.spatial.distance import minkowski
+from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import chebyshev
+from sklearn.preprocessing import LabelEncoder
 
-from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from genex.classes.Sequence import Sequence
-from genex.cluster import sim_between_seq, _cluster_groups, lb_kim_sequence, lb_keogh_sequence
-from genex.misc import pr_red
-from genex.spark_utils import _create_sc, _pr_spark_conf
-from genex.utils import genex_normalize, _group_time_series, _slice_time_series, _multiprocess_backend
-from genex.preprocess import get_subsequences
-from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
+from genex.cluster import _randomize, sim_between_seq
+from genex.spark_utils import _create_sc, _pr_spark_conf, _cluster_with_spark, _is_using_spark
+from genex.utils import _multiprocess_backend, genex_normalize
+from genex.utils import _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
     _validate_gxdb_query_arguments, _create_f_uuid_map
-from genex.utils import *
+from mutiproces_utils import _cluster_multi_process
+from process_utils import _group_time_series, _slice_time_series
+
+
+def eu_norm(x, y):
+    euclidean(x, y) / np.sqrt(len(x))
+
+
+def ma_norm(x, y):
+    cityblock(x, y) / len(x)
+
+
+def ch_norm(x, y):
+    chebyshev(x, y)
+
+
+def min_norm(x, y):
+    chebyshev(x, y)
+
+
+dist_func_index = {'eu': eu_norm,
+                   'ma': ma_norm,
+                   'ch': ch_norm,
+                   'min': min_norm
+                   }
+dist_type_index = {'eu': 0,
+                   'ma': 1,
+                   'ch': 2,
+                   'min': 2}
 
 
 def from_csv(file_name, feature_num: int,
@@ -132,7 +163,7 @@ def from_db(path: str,
     db.set_conf(conf)
 
     if os.path.exists(os.path.join(path, 'clusters.gxdb')):
-        db.set_clusters(db.get_sc().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
+        db.set_clusters(db.get_mp_context().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
         db.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'rb')))
 
     return db
@@ -154,10 +185,10 @@ class GenexEngine:
         :param kwargs:
         """
         self.data_raw = kwargs['data_raw']
-        self.data = kwargs['data_original']
+        self.data_original = kwargs['data_original']
         self.data_normalized = kwargs['data_normalized']
         self.mp_context = kwargs['mp_context']
-        self.cluster_rdd = None
+        self.clusters = None
         self.cluster_meta_dict = None
 
         self.conf = {'build_conf': None,
@@ -169,10 +200,13 @@ class GenexEngine:
         self.conf = conf
 
     def set_clusters(self, clusters):
-        self.cluster_rdd = clusters
+        self.clusters = clusters
 
-    def get_sc(self):
+    def get_mp_context(self):
         return self.mp_context
+
+    def get_num_ts(self):
+        return len(self.data_original)
 
     def is_seq_exist(self, seq: Sequence):
         try:
@@ -181,12 +215,12 @@ class GenexEngine:
             return False
         return True
 
-    def build(self, similarity_threshold: float, dist_type: str = 'eu', loi: slice = None, verbose: int = 1,
+    def build(self, st: float, dist_type: str = 'eu', loi: slice = None, verbose: int = 1,
               _batch_size=None, _is_cluster=True):
         """
         Groups and clusters the time series set
 
-        :param similarity_threshold: The upper bound of the similarity value between two time series (Value must be
+        :param st: The upper bound of the similarity value between two time series (Value must be
                                       between 0 and 1)
         :param dist_type: Distance type used for similarity calculation between sequences
         :param loi: default value is none, otherwise using slice notation [start, stop: step]
@@ -198,7 +232,7 @@ class GenexEngine:
         _validate_gxdb_build_arguments(locals())
         start, end = _process_loi(loi)
         # update build configuration
-        self.conf['build_conf'] = {'similarity_threshold': similarity_threshold,
+        self.conf['build_conf'] = {'similarity_threshold': st,
                                    'dist_type': dist_type,
                                    'loi': (start, end)}
 
@@ -212,52 +246,36 @@ class GenexEngine:
         except ValueError:
             raise Exception('Unknown distance type: ' + str(dist_type))
 
-        # validate and save the loi to gxdb class fields
-        # distribute the data_original
-        input_rdd = self.mp_context.parallelize(self.data_normalized, numSlices=self.mp_context.defaultParallelism)
-        # partition_input = input_rdd.glom().collect() #  for debug purposes
-        # Grouping the data_original
-        # group = _group_time_series(input_rdd.glom().collect()[0], start, end) # for debug purposes
-        group_rdd = input_rdd.mapPartitions(
-            lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
-        # group_partition = group_rdd.glom().collect()  # for debug purposes
-        # group = group_rdd.collect()  # for debug purposes
-        # Cluster the data_original with Gcluster
-        # cluster = _cluster_groups(groups=group_rdd.glom().collect()[0], st=similarity_threshold,
-        #                           dist_func=dist_func, verbose=1)  # for debug purposes
-        cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(
-            groups=x, st=similarity_threshold, dist_func=dist_func, log_level=verbose)).cache()
-        # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
+        if _is_using_spark(self.mp_context):  # If using Spark backend
+            self.clusters, self.cluster_meta_dict = _cluster_with_spark(self.mp_context, self.data_normalized,
+                                                                        start, end, st, dist_func, verbose)
+        else:
+            a = self.get_num_ts()
+            b = self.mp_context['num_worker']
+            self.clusters, self.cluster_meta_dict = \
+                _cluster_multi_process(self.data_normalized,
+                                       self.mp_context['num_worker'],
+                                       start, end, st, dist_func, verbose)
 
-        cluster_rdd.count()
-
-        self.cluster_rdd = cluster_rdd
-
-        # Combining two dictionary using **kwargs concept
-        self.cluster_meta_dict = dict(
-            cluster_rdd.map(lambda x: (x[0], {repre: len(slist) for (repre, slist) in x[1].items()}))
-                .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
-
-    def get_cluster(self, repre: Sequence):
+    def get_cluster(self, rprs: Sequence):
         length = None
 
         for k, v in self.cluster_meta_dict.items():
-            if repre in v.keys():
+            if rprs in v.keys():
                 length = k
                 break
 
         if length is None:
             raise ValueError('get_cluster: Couldn\'t find the representative in the cluster, please check the input.')
 
-        target_cluster_rdd = self.cluster_rdd.filter(lambda x: repre in x[1].keys()).collect()
-
-        cluster = target_cluster_rdd[0][1].get(repre)
+        target_cluster_rdd = self.clusters.filter(lambda x: rprs in x[1].keys()).collect()
+        cluster = target_cluster_rdd[0][1].get(rprs)
 
         return cluster
 
     def get_num_subsequences(self):
         try:
-            assert self.cluster_rdd is not None
+            assert self.clusters is not None
         except AssertionError:
             raise Exception('get_num_subsequences: the database must be build before calling this function')
 
@@ -330,7 +348,7 @@ class GenexEngine:
                             'an implementation error, please report to the Repository as an issue.')
 
         try:
-            assert len(seq.fetch_data(self.data)) == sequence_len
+            assert len(seq.fetch_data(self.data_original)) == sequence_len
         except AssertionError:
             raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
                             'an implementation error, please report to the Repository as an issue.')
@@ -350,12 +368,12 @@ class GenexEngine:
             os.makedirs(path)
 
         # save the clusters if the db is built
-        if self.cluster_rdd is not None:
-            self.cluster_rdd.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
+        if self.clusters is not None:
+            self.clusters.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
             pickle.dump(self.cluster_meta_dict, open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'wb'))
 
         # save data_original files
-        pickle.dump(self.data, open(os.path.join(path, 'data_original.gxdb'), 'wb'))
+        pickle.dump(self.data_original, open(os.path.join(path, 'data_original.gxdb'), 'wb'))
         pickle.dump(self.data_normalized, open(os.path.join(path, 'data_normalized.gxdb'), 'wb'))
         self.data_raw.to_csv(os.path.join(path, 'data_raw.csv'))
 
@@ -364,7 +382,7 @@ class GenexEngine:
             json.dump(self.conf, f, indent=4)
 
     def is_id_exists(self, sequence: Sequence):
-        return sequence.seq_id in dict(self.data).keys()
+        return sequence.seq_id in dict(self.data_original).keys()
 
     def _get_data_normalized(self):
         return self.data_normalized
@@ -422,9 +440,10 @@ class GenexEngine:
         #                      )
         # seq_num = self.get_num_subsequences()
 
-        query_rdd = self.cluster_rdd.mapPartitions(
+        query_rdd = self.clusters.mapPartitions(
             lambda c:
             _query_partition(cluster=c, q=query, k=best_k, ke=_ke, data_normalized=data_normalized, loi=loi,
+                             dt_index=dist_type_index[dist_type],
                              _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
                              exclude_same_id=exclude_same_id, overlap=overlap,
 

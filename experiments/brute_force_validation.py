@@ -20,7 +20,7 @@ def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consi
 
     # create gxdb from a csv file
     mydb = gxdb.from_csv(data_file_path, sc=sc, feature_num=feature_num, _rows_to_consider=rows_to_consider)
-    mydb.build(similarity_threshold=0.1, _is_cluster=False)  # just set the build parameters without actually clustering
+    mydb.build(st=0.1, _is_cluster=False)  # just set the build parameters without actually clustering
 
     query_bf_results = []
 

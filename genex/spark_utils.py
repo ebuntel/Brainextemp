@@ -1,6 +1,8 @@
 from pyspark import SparkContext, SparkConf
 
+from genex.cluster import _cluster_groups
 from genex.misc import pr_red
+from process_utils import _group_time_series
 
 
 def _create_sc(num_cores: int, driver_mem: int, max_result_mem: int):
@@ -13,7 +15,36 @@ def _create_sc(num_cores: int, driver_mem: int, max_result_mem: int):
     return sc
 
 
-def _pr_spark_conf(sc:SparkContext):
+def _pr_spark_conf(sc: SparkContext):
     pr_red('Number of Works:     ' + str(sc.defaultParallelism))
     pr_red('Driver Memory:       ' + sc.getConf().get("spark.driver.memory"))
     pr_red('Maximum Result Size: ' + sc.getConf().get("spark.driver.maxResultSize"))
+
+
+def _cluster_with_spark(sc: SparkContext, data_normalized, start, end, st, dist_func, verbose):
+    # validate and save the loi to gxdb class fields
+    # distribute the data_original
+    input_rdd = sc.parallelize(data_normalized, numSlices=sc.defaultParallelism)
+    # partition_input = input_rdd.glom().collect() #  for debug purposes
+    # Grouping the data_original
+    # group = _group_time_series(input_rdd.glom().collect()[0], start, end) # for debug purposes
+    group_rdd = input_rdd.mapPartitions(
+        lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+    # group_partition = group_rdd.glom().collect()  # for debug purposes
+    # group = group_rdd.collect()  # for debug purposes
+    # Cluster the data_original with Gcluster
+    # cluster = _cluster_groups(groups=group_rdd.glom().collect()[0], st=similarity_threshold,
+    #                           dist_func=dist_func, verbose=1)  # for debug purposes
+    cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(
+        groups=x, st=st, dist_func=dist_func, log_level=verbose)).cache()
+    # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
+    cluster_rdd.count()
+    # Combining two dictionary using **kwargs concept
+    cluster_meta_dict = dict(
+        cluster_rdd.map(lambda x: (x[0], {repre: len(slist) for (repre, slist) in x[1].items()}))
+            .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
+    return cluster_rdd, cluster_meta_dict
+
+
+def _is_using_spark(mp_context):
+    return isinstance(mp_context, SparkContext)

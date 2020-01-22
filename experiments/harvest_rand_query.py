@@ -49,7 +49,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
 
     cluster_start_time = time.time()
     print('Using dist_type = ' + str(dist_type))
-    mydb.build(similarity_threshold=0.1, dist_type=dist_type)
+    mydb.build(st=0.1, dist_type=dist_type)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
     print('Clustering took ' + str(cluster_time) + ' sec')

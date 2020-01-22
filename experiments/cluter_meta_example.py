@@ -13,7 +13,7 @@ sc = SparkContext(conf=conf)
 data_file = '/home/apocalyvec/PycharmProjects/Genex/experiments/data_original/ItalyPower.csv'
 #
 mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
-mydb.build(similarity_threshold=0.5)
+mydb.build(st=0.5)
 
 for representative, cluster_size in mydb.cluster_meta_dict.get(20).items():
     test_repr = representative

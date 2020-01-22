@@ -14,24 +14,14 @@ from pyspark import SparkContext, SparkConf
 # findspark.init(spark_home=spark_location)
 
 # create gxdb from a csv file
-data_file = 'experiments/data_original/ItalyPower.csv'
+data_file = 'data_original/ItalyPower.csv'
 db_path = 'results/test_db'
 
-mydb = gxdb.from_csv(data_file, feature_num=2, num_worker=32, driver_mem=64, max_result_mem=64)
-
-# Save reloading unbuilt Genex database
-mydb.save(path=db_path)
-del mydb
-mydb = gxdb.from_db(path=db_path, sc=sc)
+mydb = gxdb.from_csv(data_file, feature_num=2, num_worker=32, use_spark=False)
 
 start = time.time()
 mydb.build(st=0.1)
 print('Building took ' + str(time.time() - start) + ' sec')
-
-# Save reloading built Genex database
-mydb.save(path=db_path)
-del mydb
-mydb = gxdb.from_db(path=db_path, sc=sc)
 
 # generate the query sets
 q = mydb.get_random_seq_of_len(15, seed=1)

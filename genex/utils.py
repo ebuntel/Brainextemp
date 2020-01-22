@@ -25,16 +25,6 @@ import numpy as np
 from genex.misc import pr_red
 from genex.spark_utils import _pr_spark_conf, _create_sc
 
-dist_func_index = {'eu': lambda x, y: euclidean(x, y) / np.sqrt(len(x)),
-                   'ma': lambda x, y: cityblock(x, y) / len(x),
-                   'ch': chebyshev,
-                   'min': chebyshev
-                   }
-dist_type_index = {'eu': 0,
-                   'ma': 1,
-                   'ch': 2,
-                   'min': 2}
-
 
 def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
     """
@@ -368,9 +358,9 @@ def _validate_gxdb_build_arguments(args: dict):
             raise Exception('Build check argument failed: build loi(length of interest) does not support stepping, '
                             'loi.step=' + str(args['loi'].step))
     try:
-        assert 0. < args['similarity_threshold'] < 1.
+        assert 0. < args['st'] < 1.
     except AssertionError as ae:
-        raise Exception('Build check argument failed: build similarity_threshold must be between 0. and 1. and not '
+        raise Exception('Build check argument failed: build st must be between 0. and 1. and not '
                         'equal to 0. and 1.')
     print(args)
 
@@ -515,65 +505,6 @@ def _min_max_normalize(input_list, global_max, global_min):
     return mm_normalized_list
 
 
-def _group_time_series(time_series, start, end):
-    """
-    This function groups the raw time series data_original into sub sequences of all possible length within the given grouping
-    range
-
-    :param time_series: set of raw time series sequences
-    :param start: starting index for grouping range
-    :param end: end index for grouping range
-
-    :return: a list of lists containing groups of subsequences of different length indexed by the group length
-    """
-
-    # start must be greater than 1, this is asserted in genex_databse._process_loi
-    rtn = dict()
-
-    for ts in time_series:
-        ts_id = ts[0]
-        ts_data = ts[1]
-        # we take min because min can be math.inf
-        for i in range(start - 1, min(end, len(ts_data))):
-            target_length = i + 1
-            if target_length not in rtn.keys():
-                rtn[target_length] = []
-            rtn[target_length] += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
-    return list(rtn.items())
-
-
-def _slice_time_series(time_series, start, end):
-    """
-    This function slices raw time series data_original into sub sequences of all possible length.
-    :param time_series: set of raw time series data_original
-    :param start: start index of length range
-    :param end: end index of length range
-
-    :return: list containing  subsequences of all possible lengths
-    """
-    # start must be greater than 1, this is asserted in genex_databse._process_loi
-    rtn = list()
-
-    for ts in time_series:
-        ts_id = ts[0]
-        ts_data = ts[1]
-        # we take min because min can be math.inf
-        for i in range(start, min(end, len(ts_data))):
-            rtn += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
-    return rtn
-
-
-def _get_sublist_as_sequences(data_list, data_id, length):
-    # if given length is greater than the size of the data_list itself, the
-    # function returns an empty list
-    rtn = []
-    for i in range(0, len(data_list) - length):
-        # if the second number in range() is less than 1, the iteration will not run
-        # data_list[i:i+length]  # for debug purposes
-        rtn.append(Sequence(start=i, end=i + length, seq_id=data_id, data=np.array(data_list[i:i + length + 1])))
-    return rtn
-
-
 def _multiprocess_backend(use_spark, num_worker, driver_mem, max_result_mem):
     """
     :return None if not using spark
@@ -584,5 +515,5 @@ def _multiprocess_backend(use_spark, num_worker, driver_mem, max_result_mem):
         _pr_spark_conf(mp_context)
     else:
         pr_red('Using Python Native Multiprocessing')
-        mp_context = None
+        mp_context = {'num_worker': num_worker}
     return mp_context

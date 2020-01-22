@@ -35,7 +35,7 @@ def experiment_genex(data_file, query_file, result_file):
         return
 
     cluster_start_time = time.time()
-    mydb.build(similarity_threshold=0.1)
+    mydb.build(st=0.1)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
 
