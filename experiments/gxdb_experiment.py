@@ -13,19 +13,11 @@ from pyspark import SparkContext, SparkConf
 # os.environ['JAVA_HOME'] = java8_location
 # findspark.init(spark_home=spark_location)
 
-# create the spark context
-num_cores = 32
-conf = SparkConf(). \
-    setMaster("local[" + str(num_cores) + "]"). \
-    setAppName("Genex").set('spark.driver.memory', '64G'). \
-    set('spark.driver.maxResultSize', '64G')
-sc = SparkContext(conf=conf)
-
 # create gxdb from a csv file
-data_file = 'data_original/ItalyPower.csv'
+data_file = 'experiments/data_original/ItalyPower.csv'
 db_path = 'results/test_db'
 
-mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
+mydb = gxdb.from_csv(data_file, feature_num=2, num_worker=32, driver_mem=64, max_result_mem=64)
 
 # Save reloading unbuilt Genex database
 mydb.save(path=db_path)

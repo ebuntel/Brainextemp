@@ -14,14 +14,19 @@ import shutil
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from genex.classes.Sequence import Sequence
 from genex.cluster import sim_between_seq, _cluster_groups, lb_kim_sequence, lb_keogh_sequence
-from genex.utils import genex_normalize, _group_time_series, _slice_time_series
+from genex.misc import pr_red
+from genex.spark_utils import _create_sc, _pr_spark_conf
+from genex.utils import genex_normalize, _group_time_series, _slice_time_series, _multiprocess_backend
 from genex.preprocess import get_subsequences
 from genex.utils import scale, _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
     _validate_gxdb_query_arguments, _create_f_uuid_map
 from genex.utils import *
 
 
-def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
+def from_csv(file_name, feature_num: int,
+             num_worker: int,
+             use_spark: bool = True, driver_mem: int = 16, max_result_mem: int = 16,
+             add_uuid=False,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
              _is_z_normalize=True):
@@ -30,6 +35,13 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
 
+    :param add_uuid:
+    :param _is_z_normalize:
+    :param _memory_opt:
+    :param driver_mem:
+    :param max_result_mem:
+    :param use_spark:
+    :param num_worker:
     :param file_name:
     :param feature_num:
     :param sc: spark context on which the database will run
@@ -79,16 +91,24 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, add_uuid=False,
 
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
 
-    # return Genex_database
+    mp_context = _multiprocess_backend(use_spark, num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+
     return genex_database(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
                           global_min=global_min,
-                          spark_context=sc)
+                          mp_context=mp_context)
 
 
-def from_db(sc: SparkContext, path: str):
+def from_db(path: str,
+            num_worker: int,
+            use_spark: bool = True, driver_mem: int = 16, max_result_mem: int = 16,
+            ):
     """
     returns a previously saved gxdb object from its saved path
 
+    :param max_result_mem:
+    :param driver_mem:
+    :param use_spark:
+    :param num_worker:
     :param sc: spark context on which the database will run
     :param path: path of the saved gxdb object
 
@@ -104,7 +124,9 @@ def from_db(sc: SparkContext, path: str):
     data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
-    init_params = {'data_raw': data_raw, 'data_original': data, 'data_normalized': data_normalized, 'spark_context': sc,
+    mp_context = _multiprocess_backend(use_spark, num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+    init_params = {'data_raw': data_raw, 'data_original': data, 'data_normalized': data_normalized,
+                   'mp_context': mp_context,
                    'global_max': conf['global_max'], 'global_min': conf['global_min']}
     db = genex_database(**init_params)
     db.set_conf(conf)
@@ -134,7 +156,7 @@ class genex_database:
         self.data_raw = kwargs['data_raw']
         self.data = kwargs['data_original']
         self.data_normalized = kwargs['data_normalized']
-        self.sc = kwargs['spark_context']
+        self.mp_context = kwargs['mp_context']
         self.cluster_rdd = None
         self.cluster_meta_dict = None
 
@@ -150,7 +172,7 @@ class genex_database:
         self.cluster_rdd = clusters
 
     def get_sc(self):
-        return self.sc
+        return self.mp_context
 
     def is_seq_exist(self, seq: Sequence):
         try:
@@ -192,7 +214,7 @@ class genex_database:
 
         # validate and save the loi to gxdb class fields
         # distribute the data_original
-        input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
+        input_rdd = self.mp_context.parallelize(self.data_normalized, numSlices=self.mp_context.defaultParallelism)
         # partition_input = input_rdd.glom().collect() #  for debug purposes
         # Grouping the data_original
         # group = _group_time_series(input_rdd.glom().collect()[0], start, end) # for debug purposes
@@ -259,7 +281,7 @@ class genex_database:
         dist_type = self.conf.get('build_conf').get('dist_type')
 
         query.fetch_and_set_data(self.data_normalized)
-        input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
+        input_rdd = self.mp_context.parallelize(self.data_normalized, numSlices=self.mp_context.defaultParallelism)
 
         start, end = self.conf.get('build_conf').get('loi')
 
@@ -286,7 +308,7 @@ class genex_database:
         """
         helper function to monitor memory usage
         """
-        input_rdd = self.sc.parallelize(self.data_normalized, numSlices=self.sc.defaultParallelism)
+        input_rdd = self.mp_context.parallelize(self.data_normalized, numSlices=self.mp_context.defaultParallelism)
         # process all possible length
         start, end = _process_loi(None)
 
@@ -381,9 +403,9 @@ class genex_database:
                 raise Exception('query: _ke cannot be greater than the number of subsequences in the database.')
 
         query.fetch_and_set_data(self._get_data_normalized())
-        query = self.sc.broadcast(query)
+        query = self.mp_context.broadcast(query)
 
-        data_normalized = self.sc.broadcast(self._get_data_normalized())
+        data_normalized = self.mp_context.broadcast(self._get_data_normalized())
 
         st = self.conf.get('build_conf').get('similarity_threshold')
         dist_type = self.conf.get('build_conf').get('dist_type')

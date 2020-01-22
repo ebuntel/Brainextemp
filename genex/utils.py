@@ -22,6 +22,9 @@ import numpy as np
 
 # return function that calculates the corresponding normalized distances
 # note that the sequence x, y must be normalized in the first place
+from genex.misc import pr_red
+from genex.spark_utils import _pr_spark_conf, _create_sc
+
 dist_func_index = {'eu': lambda x, y: euclidean(x, y) / np.sqrt(len(x)),
                    'ma': lambda x, y: cityblock(x, y) / len(x),
                    'ch': chebyshev,
@@ -569,3 +572,17 @@ def _get_sublist_as_sequences(data_list, data_id, length):
         # data_list[i:i+length]  # for debug purposes
         rtn.append(Sequence(start=i, end=i + length, seq_id=data_id, data=np.array(data_list[i:i + length + 1])))
     return rtn
+
+
+def _multiprocess_backend(use_spark, num_worker, driver_mem, max_result_mem):
+    """
+    :return None if not using spark
+    """
+    if use_spark:
+        pr_red('Using PySpark Backend')
+        mp_context = _create_sc(num_cores=num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+        _pr_spark_conf(mp_context)
+    else:
+        pr_red('Using Python Native Multiprocessing')
+        mp_context = None
+    return mp_context

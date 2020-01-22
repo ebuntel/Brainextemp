@@ -1,11 +1,11 @@
 from memory_profiler import profile
 import genex.database.genex_database as gxdb
-from genex.spark_utils import create_sc
+from genex.spark_utils import _create_sc
 import pickle
 
 @profile
 def memory_test(data_file_path, feature_num, _memory_opt):
-    sc = create_sc(num_cores=12, driver_mem='31G', max_result_mem='31G')
+    sc = _create_sc(num_cores=12, driver_mem='31G', max_result_mem='31G')
     mydb = gxdb.from_csv(data_file_path, sc=sc, feature_num=feature_num, _memory_opt=_memory_opt)
 
     grouped_sequences = mydb.group_sequences()
