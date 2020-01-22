@@ -25,7 +25,7 @@ def autolabel(rects, ax, dataset):
     """Attach a text label above each bar in *rects*, displaying its height."""
     for rect in rects:
         height = rect.get_height()
-        ax.annotate('{}'.format(round(height,2)),
+        ax.annotate('{}'.format(round(height, 4)),
                     xy=(rect.get_x() + rect.get_width()/len(dataset), height),
                     xytext=(2, 3),  # 3 points vertical offset
                     textcoords="offset points",
@@ -34,15 +34,18 @@ def autolabel(rects, ax, dataset):
 
 if __name__ == '__main__':
 
-    date = '011720'
-    dist_type = 'eu'
-    title = 'Euclidean Random Query Experiment RMSE on Four Datasets [Radius = 1]'
+    date = 'Jan-19-2020-12-N-BSFKimOnly-R1'
 
-    # eu distance
-    file_dict = {'Gun Point': 'results/' + date + '/Gun_Point_TRAIN_result_dist_' + dist_type + '.csv',
-                 'ECG Five Days': 'results/' + date + '/ECGFiveDays_result_dist_' + dist_type + '.csv',
-                 'Italy Power Demand': 'results/' + date + '/ItalyPowerDemand_result_dist_' + dist_type + '.csv',
-                 'Synthetic Control': 'results/' + date + '/synthetic_control_TRAIN_result_dist_' + dist_type + '.csv'
+    dist_type = 'eu'
+    title = 'Euclidean Query Accuracy on Four Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
+    dist_type = 'ma'
+    title = 'Manhattan Query Accuracy on Four Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
+    dist_type = 'ch'
+    title = 'Chebyshev Query Accuracy on Four Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
+    file_dict = {'Gun Point': 'results/' + date + '/Gun_Point_TRAIN_' + dist_type + '.csv',
+                 'ECG Five Days': 'results/' + date + '/ECGFiveDays_' + dist_type + '.csv',
+                 'Italy Power Demand': 'results/' + date + '/ItalyPower_' + dist_type + '.csv',
+                 'Synthetic Control': 'results/' + date + '/synthetic_control_TRAIN_' + dist_type + '.csv'
                  }
 
     dataset_mse_dict = {'Gun Point': [],
@@ -59,7 +62,6 @@ if __name__ == '__main__':
     width = 0.20  # the width of the bars
     fig, ax = plt.subplots()
     fig.set_size_inches(15, 8)
-
 
     for i, entry in enumerate(file_dict.items()):
         dataset_name, result_file = entry

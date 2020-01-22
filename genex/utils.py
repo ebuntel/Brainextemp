@@ -2,6 +2,8 @@ import heapq
 import math
 
 # from genex.Gcluster_utils import _isOverlap
+import time
+
 from sklearn.preprocessing import MinMaxScaler
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
@@ -17,10 +19,18 @@ import numpy as np
 #                    'min': np.vectorize(lambda x, y: minkowski(x, y) / np.sqrt(len(x))),
 #                    'ch': np.vectorize(chebyshev)}
 
+
+# return function that calculates the corresponding normalized distances
+# note that the sequence x, y must be normalized in the first place
 dist_func_index = {'eu': lambda x, y: euclidean(x, y) / np.sqrt(len(x)),
                    'ma': lambda x, y: cityblock(x, y) / len(x),
-                   'min': lambda x, y: minkowski(x, y) / np.sqrt(len(x)),
-                   'ch': chebyshev}
+                   'ch': chebyshev,
+                   'min': chebyshev
+                   }
+dist_type_index = {'eu': 0,
+                   'ma': 1,
+                   'ch': 2,
+                   'min': 2}
 
 
 def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
@@ -59,25 +69,6 @@ def scale(ts_df, feature_num):
     return df_normalized, scaler
 
 
-# def reduction_to_mult(reduction_factor):
-# if the reduction factor is a string, reduction is performed based on the cluster size
-# if the reduction factor is a number n, reduction is performed by taking the top n
-# the reduction factors are only for experiment purposes
-#     if type(reduction_factor) == int:
-#         return reduction_factor
-#     elif type(reduction_factor) == str:
-#         if reduction_factor == 'half':
-#             rtn = 0.5
-#         elif reduction_factor == '1quater':
-#             rtn = 0.25
-#         elif reduction_factor == '3quater':
-#             rtn = 0.75
-#         else:
-#             raise Exception('reduction factor must be one of the specified string, given: ' + reduction_factor)
-#     else:
-#         raise Exception('reduction facotr must be an int or one of the specified string, given: ' + reduction_factor)
-#     return rtn
-
 def prune_by_lbh(seq_list: list, seq_length: int, q: Sequence, kim_reduction: float = 0.75,
                  keogh_reduction: float = 0.25):
     """
@@ -114,14 +105,53 @@ def prune_by_lbh(seq_list: list, seq_length: int, q: Sequence, kim_reduction: fl
     return seq_list
 
 
-def get_target_length(available_lens, current_len):
-    return min(list(available_lens), key=lambda x: abs(x - current_len))
+def get_trgt_len(l_list, q_len):
+    """
+    from the l_list, give the closest value to the q_len
+    :param l_list:
+    :param q_len:
+    :return:
+    """
+    return min(list(l_list), key=lambda x: abs(x - q_len))
 
 
-def _query_partition(cluster, q, k: int, ke: int, data_normalized,
+def get_trgt_len_within_r(l_list, q_len, radius):
+    """
+    UNIT TEST NEEDED
+    :param l_list:
+    :param q_len:
+    :param radius:
+    :return:
+    """
+    return [x for x in l_list if q_len - radius <= x <= q_len + radius]
+    # trgt_l_list = []
+    # l_list_copy = l_list.copy()
+    # for r in range(radius + 1):
+    #     if l_list_copy:
+    #         trgt_l = get_trgt_len(l_list=l_list_copy, q_len=q_len)
+    #         trgt_l_list.append(trgt_l)
+    #         l_list_copy.remove(trgt_l)
+    #     else:
+    #         break
+    # return trgt_l_list
+
+
+def naive_search_rspace(q, k, r_list, cluster, dt_index):
+    c_list = []
+    target_reprs = [(sim_between_seq(x, q, dt_index), x) for x in r_list]  # calculate DTW
+    heapq.heapify(target_reprs)  # heap sort R-space
+    # get enough sequence from the clusters represented to query
+    while len(target_reprs) > 0 and len(c_list) < k:
+        this_repr = heapq.heappop(target_reprs)[
+            1]  # take the second element for the first one is the DTW dist
+        c_list += (cluster[this_repr])
+    return c_list
+
+
+def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, dt_index: int,
                      _lb_opt_cluster: str, repr_kim_rf: float, repr_keogh_rf: float,
                      _lb_opt_repr: str, cluster_kim_rf: float, cluster_keogh_rf: float, overlap: float,
-                     exclude_same_id: bool, radius: int, loi=None):
+                     exclude_same_id: bool, radius: int, st: float):
     """
     This function finds k best matches for given query sequence on the worker node
 
@@ -139,269 +169,179 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized,
     """
     q = q.value
     data_normalized = data_normalized.value
-
-    cluster_filtered = [x for x in cluster if x[0] in range(loi[0], loi[1])] if loi is not None else cluster
+    cluster_filtered = [x for x in cluster if x[0] in range(loi.start, loi.stop)] if loi is not None else cluster
     cluster_dict = dict(list(reduce_by_key(lambda x, y: merge_dict([x, y]), cluster_filtered)))
-
-    # get the seq length Range of the partition
     try:
-        len_range = (min(cluster_dict.keys()), max(cluster_dict.keys()))
-    except ValueError as ve:
+        assert cluster_filtered
+    except AssertionError as ve:
         print('Given loi is ' + str(loi))
         print('sequence length in the database: ' + str(list(cluster_dict.keys())))
         raise Exception('cluster does not have the given query loi!')
-
-    # if given query is longer than the longest cluster sequence,
-    # set starting clusterSeq length to be of the same length as the longest sequence in the partition
     q_length = len(q.data)
 
     query_result = []
 
     # note that we are using ke here
-    all_candidates = []
-    while len(cluster_dict) > 0 and len(all_candidates) < ke:
-        # add the radius feature
+    candidates = []
+    while len(cluster_dict) > 0 and len(candidates) < ke:
         available_lens = list(cluster_dict.keys())
-        target_l_list = []
-        for r in range(radius + 1):
-            target_l = get_target_length(available_lens=available_lens, current_len=q_length)
-            target_l_list.append(target_l)
-            available_lens.remove(target_l)
-
+        # the specific sized sequences from which the candidates will be extracted, depending on the query length and
+        # the radius
+        target_l_list = get_trgt_len_within_r(l_list=available_lens, q_len=q_length, radius=radius)
+        # print('Num Candidate = ' + str(len(candidates)) + ' cluster key: ' + str(list(cluster_dict.keys())) + '
+        # targetlenlist: ' + str(target_l_list))
         for target_l in target_l_list:
-            this_candidates = []
+            # print('searching')
             target_cluster = cluster_dict[target_l]
             target_reprs = target_cluster.keys()
             [x.fetch_and_set_data(data_normalized) for x in target_reprs]  # fetch data_original for the representatives
 
-            # lbh pruneing #####################################################################
-            if _lb_opt_repr == 'lbh':
-                target_reprs = prune_by_lbh(seq_list=target_reprs, seq_length=target_l, q=q,
-                                            kim_reduction=repr_kim_rf, keogh_reduction=repr_keogh_rf)
-            # end of lbh pruneing ##############################################################
+            # start = time.time()
+            # this_candidates = get_sequences_represented(
+            #     bsf_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, st=st),
+            #     cluster=target_cluster)
+            # duration_opt = time.time() - start
+            # start = time.time()
+            # this_candidates = naive_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster)
+            # duration_nonopt = time.time() - start
+
             if _lb_opt_repr == 'bsf':
-                this_candidates += get_sequences_represented(
-                    bsf_search_rspace(q, k, representatives=target_reprs, cluster=target_cluster),
-                    cluster=target_cluster)
+                this_candidates = \
+                    bsf_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, st=st, dt_index=dt_index)
             else:
-                target_reprs = [(sim_between_seq(x, q), x) for x in target_reprs]  # calculate DTW
-                heapq.heapify(target_reprs)  # heap sort R-space
-                while len(target_reprs) > 0 and len(
-                        this_candidates) < ke:  # get enough sequence from the clusters represented to query
-                    this_repr = heapq.heappop(target_reprs)[
-                        1]  # take the second element for the first one is the DTW dist
-                    this_candidates += (target_cluster[this_repr])
-            all_candidates += this_candidates
+                this_candidates = \
+                    naive_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, dt_index=dt_index)
+
+            candidates += this_candidates
             cluster_dict.pop(target_l)
+        radius += 1  # ready to search the next length
 
     # process exclude same id
-    all_candidates = (x for x in all_candidates if x.seq_id != q.seq_id) if exclude_same_id else all_candidates
-    [x.fetch_and_set_data(data_normalized) for x in all_candidates]  # fetch data_original for the candidates]
+    candidates = (x for x in candidates if x.seq_id != q.seq_id) if exclude_same_id else candidates
+    [x.fetch_and_set_data(data_normalized) for x in candidates]  # fetch data_original for the candidates]
+    # print('# Sequences in the candidate list:: ' + str(len(candidates)))
 
-    print('Number of Sequences in the candidate list is: ' + str(len(all_candidates)))
-
-    # # lbh pruneing #####################################################################
-    # if (_lb_opt_cluster == 'lbh' or _lb_opt_cluster == 'lbh_bsf') and \
-    #         len(candidates) > (k / cluster_keogh_rf) / cluster_kim_rf:
-    #     candidates = prune_by_lbh(seq_list=candidates, seq_length=target_l, q=q,
-    #                               kim_reduction=cluster_kim_rf, keogh_reduction=cluster_keogh_rf)
-    # # end of lbh pruneing ##############################################################
+    # start = time.time()
+    # rtn = bsf_search(q, k, candidates)
+    # duration_opt = time.time() - start
+    # start = time.time()
+    # rtn = naive_search(q, k, candidates, overlap, exclude_same_id)
+    # duration_nonopt = time.time() - start
 
     if _lb_opt_cluster == 'bsf':
-        print('Using BSF')
-        return bsf_search(q=q, k=k, candidates=all_candidates)
+        # print('Using bsf')
+        return bsf_search(q, k, candidates, dt_index=dt_index)
     elif _lb_opt_cluster == 'none':
-        # not using bsf ################################################################
-        candidate_dist_list = [(sim_between_seq(x, q), x) for x in all_candidates]
-        heapq.heapify(candidate_dist_list)
-
-        # note that we are using k here
-        while len(candidate_dist_list) > 0 and len(query_result) < k:
-            c_dist = heapq.heappop(candidate_dist_list)
-            if overlap == 1.0 or not exclude_same_id:
-                # print('Adding to querying result')
-                query_result.append(c_dist)
-            else:
-                if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
-                           query_result):  # check for overlap against all the matches so far
-                    # print('Adding to querying result')
-                    query_result.append(c_dist)
-        ##################################################################################
+        # print('Using naive')
+        return naive_search(q, k, candidates, overlap, exclude_same_id, dt_index=dt_index)
     else:
         raise Exception('_query_partition: unsupported _lb_opt_cluster: ' + str(_lb_opt_cluster))
 
+
+def naive_search(q: Sequence, k: int, candidates: list, overlap: float, exclude_same_id: bool, dt_index: int):
+    query_result = []
+    c_dist_list = [(sim_between_seq(x, q, dt_index), x) for x in candidates]
+    heapq.heapify(c_dist_list)
+
+    # note that we are using k here
+    while len(c_dist_list) > 0 and len(query_result) < k:
+        c_dist = heapq.heappop(c_dist_list)
+        if overlap == 1.0 or not exclude_same_id:
+            query_result.append(c_dist)
+        else:
+            if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
+                       query_result):  # check for overlap against all the matches so far
+                query_result.append(c_dist)
     return query_result
 
 
-def bsf_search(q, k, candidates):
+def bsf_search(q, k, candidates, dt_index: int):
     # use ranked heap
-    prune_count = 0
+    # prune_count = 0
     query_result = list()
     # print('Num seq in the querying cluster: ' + str(len(querying_cluster)))
     for c in candidates:
         # print('Using bsf')
         if len(query_result) < k:
             # take the negative distance so to have a maxheap
-            heapq.heappush(query_result, (-sim_between_seq(q, c), c))
+            heapq.heappush(query_result, (-sim_between_seq(q, c, dt_index), c))
         else:  # len(dist_heap) == k or >= k
             # if the new seq is better than the heap head
             if -lb_kim_sequence(c.data, q.data) < query_result[0][0]:
-                prune_count += 1
+                # prune_count += 1
                 continue
             # interpolate for keogh calculation
-            if len(c) != len(q):
-                candidate_interp_data = np.interp(np.linspace(0, 1, len(q)),
-                                                  np.linspace(0, 1, len(c.data)), c.data)
-            else:
-                candidate_interp_data = c.data
-            if -lb_keogh_sequence(candidate_interp_data, q.data) < query_result[0][0]:
-                prune_count += 1
-                continue
-            if -lb_keogh_sequence(q.data, candidate_interp_data) < query_result[0][0]:
-                prune_count += 1
-                continue
-            dist = -sim_between_seq(q, c)
+            # if len(c) != len(q):
+            #     c_interp_data = np.interp(np.linspace(0, 1, len(q)),
+            #                                       np.linspace(0, 1, len(c.data)), c.data)
+            # else:
+            #     c_interp_data = c.data
+            # if -lb_keogh_sequence(c_interp_data, q.data) < query_result[0][0]:
+            #     # prune_count += 1
+            #     continue
+            # if -lb_keogh_sequence(q.data, c_interp_data) < query_result[0][0]:
+            #     # prune_count += 1
+            #     continue
+            dist = -sim_between_seq(q, c, dt_index)
             if dist > query_result[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(query_result)
                 heapq.heappush(query_result, (dist, c))
     if (len(query_result)) >= k:
-        print(str(prune_count) + ' of ' + str(len(candidates)) + ' candidate(s) pruned')
+        # print(str(prune_count) + ' of ' + str(len(candidates)) + ' candidate(s) pruned')
         return [(-x[0], x[1]) for x in query_result]
 
 
-def bsf_search_rspace(q, ke, representatives, cluster):
+def bsf_search_rspace(q, ke, r_list, cluster, st, dt_index: int):
     """
 
     :param q:
     :param ke:
-    :param representatives:
+    :param r_list:
     :param cluster: dict, repr -> list of sequences representated
     :return:
     """
     # use ranked heap
-    prune_count = 0
-    repr_list = list()
-
-    for r in representatives:
+    # prune_count = 0
+    result_list = list()
+    # print(r_list)
+    for r in r_list:
         # print('Using bsf')
-        if len(get_sequences_represented([r[1] for r in repr_list],
+        if len(get_sequences_represented([r[1] for r in result_list],
                                          cluster)) < ke:  # keep track of how many sequences are we querying right now
             # take the negative distance so to have a maxheap
-            heapq.heappush(repr_list, (-sim_between_seq(q, r), r))
+            heapq.heappush(result_list, (sim_between_seq(q, r, dt_index), r))
         else:  # len(dist_heap) == k or >= k
-            if -lb_kim_sequence(r.data, q.data) < repr_list[0][0]:
-                prune_count += 1
+            # a = lb_kim_sequence(r.data, q.data)
+            if lb_kim_sequence(r.data, q.data) > st:
+                # prune_count += 1
                 continue
             # interpolate for keogh calculation
-            if len(r) != len(q):
-                candidate_interp_data = np.interp(np.linspace(0, 1, len(q)),
-                                                  np.linspace(0, 1, len(r.data)), r.data)
-            else:
-                candidate_interp_data = r.data
-            if -lb_keogh_sequence(candidate_interp_data, q.data) < repr_list[0][0]:
-                prune_count += 1
-                continue
-            if -lb_keogh_sequence(q.data, candidate_interp_data) < repr_list[0][0]:
-                prune_count += 1
-                continue
-            dist = -sim_between_seq(q, r)
-            if dist > repr_list[0][0]:  # first index denotes the top of the heap, second gets the dist
-                heapq.heappop(repr_list)
-                heapq.heappush(repr_list, (dist, r))
-    if len(get_sequences_represented([r[1] for r in repr_list], cluster)) >= ke:
-        print(str(prune_count) + ' of ' + str(len(representatives)) + ' representative(s) pruned')
-        return [x[1] for x in repr_list]  # only return the representatives
-
-    # while len(target_reprs) > 0:
-    #         this_repr = heapq.heappop(target_reprs)
-    #         querying_cluster_seq = target_cluster[this_repr[1]]
-    #
-    #         # filter by id
-    #         if exclude_same_id:
-    #             querying_cluster_seq = (x for x in querying_cluster_seq if x.id != q.id)
-    #             if len(querying_cluster_seq) == 0:  # if after filtering, there's no sequence left, then simply continue
-    #                 # to the next iteration
-    #                 continue
-    #
-    #         # fetch data_original for the target cluster
-    #         [x.fetch_and_set_data(data_normalized) for x in querying_cluster_seq]
-    #
-    #         if (_lb_opt_cluster == 'lbh' or _lb_opt_cluster == 'lbh_bsf') and \
-    #                 len(querying_cluster_seq) > (k / cluster_keogh_rf) / cluster_kim_rf:
-    #             querying_cluster_seq = prune_by_lbh(seq_list=querying_cluster_seq, seq_length=target_length, q=q,
-    #                                             kim_reduction=cluster_kim_rf, keogh_reduction=cluster_keogh_rf)
-    #
-    #         if _lb_opt_cluster == 'bsf' or _lb_opt_cluster == 'lbh_bsf':
-    #             # use ranked heap
-    #             query_result = list()
-    #             # print('Num seq in the querying cluster: ' + str(len(querying_cluster)))
-    #             for candidate in querying_cluster_seq:
-    #                 # print('Using bsf')
-    #                 if len(query_result) < k:
-    #                     # take the negative distance so to have a maxheap
-    #                     heapq.heappush(query_result, (-sim_between_seq(q, candidate, dist_type), candidate))
-    #                 else:  # len(dist_heap) == k or >= k
-    #                     # if the new seq is better than the heap head
-    #                     # a = -lb_kim_sequence(candidate.data_original, q.data_original)
-    #                     if -lb_kim_sequence(candidate.data_original, q.data_original) < query_result[0][0]:
-    #                         prune_count += 1
-    #                         continue
-    #                     # interpolate for keogh calculaton
-    #                     if target_length != q_length:
-    #                         candidate_interp_data = np.interp(np.linspace(0, 1, q_length),
-    #                                                           np.linspace(0, 1, len(candidate.data_original)), candidate.data_original)
-    #                     # b = -lb_keogh_sequence(candidate_interp_data, q.data_original)
-    #                     if -lb_keogh_sequence(candidate_interp_data, q.data_original) < query_result[0][0]:
-    #                         prune_count += 1
-    #                         continue
-    #                     # c = -lb_keogh_sequence(q.data_original, candidate_interp_data)
-    #                     if -lb_keogh_sequence(q.data_original, candidate_interp_data) < query_result[0][0]:
-    #                         prune_count += 1
-    #                         continue
-    #                     dist = -sim_between_seq(q, candidate, dist_type)
-    #                     if dist > query_result[0][0]:  # first index denotes the top of the heap, second gets the dist
-    #                         heapq.heappop(query_result)
-    #                         heapq.heappush(query_result, (dist, candidate))
-    #             if (len(query_result)) >= k:
-    #                 print('Found k matches, returning query result')
-    #                 print(str(prune_count) + ' of ' + str(len(querying_cluster_seq)) + ' pruned')
-    #                 return [(-x[0], x[1]) for x in query_result]
-    #         else:
-    #             # print('Not using bsf')
-    #             # calculate the distances between the query and all the sequences in the cluster
-    #             dist_seq_list = [(sim_between_seq(x, q, dist_type), x) for x in querying_cluster_seq]
-    #             heapq.heapify(dist_seq_list)
-    #
-    #             while len(dist_seq_list) > 0:
-    #                 c_dist = heapq.heappop(dist_seq_list)
-    #                 if overlap == 1.0 or exclude_same_id:
-    #                     print('Adding to querying result')
-    #                     query_result.append(c_dist)
-    #                 else:
-    #                     if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
-    #                                query_result):  # check for overlap against all the matches so far
-    #                         print('Adding to querying result')
-    #                         query_result.append(c_dist)
-    #
-    #                 if (len(query_result)) >= k:
-    #                     print('Found k matches, returning query result')
-    #                     return query_result
-    #     cluster_dict.pop(target_length)  # remove this len-cluster just queried
-    #
-    #     # find the next closest sequence length
-    #     if len(cluster_dict) != 0:
-    #         target_length = min(list(cluster_dict.keys()), key=lambda x: abs(x - target_length))
-    #     else:
-    #         break
-    # # print(str(prune_count) + ' sequences pruned')
-    # return query_result
+            # if len(r) != len(q):
+            #     r_interp_data = np.interp(np.linspace(0, 1, len(q)),
+            #                                       np.linspace(0, 1, len(r.data)), r.data)
+            # else:
+            #     r_interp_data = r.data
+            # # b = lb_keogh_sequence(candidate_interp_data, q.data)
+            # if lb_keogh_sequence(r_interp_data, q.data) > st:
+            #     # prune_count += 1
+            #     continue
+            # # c = lb_keogh_sequence(q.data, candidate_interp_data)
+            # if lb_keogh_sequence(q.data, r_interp_data) > st:
+            #     # prune_count += 1
+            #     continue
+            dist = sim_between_seq(q, r, dt_index)
+            if dist < result_list[0][0]:  # first index denotes the top of the heap, second gets the dist
+                heapq.heappop(result_list)
+                heapq.heappush(result_list, (dist, r))
+    # print(str(prune_count) + ' of ' + str(len(r_list)) + ' representative(s) pruned')
+    return get_sequences_represented([r[1] for r in result_list], cluster)  # only return the representatives
 
 
 def get_sequences_represented(reprs, cluster):
     """
 
     :param reprs: list of Sequences that are representatives
-    :param cluster: repr -> list of sequences representated, mapping from representativs to their clusters
+    :param cluster: repr -> list of sequences represented, mapping from representativs to their clusters
     """
     return flatten([cluster[r] for r in reprs]) if reprs is not None else list()
 
@@ -503,42 +443,6 @@ def _process_loi(loi: slice):
 
     assert start > 0
     return start, end
-
-
-# if _lb_optimization == 'heuristic':
-#     # Sorting sequence using cascading bounds
-#     # need to make sure that the query and the candidates are of the same length when calculating LB_keogh
-#     if target_length != q_length:
-#         print('interpolating')
-#         querying_cluster = (
-#             (x[0], np.interp(np.linspace(0, 1, q_length), np.linspace(0, 1, len(x[1])), x[1])) for x in
-#             querying_cluster)  # now entries are (seq, interp_data)
-#
-#     # sorting the sequence using LB_KIM bound
-#     querying_cluster = [(x[0], x[1], lb_kim_sequence(x[1], q.data_original)) for x in querying_cluster]
-#     querying_cluster.sort(key=lambda x: x[2])
-#     # checking how much we reduce the cluster
-#     if type(reduction_factor_lbkim) == str:
-#         querying_cluster = querying_cluster[:int(len(querying_cluster) * lbkim_mult_factor)]
-#     elif type(reduction_factor_lbkim) == int:
-#         querying_cluster = querying_cluster[:reduction_factor_lbkim * k]
-#     else:
-#         raise Exception('Type of reduction factor must be str or int')
-#
-#     # Sorting the sequence using LB Keogh bound
-#     querying_cluster = [(x[0], x[1], lb_keogh_sequence(x[1], q.data_original)) for x in
-#                         querying_cluster]  # now entries are (seq, data_original, lb_heuristic)
-#     querying_cluster.sort(key=lambda x: x[2])  # sort by the lb_heuristic
-#     # checking how much we reduce the cluster
-#     if type(reduction_factor_lbkeogh) == str:
-#         querying_cluster = querying_cluster[:int(len(querying_cluster) * lbkeogh_mult_factor)]
-#     elif type(reduction_factor_lbkim) == int:
-#         querying_cluster = querying_cluster[:reduction_factor_lbkeogh * k]
-#     else:
-#         raise Exception('Type of reduction factor must be str or int')
-#
-#     querying_cluster_reduced = [(sim_between_seq(x[1], q.data_original, dist_type=dist_type), x[0]) for x in
-#                                 querying_cluster]  # now entries are (dist, seq)
 
 
 from functools import reduce

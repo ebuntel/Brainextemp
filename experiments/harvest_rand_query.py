@@ -99,9 +99,9 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     return mydb
 
 
-def generate_exp_set(dataset_list, dist_type):
+def generate_exp_set(dataset_list, dist_type, notes: str):
     today = datetime.now()
-    dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + 'oclock')
+    dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
 
@@ -134,21 +134,105 @@ datasets = [
     'synthetic_control_TRAIN'
 ]
 
-es_eu = generate_exp_set(datasets, 'eu')
-es_ma = generate_exp_set(datasets, 'ma')
-es_ch = generate_exp_set(datasets, 'ch')
+########################################################################################################################
+# ex_config_1 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt_repr': 'none',
+#     '_lb_opt_cluster': 'none',
+#     'radius': 0
+# }
+# start = time.time()
+# notes_1 = 'None'
+# es_eu_1 = generate_exp_set(datasets, 'eu', notes=notes_1)
+# es_ma_1 = generate_exp_set(datasets, 'ma', notes=notes_1)
+# es_ch_1 = generate_exp_set(datasets, 'ch', notes=notes_1)
+# run_exp_set(es_eu_1, **ex_config_1)
+# run_exp_set(es_ma_1, **ex_config_1)
+# run_exp_set(es_ch_1, **ex_config_1)
+# duration1 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment with radius 0 took ' + str(duration1/3600) + ' hrs')
 
-ex_config_1 = {
+########################################################################################################################
+# ex_config_2 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt_repr': 'bsf',
+#     '_lb_opt_cluster': 'bsf',
+#     'radius': 0
+# }
+# start = time.time()
+# notes_2 = 'BSFALL-R0'
+# es_eu_2 = generate_exp_set(datasets, 'eu', notes=notes_2)
+# es_ma_2 = generate_exp_set(datasets, 'ma', notes=notes_2)
+# es_ch_2 = generate_exp_set(datasets, 'ch', notes=notes_2)
+# run_exp_set(es_eu_2, **ex_config_2)
+# run_exp_set(es_ma_2, **ex_config_2)
+# run_exp_set(es_ch_2, **ex_config_2)
+# duration2 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment with radius 0 took ' + str(duration2/3600) + ' hrs')
+
+########################################################################################################################
+# ex_config_3 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt_repr': 'bsf',
+#     '_lb_opt_cluster': 'bsf',
+#     'radius': 0
+# }
+# start = time.time()
+# notes_3 = 'BSFKimOnly-R0'
+# es_eu_3 = generate_exp_set(datasets, 'eu', notes=notes_3)
+# es_ma_3 = generate_exp_set(datasets, 'ma', notes=notes_3)
+# es_ch_3 = generate_exp_set(datasets, 'ch', notes=notes_3)
+# run_exp_set(es_eu_3, **ex_config_3)
+# run_exp_set(es_ma_3, **ex_config_3)
+# run_exp_set(es_ch_3, **ex_config_3)
+# duration3 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment took ' + str(duration3/3600) + ' hrs')
+# ########################################################################################################################
+# ex_config_4 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt_repr': 'none',
+#     '_lb_opt_cluster': 'none',
+#     'radius': 1
+# }
+# start = time.time()
+# notes_4 = 'None-R1'
+# es_eu_4 = generate_exp_set(datasets, 'eu', notes=notes_4)
+# es_ma_4 = generate_exp_set(datasets, 'ma', notes=notes_4)
+# es_ch_4 = generate_exp_set(datasets, 'ch', notes=notes_4)
+# run_exp_set(es_eu_4, **ex_config_4)
+# run_exp_set(es_ma_4, **ex_config_4)
+# run_exp_set(es_ch_4, **ex_config_4)
+# duration4 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment took ' + str(duration4/3600) + ' hrs')
+########################################################################################################################
+ex_config_5 = {
     'num_sample': 40,
-    'num_query': 20,
-    '_lb_opt_repr': 'none',
-    '_lb_opt_cluster': 'none',
-    'radius': 0
+    'num_query': 40,
+    '_lb_opt_repr': 'bsf',
+    '_lb_opt_cluster': 'bsf',
+    'radius': 1
 }
-
-run_exp_set(es_eu, **ex_config_1)
-run_exp_set(es_ma, **ex_config_1)
-run_exp_set(es_ch, **ex_config_1)
-
+start = time.time()
+notes_5 = 'BSFKimOnly-R1'
+es_eu_5 = generate_exp_set(datasets, 'eu', notes=notes_5)
+es_ma_5 = generate_exp_set(datasets, 'ma', notes=notes_5)
+es_ch_5 = generate_exp_set(datasets, 'ch', notes=notes_5)
+run_exp_set(es_eu_5, **ex_config_5)
+run_exp_set(es_ma_5, **ex_config_5)
+run_exp_set(es_ch_5, **ex_config_5)
+duration5 = time.time() - start
 print('Finished at')
-print(datetime.datetime.now())
+print(datetime.now())
+print('The experiment took ' + str(duration5/3600) + ' hrs')

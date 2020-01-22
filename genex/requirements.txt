@@ -1,6 +1,5 @@
 cython
 numpy
-fastdtw
 scipy
 pyspark-stubs
 pyspark
@@ -8,3 +7,4 @@ pandas
 tslearn
 pyspark
 dtw
+git+git://github.com/ApocalyVec/fastdtw.git
