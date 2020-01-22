@@ -19,6 +19,9 @@ import numpy as np
 #                    'min': np.vectorize(lambda x, y: minkowski(x, y) / np.sqrt(len(x))),
 #                    'ch': np.vectorize(chebyshev)}
 
+
+# return function that calculates the corresponding normalized distances
+# note that the sequence x, y must be normalized in the first place
 dist_func_index = {'eu': lambda x, y: euclidean(x, y) / np.sqrt(len(x)),
                    'ma': lambda x, y: cityblock(x, y) / len(x),
                    'min': lambda x, y: minkowski(x, y) / np.sqrt(len(x)),
