@@ -61,7 +61,7 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, dt_index: int):
 
 
 def get_dist_query(query, target, dt_index):
-    return (sim_between_seq(query, target, dt_index=dt_index), query)
+    return sim_between_seq(query, target, dt_index=dt_index), target
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, dt_index: int,

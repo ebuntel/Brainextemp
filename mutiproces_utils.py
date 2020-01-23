@@ -3,13 +3,12 @@ import multiprocessing
 from functools import reduce
 
 from genex.op.cluster_op import _randomize, _cluster_groups, _cluster_to_meta, _cluster_reduce_func
+from genex.op.query_op import get_dist_query
 from genex.utils.utils import flatten
 from process_utils import _grouper, _group_time_series, reduce_by_key, get_second
 
 
-def _partitioner(data, slice_num, shuffle=True):
-    if shuffle:
-        data = _randomize(data)
+def _partitioner(data, slice_num):
     _slice_size = math.floor(len(data) / slice_num)
     return _grouper(_slice_size, data)
 
@@ -43,11 +42,11 @@ def _cluster_to_meta_mp(cluster_partition: list, p: multiprocessing.pool):
     return list(reduce_by_key(_cluster_reduce_func, temp))
 
 
-def _query_bf_mp(query, p:multiprocessing.pool, data_normalized: list, start, end, dt_index):
+def _query_bf_mp(query, p: multiprocessing.pool, data_normalized: list, start, end, dt_index):
     group_partition = flatten( __partition_and_group(data_normalized, p._processes, start, end, p))
-    subsequences = p.map(get_second, group_partition)
-    dist_subsequences = p.map()
-
-    pass
+    subsequences = flatten(p.map(get_second, group_partition))
+    dist_subsequences_arg = [(query, x, dt_index) for x in subsequences]
+    dist_subsequences = p.starmap(get_dist_query, dist_subsequences_arg)
+    return dist_subsequences
 
 

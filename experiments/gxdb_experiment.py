@@ -48,5 +48,6 @@ duration = time.time() - start
 # plot the query result
 plt.plot(q.fetch_data(mydb.data_normalized), linewidth=5, color='red')
 for qr in query_result:
-    plt.plot(qr[1].fetch_data(mydb.data_normalized), color='blue')
+    plt.plot(qr[1].fetch_data(mydb.data_normalized), color='blue', label=str(qr[0]))
+plt.legend()
 plt.show()
