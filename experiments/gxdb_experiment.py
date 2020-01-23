@@ -1,5 +1,4 @@
-import os
-import time
+import random
 
 import findspark
 import matplotlib.pyplot as plt
@@ -17,9 +16,7 @@ from pyspark import SparkContext, SparkConf
 data_file = 'experiments/data_original/ItalyPower.csv'
 db_path = 'results/test_db'
 
-mydb = gxdb.from_csv(data_file, feature_num=2, num_worker=32, driver_mem=64, max_result_mem=64)
-
-# Save reloading unbuilt Genex database
+mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
 mydb.save(path=db_path)
 del mydb
 mydb = gxdb.from_db(path=db_path, sc=sc)
