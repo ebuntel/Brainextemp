@@ -15,7 +15,7 @@ from genex.utils.utils import _create_f_uuid_map, _df_to_list, genex_normalize
 
 def from_csv(file_name, feature_num: int,
              num_worker: int,
-             use_spark: bool = True, driver_mem: int = 16, max_result_mem: int = 16,
+             use_spark: bool, driver_mem: int = 16, max_result_mem: int = 16,
              add_uuid=False,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
