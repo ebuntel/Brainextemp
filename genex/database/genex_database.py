@@ -44,7 +44,7 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, is_header=True, add_
     :return: a genex_database object that holds the original time series
     """
     if is_header is False:
-        df = pd.read_csv(file_name, names=[str(x) for x in range(1, feature_num + 1)])
+        df = pd.read_csv(file_name, header=None, skiprows=1)
     else:
         df = pd.read_csv(file_name)
 
@@ -53,10 +53,10 @@ def from_csv(file_name, feature_num: int, sc: SparkContext, is_header=True, add_
         print('msg: from_csv, feature num is 0')
 
     # checking whether the original id is unique
-    dfc = df.iloc[:, :feature_num].copy()
-    gb = dfc.groupby(list(dfc.columns[:])).first()
+    df_raw_id = df.iloc[:, :feature_num].copy()
+    raw_id_num = df_raw_id.groupby(list(df_raw_id.columns[:]))
 
-    if len(gb) < len(df):
+    if len(raw_id_num) < len(df):
         add_uuid = True
         print('msg: the key for each time series is not unique')
 
@@ -190,7 +190,8 @@ class genex_database:
         # update build configuration
         self.conf['build_conf'] = {'similarity_threshold': similarity_threshold,
                                    'dist_type': dist_type,
-                                   'loi': (start, end)}
+                                   'loi': [start, end]}
+        # No () inside the JSON file
 
         # exit without clustering
         if not _is_cluster:
