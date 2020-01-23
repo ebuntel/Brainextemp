@@ -2,6 +2,7 @@ import heapq
 import math
 
 # from genex.Gcluster_utils import _isOverlap
+import multiprocessing
 import time
 
 from sklearn.preprocessing import MinMaxScaler
@@ -11,7 +12,7 @@ from scipy.spatial.distance import euclidean
 from scipy.spatial.distance import chebyshev
 from genex.Gcluster_utils import _isOverlap
 from genex.classes.Sequence import Sequence
-from genex.cluster import sim_between_seq, lb_kim_sequence, lb_keogh_sequence
+from genex.cluster_operations import sim_between_seq, lb_kim_sequence, lb_keogh_sequence
 import numpy as np
 
 # dist_func_index = {'eu': np.vectorize(lambda x, y: euclidean(x, y) / np.sqrt(len(x))),
@@ -22,15 +23,8 @@ import numpy as np
 
 # return function that calculates the corresponding normalized distances
 # note that the sequence x, y must be normalized in the first place
-dist_func_index = {'eu': lambda x, y: euclidean(x, y) / np.sqrt(len(x)),
-                   'ma': lambda x, y: cityblock(x, y) / len(x),
-                   'ch': chebyshev,
-                   'min': chebyshev
-                   }
-dist_type_index = {'eu': 0,
-                   'ma': 1,
-                   'ch': 2,
-                   'min': 2}
+from genex.misc import pr_red
+from genex.spark_utils import _pr_spark_conf, _create_sc
 
 
 def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
@@ -365,9 +359,9 @@ def _validate_gxdb_build_arguments(args: dict):
             raise Exception('Build check argument failed: build loi(length of interest) does not support stepping, '
                             'loi.step=' + str(args['loi'].step))
     try:
-        assert 0. < args['similarity_threshold'] < 1.
+        assert 0. < args['st'] < 1.
     except AssertionError as ae:
-        raise Exception('Build check argument failed: build similarity_threshold must be between 0. and 1. and not '
+        raise Exception('Build check argument failed: build st must be between 0. and 1. and not '
                         'equal to 0. and 1.')
     print(args)
 
@@ -512,60 +506,18 @@ def _min_max_normalize(input_list, global_max, global_min):
     return mm_normalized_list
 
 
-def _group_time_series(time_series, start, end):
+def _multiprocess_backend(use_spark, num_worker, driver_mem, max_result_mem):
     """
-    This function groups the raw time series data_original into sub sequences of all possible length within the given grouping
-    range
-
-    :param time_series: set of raw time series sequences
-    :param start: starting index for grouping range
-    :param end: end index for grouping range
-
-    :return: a list of lists containing groups of subsequences of different length indexed by the group length
+    :return None if not using spark
     """
+    if use_spark:
+        pr_red('Genex Engine: Using PySpark Backend')
+        mp_context = _create_sc(num_cores=num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+        _pr_spark_conf(mp_context)
+    else:
+        pr_red('Genex Engine: Using Python Native Multiprocessing')
+        mp_context = multiprocessing.Pool(num_worker, maxtasksperchild=1)
 
-    # start must be greater than 1, this is asserted in genex_databse._process_loi
-    rtn = dict()
-
-    for ts in time_series:
-        ts_id = ts[0]
-        ts_data = ts[1]
-        # we take min because min can be math.inf
-        for i in range(start - 1, min(end, len(ts_data))):
-            target_length = i + 1
-            if target_length not in rtn.keys():
-                rtn[target_length] = []
-            rtn[target_length] += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
-    return list(rtn.items())
+    return mp_context
 
 
-def _slice_time_series(time_series, start, end):
-    """
-    This function slices raw time series data_original into sub sequences of all possible length.
-    :param time_series: set of raw time series data_original
-    :param start: start index of length range
-    :param end: end index of length range
-
-    :return: list containing  subsequences of all possible lengths
-    """
-    # start must be greater than 1, this is asserted in genex_databse._process_loi
-    rtn = list()
-
-    for ts in time_series:
-        ts_id = ts[0]
-        ts_data = ts[1]
-        # we take min because min can be math.inf
-        for i in range(start, min(end, len(ts_data))):
-            rtn += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
-    return rtn
-
-
-def _get_sublist_as_sequences(data_list, data_id, length):
-    # if given length is greater than the size of the data_list itself, the
-    # function returns an empty list
-    rtn = []
-    for i in range(0, len(data_list) - length):
-        # if the second number in range() is less than 1, the iteration will not run
-        # data_list[i:i+length]  # for debug purposes
-        rtn.append(Sequence(start=i, end=i + length, seq_id=data_id, data=np.array(data_list[i:i + length + 1])))
-    return rtn

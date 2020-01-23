@@ -1,7 +1,7 @@
 import heapq
 
 from .classes.Sequence import Sequence
-from .cluster import sim_between_seq
+from .cluster_operations import sim_between_seq
 from pyspark import SparkContext
 
 # def merge_gclusters(gclusters):

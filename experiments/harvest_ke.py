@@ -3,7 +3,7 @@ import math
 import random
 import time
 
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from pyspark import SparkContext, SparkConf
 from genex.parse import generate_query
 
@@ -52,7 +52,7 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
 
     # perform clustering
     cluster_start_time = time.time()
-    mydb.build(similarity_threshold=0.1, dist_type=dist_type)
+    mydb.build(st=0.1, dist_type=dist_type)
     timing_dict['cluster time'] = time.time() - cluster_start_time
 
     bf_result_dict = dict()

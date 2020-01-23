@@ -98,10 +98,11 @@ def lb_kim_sequence(candidate_seq, query_sequence):
     return lb_kim_sim / 2.0  # normalize
 
 
-def randomize(arr, seed=42):
+def _randomize(arr, seed=42):
     """
     Apply the randomize in place algorithm to the given array
     Adopted from https://www.geeksforgeeks.org/shuffle-a-given-array-using-fisher-yates-shuffle-algorithm/
+    :param seed:
     :param array arr: the arr to randomly permute
     :return: the random;uy permuted array
     """
@@ -122,7 +123,6 @@ def _cluster_groups(groups: list, st: float, dist_func, log_level: int = 1,
     result = []
     for seq_len, grp in groups:
         result.append(cluster_with_filter(grp, st, seq_len, dist_func=dist_func))
-
     return result
 
 
@@ -149,7 +149,7 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, lo
     cluster = {}
 
     # randomize the sequence in the group to remove clusters-related bias
-    group = randomize(group)
+    group = _randomize(group)
 
     for s in group:
         if not cluster.keys():  # if there's no representatives, the first subsequence becomes a representative
@@ -186,3 +186,11 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, lo
                 s.del_data()
 
     return sequence_len, cluster
+
+
+def _cluster_to_meta(cluster):
+    return cluster[0], {rprs: len(slist) for (rprs, slist) in cluster[1].items()}
+
+
+def _cluster_reduce_func(v1, v2):
+    return {**v1, **v2}

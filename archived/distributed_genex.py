@@ -3,13 +3,13 @@ import csv
 from genex.parse import generate_source
 from genex.Gcluster_utils import _isOverlap
 
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from genex.preprocess import genex_normalize
 from genex.utils import normalize_sequence
 
 import heapq
 import time
-from genex.cluster import sim_between_seq,lb_keogh_sequence
+from genex.cluster_operations import sim_between_seq,lb_keogh_sequence
 import matplotlib.pyplot as plt
 
 fn = 'SART2018_HbO_40.csv'
@@ -46,7 +46,7 @@ file = open('time_log.txt', 'a')
 file.write('Group time is :' + gtime)
 file.close()
 
-from genex.cluster import _cluster_groups
+from genex.cluster_operations import _cluster_groups
 
 start_time = time.time()
 cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(groups=x, st=0.05, log_level=1),
