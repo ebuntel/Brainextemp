@@ -11,7 +11,7 @@ from scipy.spatial.distance import euclidean
 from scipy.spatial.distance import chebyshev
 from genex.Gcluster_utils import _isOverlap
 from genex.classes.Sequence import Sequence
-from genex.cluster import sim_between_seq, lb_kim_sequence, lb_keogh_sequence
+from genex.cluster_operations import sim_between_seq, lb_kim_sequence, lb_keogh_sequence
 import numpy as np
 
 # dist_func_index = {'eu': np.vectorize(lambda x, y: euclidean(x, y) / np.sqrt(len(x))),
@@ -517,3 +517,5 @@ def _multiprocess_backend(use_spark, num_worker, driver_mem, max_result_mem):
         pr_red('Using Python Native Multiprocessing')
         mp_context = {'num_worker': num_worker}
     return mp_context
+
+

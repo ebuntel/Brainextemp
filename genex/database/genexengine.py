@@ -18,8 +18,8 @@ from scipy.spatial.distance import chebyshev
 from sklearn.preprocessing import LabelEncoder
 
 from genex.classes.Sequence import Sequence
-from genex.cluster import _randomize, sim_between_seq
-from genex.spark_utils import _create_sc, _pr_spark_conf, _cluster_with_spark, _is_using_spark
+from genex.cluster_operations import sim_between_seq
+from genex.spark_utils import  _cluster_with_spark
 from genex.utils import _multiprocess_backend, genex_normalize
 from genex.utils import _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
     _validate_gxdb_query_arguments, _create_f_uuid_map
@@ -28,19 +28,19 @@ from process_utils import _group_time_series, _slice_time_series
 
 
 def eu_norm(x, y):
-    euclidean(x, y) / np.sqrt(len(x))
+    return euclidean(x, y) / np.sqrt(len(x))
 
 
 def ma_norm(x, y):
-    cityblock(x, y) / len(x)
+    return cityblock(x, y) / len(x)
 
 
 def ch_norm(x, y):
-    chebyshev(x, y)
+    return chebyshev(x, y)
 
 
 def min_norm(x, y):
-    chebyshev(x, y)
+    return chebyshev(x, y)
 
 
 dist_func_index = {'eu': eu_norm,
@@ -126,7 +126,7 @@ def from_csv(file_name, feature_num: int,
 
     return GenexEngine(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
                        global_min=global_min,
-                       mp_context=mp_context)
+                       mp_context=mp_context, backend='multiprocess' if not use_spark else 'spark')
 
 
 def from_db(path: str,
@@ -158,15 +158,16 @@ def from_db(path: str,
     mp_context = _multiprocess_backend(use_spark, num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
     init_params = {'data_raw': data_raw, 'data_original': data, 'data_normalized': data_normalized,
                    'mp_context': mp_context,
-                   'global_max': conf['global_max'], 'global_min': conf['global_min']}
-    db = GenexEngine(**init_params)
-    db.set_conf(conf)
+                   'global_max': conf['global_max'], 'global_min': conf['global_min'],
+                   'backend': conf['backend']}
+    engine:GenexEngine = GenexEngine(**init_params)
+    engine.__set_conf(conf)
 
     if os.path.exists(os.path.join(path, 'clusters.gxdb')):
-        db.set_clusters(db.get_mp_context().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
-        db.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'rb')))
+        engine.__load_cluster(path)
+        engine.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'rb')))
 
-    return db
+    return engine
 
 
 class GenexEngine:
@@ -193,13 +194,14 @@ class GenexEngine:
 
         self.conf = {'build_conf': None,
                      'global_max': kwargs['global_max'],
-                     'global_min': kwargs['global_min']}
+                     'global_min': kwargs['global_min'],
+                     'backend': kwargs['backend']}
         self.bf_query_buffer = dict()
 
-    def set_conf(self, conf):
+    def __set_conf(self, conf):
         self.conf = conf
 
-    def set_clusters(self, clusters):
+    def _set_clusters(self, clusters):
         self.clusters = clusters
 
     def get_mp_context(self):
@@ -246,12 +248,10 @@ class GenexEngine:
         except ValueError:
             raise Exception('Unknown distance type: ' + str(dist_type))
 
-        if _is_using_spark(self.mp_context):  # If using Spark backend
+        if self.is_using_spark():  # If using Spark backend
             self.clusters, self.cluster_meta_dict = _cluster_with_spark(self.mp_context, self.data_normalized,
                                                                         start, end, st, dist_func, verbose)
         else:
-            a = self.get_num_ts()
-            b = self.mp_context['num_worker']
             self.clusters, self.cluster_meta_dict = \
                 _cluster_multi_process(self.data_normalized,
                                        self.mp_context['num_worker'],
@@ -369,7 +369,7 @@ class GenexEngine:
 
         # save the clusters if the db is built
         if self.clusters is not None:
-            self.clusters.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
+            self._save_cluster(path)
             pickle.dump(self.cluster_meta_dict, open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'wb'))
 
         # save data_original files
@@ -381,11 +381,27 @@ class GenexEngine:
         with open(path + '/conf.json', 'w') as f:
             json.dump(self.conf, f, indent=4)
 
+    def _save_cluster(self, path):
+        if self.is_using_spark():
+            self.clusters.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
+        else:
+            pickle.dump(self.clusters, os.path.join(path, 'clusters.gxdb'))
+
+    def __load_cluster(self, path):
+        if self.is_using_spark():
+            self._set_clusters(self.get_mp_context().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
+        else:
+            self._set_clusters(pickle.load(os.path.join(path, 'clusters.gxdb')))
+
+
     def is_id_exists(self, sequence: Sequence):
         return sequence.seq_id in dict(self.data_original).keys()
 
     def _get_data_normalized(self):
         return self.data_normalized
+
+    def is_using_spark(self):
+        return self.conf['backend'] == 'spark'
 
     def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
               loi: slice = None,

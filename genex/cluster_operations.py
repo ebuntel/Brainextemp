@@ -123,7 +123,6 @@ def _cluster_groups(groups: list, st: float, dist_func, log_level: int = 1,
     result = []
     for seq_len, grp in groups:
         result.append(cluster_with_filter(grp, st, seq_len, dist_func=dist_func))
-
     return result
 
 
@@ -187,3 +186,11 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, lo
                 s.del_data()
 
     return sequence_len, cluster
+
+
+def _cluster_to_meta(cluster):
+    return cluster[0], {rprs: len(slist) for (rprs, slist) in cluster[1].items()}
+
+
+def _cluster_reduce_func(v1, v2):
+    return {**v1, **v2}

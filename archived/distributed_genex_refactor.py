@@ -6,7 +6,7 @@ from genex.preprocess import genex_normalize
 from genex.utils import normalize_sequence
 import heapq
 import time
-from genex.cluster import sim_between_seq
+from genex.cluster_operations import sim_between_seq
 import matplotlib.pyplot as plt
 
 fn = 'SART2018_HbO.csv'

@@ -1,7 +1,8 @@
 from pyspark import SparkContext, SparkConf
 
-from genex.cluster import _cluster_groups
+from genex.cluster_operations import _cluster_groups
 from genex.misc import pr_red
+from genex.cluster_operations import _cluster_to_meta, _cluster_reduce_func
 from process_utils import _group_time_series
 
 
@@ -40,11 +41,13 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, start, end, st, dist_
     # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
     cluster_rdd.count()
     # Combining two dictionary using **kwargs concept
-    cluster_meta_dict = dict(
-        cluster_rdd.map(lambda x: (x[0], {repre: len(slist) for (repre, slist) in x[1].items()}))
-            .reduceByKey(lambda v1, v2: {**v1, **v2}).collect())
+    cluster_meta_dict = _cluster_to_meta_spark(cluster_rdd)
     return cluster_rdd, cluster_meta_dict
 
 
-def _is_using_spark(mp_context):
-    return isinstance(mp_context, SparkContext)
+def _cluster_to_meta_spark(cluster_rdd):
+    a = cluster_rdd.map(_cluster_to_meta).collect()
+    return dict(cluster_rdd.
+                map(_cluster_to_meta).
+                reduceByKey(_cluster_reduce_func).collect())
+

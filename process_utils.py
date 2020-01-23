@@ -1,6 +1,6 @@
 import numpy as np
-from itertools import zip_longest
-
+from functools import reduce
+from itertools import groupby
 from genex.classes.Sequence import Sequence
 
 
@@ -68,4 +68,28 @@ def _slice_time_series(time_series, start, end):
 
 
 def _grouper(n, iterable):
-    return [iterable[x:x+n] for x in range(0, len(iterable), n)]
+    return [iterable[x:x + n] for x in range(0, len(iterable), n)]
+
+
+def get_first(p):
+    return p[0]
+
+
+def get_second(p):
+    return p[1]
+
+
+def reduce_by_key(func, iterable):
+    """Reduce by key.
+    ApocalyVec adopted from https://gist.github.com/Juanlu001/562d1ec55be970403442
+    Equivalent to the Spark counterpart
+    Inspired by http://stackoverflow.com/q/33648581/554319
+    1. Sort by key
+    2. Group by key yielding (key, grouper)
+    3. For each pair yield (key, reduce(func, last element of each grouper))
+    """
+    # iterable.groupBy(_._1).map(l => (l._1, l._2.map(_._2).reduce(func)))
+    return map(
+        lambda l: (l[0], reduce(func, map(get_second, l[1]))),
+        groupby(sorted(iterable, key=get_first), get_first)
+    )
