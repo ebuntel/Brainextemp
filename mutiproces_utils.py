@@ -2,9 +2,9 @@ import math
 import multiprocessing
 from functools import reduce
 
-from genex.cluster_operations import _randomize, _cluster_groups, _cluster_to_meta, _cluster_reduce_func
-from genex.utils import flatten
-from process_utils import _grouper, _group_time_series, reduce_by_key
+from genex.op.cluster_op import _randomize, _cluster_groups, _cluster_to_meta, _cluster_reduce_func
+from genex.utils.utils import flatten
+from process_utils import _grouper, _group_time_series, reduce_by_key, get_second
 
 
 def _partitioner(data, slice_num, shuffle=True):
@@ -14,10 +14,15 @@ def _partitioner(data, slice_num, shuffle=True):
     return _grouper(_slice_size, data)
 
 
-def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end, st, dist_func, verbose):
-    data_partition = _partitioner(data_normalized, p._processes)
+def __partition_and_group(data, slice_num, start, end, p: multiprocessing.pool, shuffle=True):
+    data_partition = _partitioner(data, p._processes)
     group_arg_partition = [(x, start, end) for x in data_partition]
     group_partition = p.starmap(_group_time_series, group_arg_partition)
+    return group_partition
+
+
+def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end, st, dist_func, verbose):
+    group_partition = __partition_and_group(data_normalized, p._processes, start, end, p)
     cluster_arg_partition = [(x, st, dist_func, verbose) for x in group_partition]
     """
     Linear Cluster for debug purposes
@@ -36,3 +41,13 @@ def _cluster_to_meta_mp(cluster_partition: list, p: multiprocessing.pool):
     clusters = flatten(cluster_partition)
     temp = p.map(_cluster_to_meta, clusters)
     return list(reduce_by_key(_cluster_reduce_func, temp))
+
+
+def _query_bf_mp(query, p:multiprocessing.pool, data_normalized: list, start, end, dt_index):
+    group_partition = flatten( __partition_and_group(data_normalized, p._processes, start, end, p))
+    subsequences = p.map(get_second, group_partition)
+    dist_subsequences = p.map()
+
+    pass
+
+

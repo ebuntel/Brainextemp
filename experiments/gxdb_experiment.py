@@ -44,7 +44,7 @@ start = time.time()
 query_result = mydb.query_brute_force(query=q, best_k=5)
 
 duration = time.time() - start
-# TODO memory optimization: brainstorm memory optimization, encode features (ids), length batches
+# TODO memory optimization:  memory optimization, encode features (ids), length batches
 # plot the query result
 plt.plot(q.fetch_data(mydb.data_normalized), linewidth=5, color='red')
 for qr in query_result:

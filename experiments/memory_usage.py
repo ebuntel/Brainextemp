@@ -1,6 +1,6 @@
 from memory_profiler import profile
 import genex.database.genexengine as gxdb
-from genex.spark_utils import _create_sc
+from genex.utils.spark_utils import _create_sc
 import pickle
 
 @profile

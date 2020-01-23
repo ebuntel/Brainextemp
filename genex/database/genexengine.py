@@ -1,30 +1,25 @@
 import heapq
 import json
-import math
 import multiprocessing
 import os
 import pickle
 import random
-import uuid
 
 from pyspark import SparkContext
-import pandas as pd
 import numpy as np
 import shutil
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import minkowski
 from scipy.spatial.distance import euclidean
 from scipy.spatial.distance import chebyshev
-from sklearn.preprocessing import LabelEncoder
 
 from genex.classes.Sequence import Sequence
-from genex.cluster_operations import sim_between_seq
-from genex.spark_utils import _cluster_with_spark, _query_bf_spark
-from genex.utils import _multiprocess_backend, genex_normalize
-from genex.utils import _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
-    _validate_gxdb_query_arguments, _create_f_uuid_map
-from mutiproces_utils import _cluster_multi_process
-from process_utils import _group_time_series, _slice_time_series
+from genex.misc import pr_red
+from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _pr_spark_conf, _create_sc
+from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi
+
+from mutiproces_utils import _cluster_multi_process, _query_bf_mp
+from process_utils import _slice_time_series
 
 
 def eu_norm(x, y):
@@ -193,7 +188,7 @@ class GenexEngine:
             if self.is_using_spark():
                 candidate_list = _query_bf_spark(query, self.mp_context, self.data_normalized, start, end, dt_index)
             else:
-                pass
+                candidate_list = _query_bf_mp(query, self.mp_context, self.data_normalized, start, end, dt_index)
 
             candidate_list.sort(key=lambda x: x[0])
             self.bf_query_buffer[bf_query_key] = candidate_list
@@ -436,3 +431,6 @@ def _calculate_overlap(seq1, seq2) -> float:
         print(seq1)
         print(seq2)
         raise Exception('FATAL: sequence 100% overlap, please report the bug')
+
+
+
