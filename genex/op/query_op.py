@@ -3,6 +3,7 @@ import heapq
 import numpy as np
 from dtw import dtw
 from fastdtw import fastdtw
+from pyspark.broadcast import Broadcast
 
 from genex.classes.Sequence import Sequence
 from genex.misc import merge_dict
@@ -65,9 +66,8 @@ def get_dist_query(query, target, dt_index):
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, dt_index: int,
-                     _lb_opt_cluster: str, repr_kim_rf: float, repr_keogh_rf: float,
-                     _lb_opt_repr: str, cluster_kim_rf: float, cluster_keogh_rf: float, overlap: float,
-                     exclude_same_id: bool, radius: int, st: float):
+                     _lb_opt_cluster: str, _lb_opt_repr: str,
+                     overlap: float, exclude_same_id: bool, radius: int, st: float):
     """
     This function finds k best matches for given query sequence on the worker node
 
@@ -83,8 +83,11 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, d
 
     :return: a list containing retrieved matches for given query sequence on that worker node
     """
-    q = q.value
-    data_normalized = data_normalized.value
+    if isinstance(q, Broadcast):
+        q = q.value
+    if isinstance(data_normalized, Broadcast):
+        data_normalized = data_normalized.value
+
     cluster_filtered = [x for x in cluster if x[0] in range(loi.start, loi.stop)] if loi is not None else cluster
     cluster_dict = dict(list(reduce_by_key(lambda x, y: merge_dict([x, y]), cluster_filtered)))
     try:
@@ -133,7 +136,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, d
         radius += 1  # ready to search the next length
 
     # process exclude same id
-    candidates = (x for x in candidates if x.seq_id != q.seq_id) if exclude_same_id else candidates
+    candidates = [x for x in candidates if x.seq_id != q.seq_id] if exclude_same_id else candidates
     [x.fetch_and_set_data(data_normalized) for x in candidates]  # fetch data_original for the candidates]
     # print('# Sequences in the candidate list:: ' + str(len(candidates)))
 

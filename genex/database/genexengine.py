@@ -15,10 +15,11 @@ from scipy.spatial.distance import chebyshev
 
 from genex.classes.Sequence import Sequence
 from genex.misc import pr_red
+from genex.op.query_op import _query_partition
 from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _pr_spark_conf, _create_sc
-from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi
+from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxdb_query_arguments
 
-from mutiproces_utils import _cluster_multi_process, _query_bf_mp
+from mutiproces_utils import _cluster_multi_process, _query_bf_mp, _query_mp
 from process_utils import _slice_time_series
 
 
@@ -314,9 +315,7 @@ class GenexEngine:
                 raise Exception('query: _ke cannot be greater than the number of subsequences in the database.')
 
         query.fetch_and_set_data(self._get_data_normalized())
-        query = self.mp_context.broadcast(query)
-
-        data_normalized = self.mp_context.broadcast(self._get_data_normalized())
+        data_normalized = self._get_data_normalized()
 
         st = self.build_conf.get('similarity_threshold')
         dist_type = self.build_conf.get('dist_type')
@@ -332,19 +331,21 @@ class GenexEngine:
         #                      radius=_radius, st=st
         #                      )
         # seq_num = self.get_num_subsequences()
+        if self.is_using_spark():
+            query = self.mp_context.broadcast(query)
+            data_normalized = self.mp_context.broadcast(data_normalized)
 
-        query_rdd = self.clusters.mapPartitions(
-            lambda c:
-            _query_partition(cluster=c, q=query, k=best_k, ke=_ke, data_normalized=data_normalized, loi=loi,
-                             dt_index=dist_type_index[dist_type],
-                             _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
-                             exclude_same_id=exclude_same_id, overlap=overlap,
-
-                             repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
-                             cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
-                             radius=_radius, st=st
-                             )
-        )
+        query_args = {  # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
+            'q': query, 'k': best_k, 'ke': _ke, 'data_normalized': data_normalized,
+            'loi': loi, 'dt_index': dist_type_index[dist_type],
+            '_lb_opt_cluster': _lb_opt_cluster, '_lb_opt_repr': _lb_opt_repr,
+            'overlap': overlap, 'exclude_same_id': exclude_same_id, 'radius': _radius, 'st': st
+        }
+        if self.is_using_spark():
+            query_rdd = self.clusters.mapPartitions(lambda c: _query_partition(cluster=c, **query_args))
+            candidates = query_rdd.collect()
+        else:
+            candidates = _query_mp(self.mp_context, self.clusters, **query_args)
 
         #### testing distribute query vs. one-core query
         # result_distributed = query_rdd.collect()
@@ -355,12 +356,11 @@ class GenexEngine:
         # result_one_core = result_one_core[:10]
         # is_same = np.equal(result_distributed, result_one_core)
 
-        aggre_query_result = query_rdd.collect()
-        heapq.heapify(aggre_query_result)
+        heapq.heapify(candidates)
         best_matches = []
 
         for i in range(best_k):
-            best_matches.append(heapq.heappop(aggre_query_result))
+            best_matches.append(heapq.heappop(candidates))
 
         return best_matches
 
@@ -431,6 +431,3 @@ def _calculate_overlap(seq1, seq2) -> float:
         print(seq1)
         print(seq2)
         raise Exception('FATAL: sequence 100% overlap, please report the bug')
-
-
-

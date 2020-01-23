@@ -3,7 +3,7 @@ import multiprocessing
 from functools import reduce
 
 from genex.op.cluster_op import _randomize, _cluster_groups, _cluster_to_meta, _cluster_reduce_func
-from genex.op.query_op import get_dist_query
+from genex.op.query_op import get_dist_query, _query_partition
 from genex.utils.utils import flatten
 from process_utils import _grouper, _group_time_series, reduce_by_key, get_second
 
@@ -50,3 +50,14 @@ def _query_bf_mp(query, p: multiprocessing.pool, data_normalized: list, start, e
     return dist_subsequences
 
 
+def _query_mp(p: multiprocessing.pool, clusters, **kwargs):
+    query_arg_partition = [[x] + list(kwargs.values()) for x in clusters]
+
+    # Linear query for debug purposes
+    # candidates = []
+    # for qp in query_arg_partition:
+    #     rtn = _query_partition(*qp)
+    #     candidates.append(rtn)
+
+    candidates = flatten(p.starmap(_query_partition, query_arg_partition))
+    return candidates
