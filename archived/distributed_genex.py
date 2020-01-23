@@ -1,15 +1,14 @@
 import math
 import csv
 from genex.parse import generate_source
-from genex.Gcluster_utils import _isOverlap
 
-import genex.database.genexengine as gxdb
 from genex.preprocess import genex_normalize
 from genex.utils import normalize_sequence
 
 import heapq
 import time
-from genex.cluster_operations import sim_between_seq,lb_keogh_sequence
+from genex.ts_utils import lb_keogh_sequence
+from genex.op.query_op import sim_between_seq
 import matplotlib.pyplot as plt
 
 fn = 'SART2018_HbO_40.csv'
@@ -19,7 +18,7 @@ input_list = generate_source(fn, feature_num=5)
 normalized_input_list, global_max, global_min = genex_normalize(input_list)
 
 from pyspark import SparkContext, SparkConf
-from pyspark.sql import SparkSession, SQLContext
+from pyspark.sql import SQLContext
 from pyspark.sql.types import *
 num_cores = 8
 
@@ -46,7 +45,7 @@ file = open('time_log.txt', 'a')
 file.write('Group time is :' + gtime)
 file.close()
 
-from genex.cluster_operations import _cluster_groups
+from genex.cluster_op import _cluster_groups
 
 start_time = time.time()
 cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(groups=x, st=0.05, log_level=1),
@@ -198,7 +197,7 @@ def query_cluster_partition(cluster, q, st: float, k: int, normalized_input, dis
     return query_result
 
 
-from genex.parse import generate_query, generate_source
+from genex.parse import generate_query
 
 # generate the query sets
 query_set = generate_query(file_name='queries_test.csv', feature_num=5)

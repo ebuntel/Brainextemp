@@ -1,8 +1,5 @@
-import heapq
+from genex.classes.Sequence import Sequence
 
-from .classes.Sequence import Sequence
-from .cluster_operations import sim_between_seq
-from pyspark import SparkContext
 
 # def merge_gclusters(gclusters):
 #     # gclusters validation

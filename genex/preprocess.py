@@ -2,8 +2,9 @@ import math
 from pyspark import SparkContext
 import numpy as np
 
-from genex.cluster_operations import _cluster_groups
+from genex.op.cluster_op import _cluster_groups
 from genex.classes.Sequence import Sequence
+from genex.utils.utils import genex_normalize
 
 
 def filter_sublists(input_list, length):

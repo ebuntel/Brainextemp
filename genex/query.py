@@ -4,7 +4,7 @@ import math
 from pyspark import SparkContext
 
 # from genex.cluster import sim_between_seq
-from genex.cluster_operations import sim_between_seq
+from genex.op.query_op import sim_between_seq
 from genex.parse import strip_function, remove_trailing_zeros
 from .classes import Sequence
 from genex.database import genexengine

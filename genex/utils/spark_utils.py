@@ -1,8 +1,8 @@
 from pyspark import SparkContext, SparkConf
 
-from genex.cluster_operations import _cluster_groups
+from genex.op.query_op import get_dist_query
+from genex.op.cluster_op import _cluster_groups, _cluster_to_meta, _cluster_reduce_func
 from genex.misc import pr_red
-from genex.cluster_operations import _cluster_to_meta, _cluster_reduce_func
 from process_utils import _group_time_series
 
 
@@ -51,3 +51,14 @@ def _cluster_to_meta_spark(cluster_rdd):
                 map(_cluster_to_meta).
                 reduceByKey(_cluster_reduce_func).collect())
 
+
+def _query_bf_spark(query, sc: SparkContext, data_normalized: list, start, end, dt_index):
+    input_rdd = sc.parallelize(data_normalized, numSlices=sc.defaultParallelism)
+    group_rdd = input_rdd.mapPartitions(
+        lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+    slice_rdd = group_rdd.flatMap(lambda x: x[1])
+    # for debug purpose
+    # a = slice_rdd.collect()
+    dist_rdd = slice_rdd.map(lambda x: get_dist_query(query, x, dt_index=dt_index))
+    candidate_list = dist_rdd.collect()
+    return candidate_list

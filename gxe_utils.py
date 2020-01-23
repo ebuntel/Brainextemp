@@ -1,4 +1,5 @@
 import json
+import multiprocessing
 import os
 import pickle
 import uuid
@@ -7,7 +8,9 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
 from genex import GenexEngine
-from genex.utils import _create_f_uuid_map, _df_to_list, genex_normalize, _multiprocess_backend
+from genex.misc import pr_red
+from genex.utils.spark_utils import _create_sc, _pr_spark_conf
+from genex.utils.utils import _create_f_uuid_map, _df_to_list, genex_normalize
 
 
 def from_csv(file_name, feature_num: int,
@@ -129,3 +132,18 @@ def from_db(path: str,
 
 def is_conf_using_spark(conf):
     return conf['backend'] == 'spark'
+
+
+def _multiprocess_backend(use_spark, num_worker, driver_mem, max_result_mem):
+    """
+    :return None if not using spark
+    """
+    if use_spark:
+        pr_red('Genex Engine: Using PySpark Backend')
+        mp_context = _create_sc(num_cores=num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+        _pr_spark_conf(mp_context)
+    else:
+        pr_red('Genex Engine: Using Python Native Multiprocessing')
+        mp_context = multiprocessing.Pool(num_worker, maxtasksperchild=1)
+
+    return mp_context
