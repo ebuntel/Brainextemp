@@ -1,4 +1,3 @@
-import random
 
 import findspark
 import matplotlib.pyplot as plt
@@ -16,6 +15,9 @@ from pyspark import SparkContext, SparkConf
 data_file = 'experiments/data_original/ItalyPower.csv'
 db_path = 'results/test_db'
 
+# The given data file does not include header line for columns
+mydb_no_header = gxdb.from_csv(data_file, sc=sc, feature_num=2, is_header=False)
+# The first line inside the data file including names of columns
 mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
 mydb.save(path=db_path)
 del mydb
