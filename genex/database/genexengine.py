@@ -19,7 +19,7 @@ from sklearn.preprocessing import LabelEncoder
 
 from genex.classes.Sequence import Sequence
 from genex.cluster_operations import sim_between_seq
-from genex.spark_utils import _cluster_with_spark
+from genex.spark_utils import _cluster_with_spark, _query_bf_spark
 from genex.utils import _multiprocess_backend, genex_normalize
 from genex.utils import _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
     _validate_gxdb_query_arguments, _create_f_uuid_map
@@ -182,30 +182,25 @@ class GenexEngine:
 
         :return: a list containing best k matches for given query sequence
         """
-        dist_type = self.conf.get('build_conf').get('dist_type')
+        dist_type = self.build_conf.get('dist_type')
+        dt_index = dist_type_index[dist_type]
+        start, end = self.build_conf.get('loi')
 
         query.fetch_and_set_data(self.data_normalized)
-        input_rdd = self.mp_context.parallelize(self.data_normalized, numSlices=self.mp_context.defaultParallelism)
-
-        start, end = self.conf.get('build_conf').get('loi')
-
         bf_query_key = (dist_type, query, start, end)
 
         if bf_query_key not in self.bf_query_buffer.keys():
-            group_rdd = input_rdd.mapPartitions(
-                lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+            if self.is_using_spark():
+                candidate_list = _query_bf_spark(query, self.mp_context, self.data_normalized, start, end, dt_index)
+            else:
+                pass
 
-            slice_rdd = group_rdd.flatMap(lambda x: x[1])
-            # for debug purpose
-            # a = slice_rdd.collect()
-            dist_rdd = slice_rdd.map(lambda x: (sim_between_seq(query, x, dt_index=dist_type_index[dist_type]), x))
-            candidate_list = dist_rdd.collect()
+            candidate_list.sort(key=lambda x: x[0])
             self.bf_query_buffer[bf_query_key] = candidate_list
         else:
             print('bf_query: using buffered bf results, key=' + str([str(x) for x in bf_query_key]))
             candidate_list = self.bf_query_buffer[bf_query_key]  # retrieve the buffer candidate list
 
-        candidate_list.sort(key=lambda x: x[0])
         return candidate_list[:best_k]
 
     def group_sequences(self):
