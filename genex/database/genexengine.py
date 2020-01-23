@@ -19,7 +19,7 @@ from sklearn.preprocessing import LabelEncoder
 
 from genex.classes.Sequence import Sequence
 from genex.cluster_operations import sim_between_seq
-from genex.spark_utils import  _cluster_with_spark
+from genex.spark_utils import _cluster_with_spark
 from genex.utils import _multiprocess_backend, genex_normalize
 from genex.utils import _validate_gxdb_build_arguments, _df_to_list, _process_loi, _query_partition, \
     _validate_gxdb_query_arguments, _create_f_uuid_map
@@ -54,122 +54,6 @@ dist_type_index = {'eu': 0,
                    'min': 2}
 
 
-def from_csv(file_name, feature_num: int,
-             num_worker: int,
-             use_spark: bool = True, driver_mem: int = 16, max_result_mem: int = 16,
-             add_uuid=False,
-             _rows_to_consider: int = None,
-             _memory_opt: str = None,
-             _is_z_normalize=True):
-    """
-    build a genex_database object from given csv,
-    Note: if time series are of different length, shorter sequences will be post padded to the length
-    of the longest sequence in the dataset
-
-    :param add_uuid:
-    :param _is_z_normalize:
-    :param _memory_opt:
-    :param driver_mem:
-    :param max_result_mem:
-    :param use_spark:
-    :param num_worker:
-    :param file_name:
-    :param feature_num:
-    :param sc: spark context on which the database will run
-
-    :param _rows_to_consider: experiment parameter that takes a iterable of two integers.
-            Only rows in between the given interval will be take into the database.
-    :param _is_use_uuid: experiment parameter. If set to true, the feature (id) of the time series will be
-
-    :return: a genex_database object that holds the original time series
-    """
-
-    df = pd.read_csv(file_name)
-
-    if feature_num == 0:
-        add_uuid = True
-        print('msg: from_csv, feature num is 0')
-
-    if add_uuid:
-        print('auto-generating uuid')
-        feature_num = feature_num + 1
-        df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
-
-    if _memory_opt == 'uuid':
-        df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
-        feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
-        # take off the feature columns
-        df = df.drop(df.columns[list(range(1, feature_num + 1))], axis=1, inplace=False)
-        data_list = _df_to_list(df, feature_num=1)  # now the only feature is the uuid
-
-    elif _memory_opt == 'encoding':
-        for i in range(feature_num):
-            le = LabelEncoder()
-            df.iloc[:, i] = le.fit_transform(df.iloc[:, i])
-
-        data_list = _df_to_list(df, feature_num=feature_num)
-    else:
-        data_list = _df_to_list(df, feature_num=feature_num)
-
-    if _rows_to_consider is not None:
-        if type(_rows_to_consider) == list:
-            assert len(_rows_to_consider) == 2
-            data_list = data_list[_rows_to_consider[0]:_rows_to_consider[1]]
-        elif type(_rows_to_consider) == int:
-            data_list = data_list[:_rows_to_consider]
-        else:
-            raise Exception('_rows_to_consider must be either a list or an integer')
-
-    data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
-
-    mp_context = _multiprocess_backend(use_spark, num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
-
-    return GenexEngine(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
-                       global_min=global_min,
-                       mp_context=mp_context, backend='multiprocess' if not use_spark else 'spark')
-
-
-def from_db(path: str,
-            num_worker: int,
-            use_spark: bool = True, driver_mem: int = 16, max_result_mem: int = 16,
-            ):
-    """
-    returns a previously saved gxdb object from its saved path
-
-    :param max_result_mem:
-    :param driver_mem:
-    :param use_spark:
-    :param num_worker:
-    :param sc: spark context on which the database will run
-    :param path: path of the saved gxdb object
-
-    :return: a genex database object that holds clusters of time series data_original
-    """
-
-    # TODO the input fold_name is not existed
-    if os.path.exists(path) is False:
-        raise ValueError('There is no such database, check the path again.')
-
-    data_raw = pd.read_csv(os.path.join(path, 'data_raw.csv'))
-    data = pickle.load(open(os.path.join(path, 'data_original.gxdb'), 'rb'))
-    data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
-
-    conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
-    mp_context = _multiprocess_backend(use_spark, num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
-    init_params = {'data_raw': data_raw, 'data_original': data, 'data_normalized': data_normalized,
-                   'mp_context': mp_context,
-                   'global_max': conf['global_max'], 'global_min': conf['global_min'],
-                   'backend': conf['backend']}
-    engine:GenexEngine = GenexEngine(**init_params)
-    engine.__set_conf(conf)
-
-    if os.path.exists(os.path.join(path, 'clusters.gxdb')):
-        engine.__load_cluster(path)
-        engine.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'rb')))
-
-    return engine
-
-
 class GenexEngine:
     """
     Genex Engine
@@ -191,11 +75,10 @@ class GenexEngine:
         self.mp_context = kwargs['mp_context']
         self.clusters = None
         self.cluster_meta_dict = None
-
-        self.conf = {'build_conf': None,
-                     'global_max': kwargs['global_max'],
+        self.conf = {'global_max': kwargs['global_max'],
                      'global_min': kwargs['global_min'],
                      'backend': kwargs['backend']}
+        self.build_conf = None
         self.bf_query_buffer = dict()
 
     def __set_conf(self, conf):
@@ -209,6 +92,9 @@ class GenexEngine:
 
     def get_num_ts(self):
         return len(self.data_original)
+
+    def set_build_conf(self, build_conf: dict):
+        self.build_conf = build_conf
 
     def is_seq_exist(self, seq: Sequence):
         try:
@@ -234,9 +120,9 @@ class GenexEngine:
         _validate_gxdb_build_arguments(locals())
         start, end = _process_loi(loi)
         # update build configuration
-        self.conf['build_conf'] = {'similarity_threshold': st,
-                                   'dist_type': dist_type,
-                                   'loi': (start, end)}
+        self.build_conf = {'similarity_threshold': st,
+                           'dist_type': dist_type,
+                           'loi': (start, end)}
 
         # exit without clustering
         if not _is_cluster:
@@ -252,9 +138,9 @@ class GenexEngine:
             self.clusters, self.cluster_meta_dict = _cluster_with_spark(self.mp_context, self.data_normalized,
                                                                         start, end, st, dist_func, verbose)
         else:
-            self.clusters, self.cluster_meta_dict = \
-                _cluster_multi_process(self.data_normalized,
-                                       self.mp_context['num_worker'],
+            self.clusters, self.cluster_meta_dict = self.clusters, self.cluster_meta_dict = \
+                _cluster_multi_process(self.mp_context,
+                                       self.data_normalized,
                                        start, end, st, dist_func, verbose)
 
     def get_cluster(self, rprs: Sequence):
@@ -317,7 +203,7 @@ class GenexEngine:
             self.bf_query_buffer[bf_query_key] = candidate_list
         else:
             print('bf_query: using buffered bf results, key=' + str([str(x) for x in bf_query_key]))
-            candidate_list = self.bf_query_buffer[bf_query_key]  # retrive the buffer candidate list
+            candidate_list = self.bf_query_buffer[bf_query_key]  # retrieve the buffer candidate list
 
         candidate_list.sort(key=lambda x: x[0])
         return candidate_list[:best_k]
@@ -371,6 +257,8 @@ class GenexEngine:
         if self.clusters is not None:
             self._save_cluster(path)
             pickle.dump(self.cluster_meta_dict, open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'wb'))
+            with open(path + '/build_conf.json', 'w') as f:
+                json.dump(self.build_conf, f, indent=4)
 
         # save data_original files
         pickle.dump(self.data_original, open(os.path.join(path, 'data_original.gxdb'), 'wb'))
@@ -387,12 +275,11 @@ class GenexEngine:
         else:
             pickle.dump(self.clusters, os.path.join(path, 'clusters.gxdb'))
 
-    def __load_cluster(self, path):
+    def load_cluster(self, path):
         if self.is_using_spark():
             self._set_clusters(self.get_mp_context().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
         else:
             self._set_clusters(pickle.load(os.path.join(path, 'clusters.gxdb')))
-
 
     def is_id_exists(self, sequence: Sequence):
         return sequence.seq_id in dict(self.data_original).keys()
@@ -441,8 +328,8 @@ class GenexEngine:
 
         data_normalized = self.mp_context.broadcast(self._get_data_normalized())
 
-        st = self.conf.get('build_conf').get('similarity_threshold')
-        dist_type = self.conf.get('build_conf').get('dist_type')
+        st = self.build_conf.get('similarity_threshold')
+        dist_type = self.build_conf.get('dist_type')
 
         # for debug purposes
         # a = _query_partition(cluster=self.cluster_rdd.collect(), q=query, k=best_k, ke=_ke,
@@ -492,6 +379,16 @@ class GenexEngine:
 
     def get_max_seq_len(self):
         return max([len(x[1]) for x in self.data_normalized])
+
+    def stop(self):
+        """
+        Must be called before removing a gxe object
+        """
+        if self.is_using_spark():
+            self.mp_context.stop()
+        else:
+            self.mp_context.terminate()
+            self.mp_context.close()
 
 
 def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:

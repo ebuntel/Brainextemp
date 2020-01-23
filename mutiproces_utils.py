@@ -14,9 +14,8 @@ def _partitioner(data, slice_num, shuffle=True):
     return _grouper(_slice_size, data)
 
 
-def _cluster_multi_process(data_normalized, slice_num, start, end, st, dist_func, verbose):
-    p = multiprocessing.Pool(slice_num, maxtasksperchild=1)
-    data_partition = _partitioner(data_normalized, slice_num)
+def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end, st, dist_func, verbose):
+    data_partition = _partitioner(data_normalized, p._processes)
     group_arg_partition = [(x, start, end) for x in data_partition]
     group_partition = p.starmap(_group_time_series, group_arg_partition)
     cluster_arg_partition = [(x, st, dist_func, verbose) for x in group_partition]

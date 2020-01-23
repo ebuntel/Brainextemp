@@ -1,10 +1,10 @@
 import os
 import time
-
 import findspark
 import matplotlib.pyplot as plt
 
-import genex.database.genexengine as gxdb
+from gxe_utils import from_csv, from_db
+
 from pyspark import SparkContext, SparkConf
 
 
@@ -17,21 +17,23 @@ findspark.init(spark_home=spark_location)
 data_file = 'data_original/ItalyPower.csv'
 db_path = 'results/test_db'
 
-mydb = gxdb.from_csv(data_file, feature_num=2, num_worker=16, driver_mem=64, max_result_mem=64, _rows_to_consider=64)
+mydb = from_csv(data_file, feature_num=2, num_worker=16, driver_mem=64, max_result_mem=64, _rows_to_consider=64)
 
 # Save reloading unbuilt Genex database
-# mydb.save(path=db_path)
-# del mydb
-# mydb = gxdb.from_db(path=db_path, sc=sc)
+mydb.save(path=db_path)
+mydb.stop()
+del mydb
+mydb = from_db(path=db_path, num_worker=16)
 
 start = time.time()
 mydb.build(st=0.1)
 print('Building took ' + str(time.time() - start) + ' sec')
 
 # Save reloading built Genex database
-# mydb.save(path=db_path)
-# del mydb
-# mydb = gxdb.from_db(path=db_path, num_worker=16)
+mydb.save(path=db_path)
+mydb.stop()
+del mydb
+mydb = from_db(path=db_path, num_worker=16)
 
 # generate the query sets
 q = mydb.get_random_seq_of_len(15, seed=1)

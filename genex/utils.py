@@ -2,6 +2,7 @@ import heapq
 import math
 
 # from genex.Gcluster_utils import _isOverlap
+import multiprocessing
 import time
 
 from sklearn.preprocessing import MinMaxScaler
@@ -515,7 +516,8 @@ def _multiprocess_backend(use_spark, num_worker, driver_mem, max_result_mem):
         _pr_spark_conf(mp_context)
     else:
         pr_red('Using Python Native Multiprocessing')
-        mp_context = {'num_worker': num_worker}
+        mp_context = multiprocessing.Pool(num_worker, maxtasksperchild=1)
+
     return mp_context
 
 

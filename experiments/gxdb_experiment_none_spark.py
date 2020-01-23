@@ -1,11 +1,6 @@
-import os
 import time
+from gxe_utils import from_csv, from_db
 
-import findspark
-import matplotlib.pyplot as plt
-
-import genex.database.genexengine as gxdb
-from pyspark import SparkContext, SparkConf
 
 
 # spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
@@ -17,7 +12,12 @@ from pyspark import SparkContext, SparkConf
 data_file = 'data_original/ItalyPower.csv'
 db_path = 'results/test_db'
 
-mydb = gxdb.from_csv(data_file, feature_num=2, num_worker=16, use_spark=False, _rows_to_consider=64)
+mydb = from_csv(data_file, feature_num=2, num_worker=16, use_spark=False, _rows_to_consider=64)
+
+# Save reloading unbuilt Genex database
+mydb.save(path=db_path)
+del mydb
+mydb = from_db(path=db_path, num_worker=16)
 
 start = time.time()
 mydb.build(st=0.1)
