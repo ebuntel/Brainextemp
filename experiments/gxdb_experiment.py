@@ -17,7 +17,7 @@ findspark.init(spark_home=spark_location)
 data_file = 'data_original/ItalyPower.csv'
 db_path = 'results/test_db'
 
-mydb = from_csv(data_file, feature_num=2, num_worker=16, driver_mem=64, max_result_mem=64, _rows_to_consider=64)
+mydb = from_csv(data_file, feature_num=2, num_worker=16, driver_mem=64, max_result_mem=64)
 
 # Save reloading unbuilt Genex database
 mydb.save(path=db_path)
