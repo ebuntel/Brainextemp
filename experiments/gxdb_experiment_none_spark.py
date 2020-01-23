@@ -38,10 +38,8 @@ mydb = from_db(path=db_path, num_worker=16)
 q = mydb.get_random_seq_of_len(15, seed=1)
 #
 start = time.time()
-# query_result = mydb.query(query=q, best_k=5, _lb_opt_repr='bsf', _lb_opt_cluster='bsf')
-# query_result = mydb.query(query=q, best_k=5, _radius=1, _lb_opt_repr='none')
-query_result = mydb.query_brute_force(query=q, best_k=5)
-
+# query_result = mydb.query_brute_force(query=q, best_k=5)
+query_result = mydb.query(query=q, best_k=5, _radius=1, _lb_opt_repr='none')
 duration = time.time() - start
 # # TODO memory optimization:  memory optimization, encode features (ids), length batches
 plt.plot(q.fetch_data(mydb.data_normalized), linewidth=5, color='red')
