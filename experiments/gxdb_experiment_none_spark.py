@@ -14,14 +14,21 @@ db_path = 'results/test_db'
 
 mydb = from_csv(data_file, feature_num=2, num_worker=16, use_spark=False, _rows_to_consider=64)
 
-# Save reloading unbuilt Genex database
+# Save reloading unbuilt Genex Engine
 mydb.save(path=db_path)
+mydb.stop()
 del mydb
 mydb = from_db(path=db_path, num_worker=16)
 
 start = time.time()
 mydb.build(st=0.1)
 print('Building took ' + str(time.time() - start) + ' sec')
+
+# Save reloading after built
+mydb.save(path=db_path)
+mydb.stop()
+del mydb
+mydb = from_db(path=db_path, num_worker=16)
 
 # generate the query sets
 # q = mydb.get_random_seq_of_len(15, seed=1)

@@ -29,7 +29,7 @@ start = time.time()
 mydb.build(st=0.1)
 print('Building took ' + str(time.time() - start) + ' sec')
 
-# Save reloading built Genex database
+# Save reloading built Genex Engine
 mydb.save(path=db_path)
 mydb.stop()
 del mydb

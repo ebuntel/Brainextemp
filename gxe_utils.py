@@ -87,7 +87,7 @@ def from_csv(file_name, feature_num: int,
 
 def from_db(path: str,
             num_worker: int,
-            use_spark: bool = True, driver_mem: int = 16, max_result_mem: int = 16,
+            driver_mem: int = 16, max_result_mem: int = 16,
             ):
     """
     returns a previously saved gxdb object from its saved path
@@ -112,7 +112,7 @@ def from_db(path: str,
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
 
-    mp_context = _multiprocess_backend(use_spark, num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+    mp_context = _multiprocess_backend(is_conf_using_spark(conf), num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
     init_params = {'data_raw': data_raw, 'data_original': data, 'data_normalized': data_normalized,
                    'mp_context': mp_context,
                    'global_max': conf['global_max'], 'global_min': conf['global_min'],
@@ -125,3 +125,7 @@ def from_db(path: str,
         build_conf = json.load(open(os.path.join(path, 'build_conf.json'), 'rb'))
         engine.set_build_conf(build_conf)
     return engine
+
+
+def is_conf_using_spark(conf):
+    return conf['backend'] == 'spark'

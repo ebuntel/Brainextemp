@@ -273,13 +273,13 @@ class GenexEngine:
         if self.is_using_spark():
             self.clusters.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
         else:
-            pickle.dump(self.clusters, os.path.join(path, 'clusters.gxdb'))
+            pickle.dump(self.clusters, open(os.path.join(path, 'clusters.gxdb'), 'wb'))
 
     def load_cluster(self, path):
         if self.is_using_spark():
             self._set_clusters(self.get_mp_context().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
         else:
-            self._set_clusters(pickle.load(os.path.join(path, 'clusters.gxdb')))
+            self._set_clusters(pickle.load(open(os.path.join(path, 'clusters.gxdb'), 'rb')))
 
     def is_id_exists(self, sequence: Sequence):
         return sequence.seq_id in dict(self.data_original).keys()
