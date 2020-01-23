@@ -141,10 +141,10 @@ ex_config_0 = {
     '_lb_opt_repr': 'none',
     '_lb_opt_cluster': 'none',
     'radius': 0,
-    'use_spark': False
+    'use_spark': True
 }
 start = time.time()
-notes_0 = 'noneSpark-R0-noOpt'
+notes_0 = 'UseSpark-R0-noOpt'
 es_eu_0 = generate_exp_set(datasets, 'eu', notes=notes_0)
 es_ma_0 = generate_exp_set(datasets, 'ma', notes=notes_0)
 es_ch_0 = generate_exp_set(datasets, 'ch', notes=notes_0)
@@ -162,10 +162,10 @@ ex_config_1 = {
     '_lb_opt_repr': 'none',
     '_lb_opt_cluster': 'none',
     'radius': 0,
-    'use_spark': True
+    'use_spark': False
 }
 start = time.time()
-notes_1 = 'UseSpark-R0-noOpt'
+notes_1 = 'noneSpark-R0-noOpt'
 es_eu_1 = generate_exp_set(datasets, 'eu', notes=notes_1)
 es_ma_1 = generate_exp_set(datasets, 'ma', notes=notes_1)
 es_ch_1 = generate_exp_set(datasets, 'ch', notes=notes_1)

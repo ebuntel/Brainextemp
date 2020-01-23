@@ -29,7 +29,7 @@ def sim_between_seq(seq1: Sequence, seq2: Sequence, dt_index: int):
         return np.sqrt(fastdtw(seq1.get_data(), seq2.get_data(), dist=lambda x, y: np.square(x-y))[0] /
                        (len(seq1) + len(seq2)))
     elif dt_index == 1:
-        return fastdtw(seq1.get_data(), seq2.get_data(), dist=lambda x, y: np.abs(x-y))[0] / (len(seq1) + len(seq2))
+        return fastdtw(seq1.get_data(), seq2.get_data())[0] / (len(seq1) + len(seq2))
     elif dt_index == 2:
         return fastdtw(seq1.get_data(), seq2.get_data(), dist=0)[0]
     else:
