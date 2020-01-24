@@ -37,11 +37,11 @@ if __name__ == '__main__':
     date = 'Jan-19-2020-12-N-BSFKimOnly-R1'
 
     dist_type = 'eu'
-    title = 'Euclidean Query Accuracy on Four Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
+    title = 'Euclidean Query Accuracy across Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
     dist_type = 'ma'
-    title = 'Manhattan Query Accuracy on Four Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
+    title = 'Manhattan Query Accuracy across Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
     dist_type = 'ch'
-    title = 'Chebyshev Query Accuracy on Four Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
+    title = 'Chebyshev Query Accuracy across Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
     file_dict = {'Gun Point': 'results/' + date + '/Gun_Point_TRAIN_' + dist_type + '.csv',
                  'ECG Five Days': 'results/' + date + '/ECGFiveDays_' + dist_type + '.csv',
                  'Italy Power Demand': 'results/' + date + '/ItalyPower_' + dist_type + '.csv',
