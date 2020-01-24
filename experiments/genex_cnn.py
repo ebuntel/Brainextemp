@@ -45,7 +45,7 @@ Y = encoder.fit_transform(np.expand_dims(np.asarray(Y), axis=1)).toarray()
 # Y = Y[0:-1:8]  # take every eight row as a label
 
 
-# separate training and test set
+# separate training and test_result set
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=3)
 
 #  Using SMOTE oversampling ######################
@@ -104,7 +104,7 @@ plt.plot(history.history['val_acc'])
 plt.title('model accuracy')
 plt.ylabel('accuracy')
 plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
+plt.legend(['train', 'test_result'], loc='upper left')
 plt.show()
 
 # summarize history for loss
@@ -113,7 +113,7 @@ plt.plot(history.history['val_loss'])
 plt.title('model loss')
 plt.ylabel('loss')
 plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
+plt.legend(['train', 'test_result'], loc='upper left')
 plt.show()
 
 y_pred = classifier.predict(X)

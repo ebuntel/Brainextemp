@@ -1,32 +1,32 @@
 import csv
 import os
 import time
-import datetime
-
+from datetime import datetime
 import findspark
 
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from pyspark import SparkContext, SparkConf
 
 import numpy as np
 import pandas as pd
+from datetime import date
 
-spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7'  # Set your own
-java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
-os.environ['JAVA_HOME'] = java8_location
-findspark.init(spark_home=spark_location)
+
+# spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7'  # Set your own
+# java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
+# os.environ['JAVA_HOME'] = java8_location
+# findspark.init(spark_home=spark_location)
 
 
 # create the spark context
-def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
-                     _dist_type, _lb_opt_repr, _lb_opt_cluster):
-    num_cores = 16
-    conf = SparkConf(). \
-        setMaster("local[" + str(num_cores) + "]"). \
-        setAppName("Genex").set('spark.driver.memory', '32G'). \
-        set('spark.driver.maxResultSize', '32G')
-    sc = SparkContext(conf=conf)
+from gxe_utils import from_csv
 
+
+def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
+                     dist_type, _lb_opt_repr, _lb_opt_cluster, _radius, use_spark: bool):
+    num_cores = 12
+    driver_mem = 32
+    max_result_mem = 32
     # create gxdb from a csv file
 
     # set up where to save the results
@@ -35,7 +35,9 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     result_df = pd.DataFrame(columns=result_headers[0, :])
 
     print('Performing clustering ...')
-    mydb = gxdb.from_csv(data, sc=sc, feature_num=feature_num, add_uuid=add_uuid, _rows_to_consider=num_sample)
+    mydb = from_csv(data, feature_num=feature_num, num_worker=num_cores,
+                    use_spark=use_spark, driver_mem=driver_mem, max_result_mem=max_result_mem,
+                    add_uuid=add_uuid, _rows_to_consider=num_sample)
 
     print('Generating query of max seq len ...')
     # generate the query sets
@@ -47,30 +49,34 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
         query_set.append(mydb.get_random_seq_of_len(int(mydb.get_max_seq_len() / 2), seed=i))
 
     cluster_start_time = time.time()
-    print('Using dist_type = ' + str(_dist_type))
-    mydb.build(similarity_threshold=0.1, dist_type=_dist_type)
+    print('Using dist_type = ' + str(dist_type))
+    mydb.build(st=0.1, dist_type=dist_type)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
-
+    print('Clustering took ' + str(cluster_time) + ' sec')
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
     overall_diff_list = []
 
     print('Evaluating ...')
     for i, q in enumerate(query_set):
-        print('Dataset: ' + data + 'dist_type: '+ _dist_type + '- Querying #' + str(i) + ' of ' + str(len(query_set)) + '; query = ' + str(q))
+        print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
+            len(query_set)) + '; query = ' + str(q))
         start = time.time()
-        print('     Running Genex Query ...')
-        query_result_gx = mydb.query(query=q, best_k=15, _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr)
+        print('Running Genex Query ...')
+        query_result_gx = mydb.query(query=q, best_k=15,
+                                     _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
+                                     _radius=_radius)
         gx_time = time.time() - start
 
         start = time.time()
-        print('     Running Brute Force Query ...')
+        print('Genex  query took ' + str(gx_time) + ' sec')
+        print('Running Brute Force Query ...')
         query_result_bf = mydb.query_brute_force(query=q, best_k=15)
         bf_time = time.time() - start
-
+        print('Brute force query took ' + str(bf_time) + ' sec')
         # save the results
-        print('     Saving results ...')
+        print('Saving results for query #' + str(i) + ' of ' + str(len(query_set)))
         result_df = result_df.append({'query': str(q), 'gx_time': gx_time, 'bf_time': bf_time}, ignore_index=True)
         diff_list = []
         for gx_r, bf_r in zip(query_result_gx, query_result_bf):
@@ -89,127 +95,169 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     result_df = result_df.append({'diff': np.mean(overall_diff_list)}, ignore_index=True)
     result_df.to_csv(output)
     # terminate the spark session
-    sc.stop()
+    mydb.stop()
 
     return mydb
 
 
-experiment_set_dist_eu = {
-    'italyPowerDemand': {'data': 'data/ItalyPower.csv',
-                         'output': 'results/ItalyPowerDemand_result_dist_eu.csv',
-                         'feature_num': 2,
-                         'add_uuid': False},
+def generate_exp_set(dataset_list, dist_type, notes: str):
+    today = datetime.now()
+    dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
+    if not os.path.exists(dir_name):
+        os.mkdir(dir_name)
 
-    'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
-                    'output': 'results/ECGFiveDays_result_dist_eu.csv',
-                    'feature_num': 2,
-                    'add_uuid': False},
+    config_list = []
+    for d in dataset_list:
+        d_path = os.path.join('data', d + '.csv')
+        assert os.path.exists(d_path)
 
-    'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
-                        'output': 'results/Gun_Point_TRAIN_result_dist_eu.csv',
-                        'feature_num': 1,
-                        'add_uuid': True},
-    'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
-                                'output': 'results/synthetic_control_TRAIN_result_dist_eu.csv',
-                                'feature_num': 1,
-                                'add_uuid': True},
+        config_list.append({
+            'data': d_path,
+            'output': os.path.join(dir_name, d + '_' + dist_type + '.csv'),
+            'feature_num': 0,
+            'add_uuid': True,
+            'dist_type': dist_type
+        })
+    return config_list
+
+
+def run_exp_set(exp_set, num_sample, num_query,
+                _lb_opt_repr, _lb_opt_cluster, radius, use_spark):
+    for es in exp_set:
+        experiment_genex(**es, num_sample=num_sample, num_query=num_query,
+                         _lb_opt_repr=_lb_opt_repr, _lb_opt_cluster=_lb_opt_cluster, _radius=radius, use_spark=use_spark)
+
+
+datasets = [
+    'ItalyPower',
+    'ECGFiveDays',
+    'Gun_Point_TRAIN',
+    'synthetic_control_TRAIN'
+]
+########################################################################################################################
+ex_config_0 = {
+    'num_sample': 40,
+    'num_query': 40,
+    '_lb_opt_repr': 'none',
+    '_lb_opt_cluster': 'none',
+    'radius': 0,
+    'use_spark': True
 }
-
-experiment_set_dist_ma = {'italyPowerDemand': {'data': 'data/ItalyPower.csv',
-                                               'output': 'results/ItalyPowerDemand_result_dist_ma.csv',
-                                               'feature_num': 2,
-                                               'add_uuid': False},
-
-                          'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
-                                          'output': 'results/ECGFiveDays_result_dist_ma.csv',
-                                          'feature_num': 2,
-                                          'add_uuid': False},
-
-                          'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
-                                              'output': 'results/Gun_Point_TRAIN_result_dist_ma.csv',
-                                              'feature_num': 1,
-                                              'add_uuid': True},
-                          'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
-                                                      'output': 'results/synthetic_control_TRAIN_result_dist_ma.csv',
-                                                      'feature_num': 1,
-                                                      'add_uuid': True},
-                          }
-
-experiment_set_dist_ch = {
-    'italyPowerDemand': {'data': 'data/ItalyPower.csv',
-                         'output': 'results/ItalyPowerDemand_result_dist_ch.csv',
-                         'feature_num': 2,
-                         'add_uuid': False},
-
-    'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
-                    'output': 'results/ECGFiveDays_result_dist_ch.csv',
-                    'feature_num': 2,
-                    'add_uuid': False},
-
-    'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
-                        'output': 'results/Gun_Point_TRAIN_result_dist_ch.csv',
-                        'feature_num': 1,
-                        'add_uuid': True},
-    'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
-                                'output': 'results/synthetic_control_TRAIN_result_dist_ch.csv',
-                                'feature_num': 1,
-                                'add_uuid': True},
-}
-
-_lb_opt_repr = 'bsf'
-_lb_opt_cluster = 'bsf'
-
-for key, value in experiment_set_dist_eu.items():
-    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='eu', _lb_opt_repr=_lb_opt_repr,
-                            _lb_opt_cluster=_lb_opt_cluster)
-
-for key, value in experiment_set_dist_ma.items():
-    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ma', _lb_opt_repr=_lb_opt_repr,
-                            _lb_opt_cluster=_lb_opt_cluster)
-
-for key, value in experiment_set_dist_ch.items():
-    mydb = experiment_genex(**value, num_sample=40, num_query=40, _dist_type='ch', _lb_opt_repr=_lb_opt_repr,
-                            _lb_opt_cluster=_lb_opt_cluster)
-
-# data_file = 'data/ItalyPower.csv'
-# result_file = 'results/ipd/ItalyPowerDemand_result'
-# feature_num = 2
-# add_uuid = False
-# k_to_test = [15, 9, 1]
-# ke_result_dict = dict()
-# for k in k_to_test:
-# ke_result_dict[k] = experiment_genex_ke(data_file, num_sample=40, num_query=40, best_k=k, add_uuid=add_uuid,
-#                                         feature_num=feature_num)
-
-# q = Sequence(seq_id=('Italy_power25', '2'), start=7, end=18)
-# seq1 = Sequence(seq_id=('Italy_power25', '2'), start=6, end=18)
-# seq2 = Sequence(seq_id=('Italy_power25', '2'), start=7, end=17)
-# q.fetch_and_set_data(mydb.data_normalized)
-# seq1.fetch_and_set_data(mydb.data_normalized)
-# seq2.fetch_and_set_data(mydb.data_normalized)
-# from dtw import dtw
-# import matplotlib.pyplot as plt
-# plt.plot(q.data, label='query')
-# plt.plot(seq1.data, label='gx')
-# plt.plot(seq2.data, label='bf')
-# plt.legend()
-# plt.show()
-# euclidean_norm = lambda x, y: np.abs(x - y)
-# x_dist1, cost_matrix1, acc_cost_matrix1, path1 = dtw(q.data, seq1.data, dist=euclidean_norm)
-# x_dist2, cost_matrix2, acc_cost_matrix2, path2 = dtw(q.data, seq2.data, dist=euclidean_norm)
-# plt.imshow(acc_cost_matrix1.T, origin='lower', cmap='gray', interpolation='nearest')
-# plt.plot(path1[0], path1[1], 'w')
-# plt.title('query and gx')
-# plt.show()
-#
-# plt.imshow(acc_cost_matrix2.T, origin='lower', cmap='gray', interpolation='nearest')
-# plt.plot(path2[0], path2[1], 'w')
-# plt.title('query and bf')
-# plt.show()
-# print('distance between query and gx ' + str(x_dist1))
-# print('distance between query and bf ' + str(x_dist2))
-# dist1 = sim_between_seq(q, seq1, dist_type='eu')
-# dist2 = sim_between_seq(q, seq2, dist_type='eu')
-
+start = time.time()
+notes_0 = 'UseSpark-R0-noOpt'
+es_eu_0 = generate_exp_set(datasets, 'eu', notes=notes_0)
+es_ma_0 = generate_exp_set(datasets, 'ma', notes=notes_0)
+es_ch_0 = generate_exp_set(datasets, 'ch', notes=notes_0)
+run_exp_set(es_eu_0, **ex_config_0)
+run_exp_set(es_ma_0, **ex_config_0)
+run_exp_set(es_ch_0, **ex_config_0)
+duration1 = time.time() - start
 print('Finished at')
-print(datetime.datetime.now())
+print(datetime.now())
+print('The experiment with radius 0 took ' + str(duration1/3600) + ' hrs')
+########################################################################################################################
+ex_config_1 = {
+    'num_sample': 40,
+    'num_query': 40,
+    '_lb_opt_repr': 'none',
+    '_lb_opt_cluster': 'none',
+    'radius': 0,
+    'use_spark': False
+}
+start = time.time()
+notes_1 = 'noneSpark-R0-noOpt'
+es_eu_1 = generate_exp_set(datasets, 'eu', notes=notes_1)
+es_ma_1 = generate_exp_set(datasets, 'ma', notes=notes_1)
+es_ch_1 = generate_exp_set(datasets, 'ch', notes=notes_1)
+run_exp_set(es_eu_1, **ex_config_1)
+run_exp_set(es_ma_1, **ex_config_1)
+run_exp_set(es_ch_1, **ex_config_1)
+duration1 = time.time() - start
+print('Finished at')
+print(datetime.now())
+print('The experiment with radius 0 took ' + str(duration1/3600) + ' hrs')
+
+########################################################################################################################
+# ex_config_2 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt_repr': 'bsf',
+#     '_lb_opt_cluster': 'bsf',
+#     'radius': 0
+# }
+# start = time.time()
+# notes_2 = 'UseSpark-R0-bsf'
+# es_eu_2 = generate_exp_set(datasets, 'eu', notes=notes_2)
+# es_ma_2 = generate_exp_set(datasets, 'ma', notes=notes_2)
+# es_ch_2 = generate_exp_set(datasets, 'ch', notes=notes_2)
+# run_exp_set(es_eu_2, **ex_config_2)
+# run_exp_set(es_ma_2, **ex_config_2)
+# run_exp_set(es_ch_2, **ex_config_2)
+# duration2 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment with radius 0 took ' + str(duration2/3600) + ' hrs')
+
+########################################################################################################################
+ex_config_3 = {
+    'num_sample': 40,
+    'num_query': 40,
+    '_lb_opt_repr': 'bsf',
+    '_lb_opt_cluster': 'bsf',
+    'radius': 0,
+    'use_spark': True
+}
+start = time.time()
+notes_3 = 'UseSpark-R0-bsfKimOnly'
+es_eu_3 = generate_exp_set(datasets, 'eu', notes=notes_3)
+es_ma_3 = generate_exp_set(datasets, 'ma', notes=notes_3)
+es_ch_3 = generate_exp_set(datasets, 'ch', notes=notes_3)
+run_exp_set(es_eu_3, **ex_config_3)
+run_exp_set(es_ma_3, **ex_config_3)
+run_exp_set(es_ch_3, **ex_config_3)
+duration3 = time.time() - start
+print('Finished at')
+print(datetime.now())
+print('The experiment took ' + str(duration3/3600) + ' hrs')
+# ########################################################################################################################
+ex_config_4 = {
+    'num_sample': 40,
+    'num_query': 40,
+    '_lb_opt_repr': 'none',
+    '_lb_opt_cluster': 'none',
+    'radius': 1,
+    'use_spark': True
+}
+start = time.time()
+notes_4 = 'UseSpark-R1-noOpt'
+es_eu_4 = generate_exp_set(datasets, 'eu', notes=notes_4)
+es_ma_4 = generate_exp_set(datasets, 'ma', notes=notes_4)
+es_ch_4 = generate_exp_set(datasets, 'ch', notes=notes_4)
+run_exp_set(es_eu_4, **ex_config_4)
+run_exp_set(es_ma_4, **ex_config_4)
+run_exp_set(es_ch_4, **ex_config_4)
+duration4 = time.time() - start
+print('Finished at')
+print(datetime.now())
+print('The experiment took ' + str(duration4/3600) + ' hrs')
+########################################################################################################################
+ex_config_5 = {
+    'num_sample': 40,
+    'num_query': 40,
+    '_lb_opt_repr': 'bsf',
+    '_lb_opt_cluster': 'bsf',
+    'radius': 1,
+    'use_spark': True
+}
+start = time.time()
+notes_5 = 'UseSpark-R1-bsfKimOnly'
+es_eu_5 = generate_exp_set(datasets, 'eu', notes=notes_5)
+es_ma_5 = generate_exp_set(datasets, 'ma', notes=notes_5)
+es_ch_5 = generate_exp_set(datasets, 'ch', notes=notes_5)
+run_exp_set(es_eu_5, **ex_config_5)
+run_exp_set(es_ma_5, **ex_config_5)
+run_exp_set(es_ch_5, **ex_config_5)
+duration5 = time.time() - start
+print('Finished at')
+print(datetime.now())
+print('The experiment took ' + str(duration5/3600) + ' hrs')

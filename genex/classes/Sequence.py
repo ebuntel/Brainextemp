@@ -1,9 +1,11 @@
+import numpy as np
+
 wrap_in_parantheses = lambda x: "(" + str(x) + ")"
 
 
 class Sequence:
 
-    def __init__(self, seq_id: tuple, start: int, end: int, data: list = None):
+    def __init__(self, seq_id: tuple, start: int, end: int, data: np.ndarray = None):
         self.seq_id = seq_id
         self.start = start
         self.end = end
@@ -12,7 +14,7 @@ class Sequence:
     def __str__(self):
         label_features = [wrap_in_parantheses(feature) for feature in self.seq_id]
         id = "_".join(label_features).replace('  ', '-').replace(' ', '-')
-        return id + ': (' + str(self.start) + ':' + str(self.end) + ')'
+        return id + ': (' + str(self.start) + ':' + str(self.end) + ')' + 'len=' + str(len(self))
 
     def __len__(self):
         return self.end - self.start + 1
@@ -45,7 +47,7 @@ class Sequence:
 
     def get_data(self):
         if self.data is None:
-            raise Exception('Sequence: data not stored, please use fetch_data instead')
+            raise Exception('Sequence: data_original not stored, please use fetch_data instead')
         return self.data
 
     def fetch_and_set_data(self, input_list):
@@ -63,9 +65,9 @@ class Sequence:
         except KeyError and IndexError as e:
             print(self)
             if type(e) is KeyError:
-                raise Exception('Given data list does not have a sequence with this sequence id')
+                raise Exception('Given data_original list does not have a sequence with this sequence id')
             elif type(e) is IndexError:
-                raise Exception('This sequence is out of bound with given data list')
+                raise Exception('This sequence is out of bound with given data_original list')
 
     def _check_feature(self, features):
         """
@@ -76,7 +78,7 @@ class Sequence:
         try:
             assert isinstance(features, str) or isinstance(features, list) or isinstance(features, tuple)
         except AssertionError:
-            raise Exception('Invalide features in _check_feature for the Sequence object')
+            raise Exception('Invalid features in _check_feature for the Sequence object')
 
         if isinstance(features, str):
             return features in self.seq_id

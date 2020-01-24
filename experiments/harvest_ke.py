@@ -3,7 +3,7 @@ import math
 import random
 import time
 
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from pyspark import SparkContext, SparkConf
 from genex.parse import generate_query
 
@@ -52,7 +52,7 @@ def experiment_genex_ke(data_file, num_sample, num_query, best_k, feature_num, a
 
     # perform clustering
     cluster_start_time = time.time()
-    mydb.build(similarity_threshold=0.1, dist_type=dist_type)
+    mydb.build(st=0.1, dist_type=dist_type)
     timing_dict['cluster time'] = time.time() - cluster_start_time
 
     bf_result_dict = dict()
@@ -110,7 +110,7 @@ def harvest_ke_multiple_k(k_to_test, experiment_set):
         l1_ke_k_array = list()
         fig, ax = plt.subplots()
         for k in k_to_test:
-            ke_result_dict[k] = experiment_genex_ke(config['data'], num_sample=40, num_query=40, best_k=k,
+            ke_result_dict[k] = experiment_genex_ke(config['data_original'], num_sample=40, num_query=40, best_k=k,
                                                     add_uuid=config['add_uuid'], feature_num=config['feature_num'],
                                                     dist_type=config['dist_type'])
 
@@ -131,21 +131,21 @@ def harvest_ke_multiple_k(k_to_test, experiment_set):
 
 k_to_test = [50, 15, 9, 1]
 experiment_set_ma = {
-    'italyPowerDemand': {'data': 'data/ItalyPower.csv',
+    'italyPowerDemand': {'data_original': 'data_original/ItalyPower.csv',
                          'feature_num': 2,
                          'add_uuid': False,
                          'dist_type': 'ma'},
 
-    'ecgFiveDays': {'data': 'data/ECGFiveDays.csv',
+    'ecgFiveDays': {'data_original': 'data_original/ECGFiveDays.csv',
                     'feature_num': 2,
                     'add_uuid': False,
                     'dist_type': 'ma'},
 
-    'Gun_Point_TRAIN': {'data': 'data/Gun_Point_TRAIN.csv',
+    'Gun_Point_TRAIN': {'data_original': 'data_original/Gun_Point_TRAIN.csv',
                         'feature_num': 1,
                         'add_uuid': True,
                         'dist_type': 'ma'},
-    'synthetic_control_TRAIN': {'data': 'data/synthetic_control_TRAIN.csv',
+    'synthetic_control_TRAIN': {'data_original': 'data_original/synthetic_control_TRAIN.csv',
                                 'feature_num': 1,
                                 'add_uuid': True,
                                 'dist_type': 'ma'},

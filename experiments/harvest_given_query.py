@@ -1,7 +1,7 @@
 import csv
 import time
 
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from pyspark import SparkContext, SparkConf
 from genex.parse import generate_query
 
@@ -35,7 +35,7 @@ def experiment_genex(data_file, query_file, result_file):
         return
 
     cluster_start_time = time.time()
-    mydb.build(similarity_threshold=0.1)
+    mydb.build(st=0.1)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
 
@@ -79,14 +79,14 @@ def experiment_genex(data_file, query_file, result_file):
     sc.stop()
 
 
-# data_file = 'data/test/ItalyPowerDemand_TEST.csv'
-# query_file = 'data/test/ItalyPowerDemand_query.csv'
-# result_file = 'results/test/ItalyPowerDemand_result_regular.csv'
+# data_file = 'data_original/test_result/ItalyPowerDemand_TEST.csv'
+# query_file = 'data_original/test_result/ItalyPowerDemand_query.csv'
+# result_file = 'results/test_result/ItalyPowerDemand_result_regular.csv'
 # experiment_genex(data_file, query_file, result_file)
 # TODO run ECG
 # Querying #9 of 15; query = (ECG-1)_(Label-2): (61:118)
 #      Running Genex Query ...
-data_file = 'data/test/ECGFiveDays_TEST .csv'
-query_file = 'data/test/ECGFiveDays_query_1.csv'
-result_file = 'results/test/ECGFiveDays_result_1.csv'
+data_file = 'data_original/test_result/ECGFiveDays_TEST .csv'
+query_file = 'data_original/test_result/ECGFiveDays_query_1.csv'
+result_file = 'results/test_result/ECGFiveDays_result_1.csv'
 experiment_genex(data_file, query_file, result_file)

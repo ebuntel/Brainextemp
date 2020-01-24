@@ -1,4 +1,4 @@
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from pyspark import SparkContext, SparkConf
 
 # create the spark context
@@ -10,10 +10,10 @@ conf = SparkConf(). \
 sc = SparkContext(conf=conf)
 
 # create gxdb from a csv file
-data_file = '/home/apocalyvec/PycharmProjects/Genex/experiments/data/ItalyPower.csv'
+data_file = '/home/apocalyvec/PycharmProjects/Genex/experiments/data_original/ItalyPower.csv'
 #
 mydb = gxdb.from_csv(data_file, sc=sc, feature_num=2)
-mydb.build(similarity_threshold=0.5)
+mydb.build(st=0.5)
 
 for representative, cluster_size in mydb.cluster_meta_dict.get(20).items():
     test_repr = representative

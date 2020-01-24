@@ -2,9 +2,9 @@ import math
 from pyspark import SparkContext
 import numpy as np
 
-from genex.cluster import _cluster, _cluster_groups
+from genex.op.cluster_op import _cluster_groups
 from genex.classes.Sequence import Sequence
-from genex.utils import flatten
+from genex.utils.utils import genex_normalize
 
 
 def filter_sublists(input_list, length):
@@ -108,18 +108,18 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext, num_cores: int,
     input_rdd = sc.parallelize(normalized_input_list, numSlices=num_cores)
     group_rdd = input_rdd.flatMap(lambda x: get_subsequences(x, loi))
     cluster_rdd = group_rdd.mapPartitions(
-        lambda x: _cluster_groups(groups=x, st=similarity_threshold, log_level=log_level, dist_type=dist_type),
+        lambda x: _cluster_groups(groups=x, st=similarity_threshold, log_level=log_level, dist_func=dist_type),
         preservesPartitioning=False).cache()
 
     # if is_collect:
     #     return Gcluster(feature_list=feature_list,
-    #                     data=input_list, data_normalized=normalized_input_list, st=similarity_threshold,
+    #                     data_original=input_list, data_normalized=normalized_input_list, st=similarity_threshold,
     #                     cluster_dict=dict(input_rdd.collect()), collected=True,
     #                     # this two attribute are different based on is_collect set to true or false
     #                     global_max=global_max, global_min=global_min)
     # else:
     #     return Gcluster(feature_list=feature_list,
-    #                     data=input_list, data_normalized=normalized_input_list, st=similarity_threshold,
+    #                     data_original=input_list, data_normalized=normalized_input_list, st=similarity_threshold,
     #                     cluster_dict=input_rdd, collected=False,
     #                     global_max=global_max, global_min=global_min)
 
@@ -157,7 +157,7 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext, num_cores: int,
 #         raise Exception('do_gcluster: Start must be greater than end in the '
 #                         'Length of Interest')
 #
-#     # validate the data length
+#     # validate the data_original length
 #     all_ts = list(map(lambda x: x[1], input_list))
 #     try:
 #         assert not all(loi[1] > len(ts) for ts in all_ts)
@@ -189,12 +189,12 @@ def do_gcluster(input_list: list, loi: list, sc: SparkContext, num_cores: int,
 #
 #     if is_collect:
 #         return genex_database(feature_list=feature_list,
-#                               data=input_list, data_normalized=normalized_input_list, st=similarity_threshold,
+#                               data_original=input_list, data_normalized=normalized_input_list, st=similarity_threshold,
 #                               cluster_dict=dict(input_rdd.collect()), collected=True,
 #                               # this two attribute are different based on is_collect set to true or false
 #                               global_max=global_max, global_min=global_min)
 #     else:
 #         return genex_database(feature_list=feature_list,
-#                               data=input_list, data_normalized=normalized_input_list, st=similarity_threshold,
+#                               data_original=input_list, data_normalized=normalized_input_list, st=similarity_threshold,
 #                               cluster_dict=input_rdd, collected=False,
 #                               global_max=global_max, global_min=global_min)

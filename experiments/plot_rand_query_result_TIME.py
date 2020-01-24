@@ -5,13 +5,13 @@ import numpy as np
 
 from experiments.plot_rand_query_result_RMSE import autolabel
 
-date = '122219'
+date = 'Jan-19-2020-21-N-BSFKimOnly-R1'
 
 file_list = [
-    'results/' + date + '/Gun_Point_TRAIN_result',
-    'results/' + date + '/ECGFiveDays_result',
-    'results/' + date + '/ItalyPowerDemand_result',
-    'results/' + date + '/synthetic_control_TRAIN_result'
+    'results/' + date + '/Gun_Point_TRAIN',
+    'results/' + date + '/ECGFiveDays',
+    'results/' + date + '/ItalyPower',
+    'results/' + date + '/synthetic_control_TRAIN'
 ]
 
 dist_types = ['eu', 'ma', 'ch']
@@ -39,8 +39,8 @@ fig.set_size_inches(15, 8)
 for i, alg in enumerate(algorithm_dict.keys()):
 
     dt_timing_dict = dict()
-    for dt in dist_types:
-        result_list = [x + '_dist_' + dt + '.csv' for x in file_list]
+    for dist_type in dist_types:
+        result_list = [x + '_' + dist_type + '.csv' for x in file_list]
         bf_time_list = []
         gx_time_list = []
         cluster_time_list = []
@@ -66,7 +66,7 @@ for i, alg in enumerate(algorithm_dict.keys()):
 
 ax.set_ylabel('Time (seconds)')
 ax.set_xlabel('Distance Type')
-ax.set_title('Query Performance Timing Evaluation for difference distance types')
+ax.set_title('Query Timing Evaluation for difference distance  \n [Opt: Vectorization, BSFKimOnly, R1]')
 ax.set_xticks(x)
 ax.set_xticklabels(['Euclidean', 'Manhattan', 'Chebyshev'])
 ax.legend()

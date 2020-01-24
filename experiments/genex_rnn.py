@@ -28,7 +28,7 @@ X = np.expand_dims(X, axis=-1)
 lb = preprocessing.LabelBinarizer()
 Y = lb.fit_transform(Y)
 
-# separate training and test set
+# separate training and test_result set
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=12)
 
 # build and fit the network
@@ -56,7 +56,7 @@ plt.plot(history.history['val_acc'])
 plt.title('model accuracy')
 plt.ylabel('accuracy')
 plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
+plt.legend(['train', 'test_result'], loc='upper left')
 plt.show()
 
 # summarize history for loss
@@ -65,5 +65,5 @@ plt.plot(history.history['val_loss'])
 plt.title('model loss')
 plt.ylabel('loss')
 plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
+plt.legend(['train', 'test_result'], loc='upper left')
 plt.show()

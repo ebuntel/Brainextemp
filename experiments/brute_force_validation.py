@@ -1,7 +1,7 @@
 import random
 import time
 
-import genex.database.genex_database as gxdb
+import genex.database.genexengine as gxdb
 from pyspark import SparkContext, SparkConf
 import pandas as pd
 import csv
@@ -20,7 +20,7 @@ def validate_brute_force(data_file_path, len_to_test, feature_num, rows_to_consi
 
     # create gxdb from a csv file
     mydb = gxdb.from_csv(data_file_path, sc=sc, feature_num=feature_num, _rows_to_consider=rows_to_consider)
-    mydb.build(similarity_threshold=0.1, _is_cluster=False)  # just set the build parameters without actually clustering
+    mydb.build(st=0.1, _is_cluster=False)  # just set the build parameters without actually clustering
 
     query_bf_results = []
 
@@ -63,7 +63,7 @@ rows_to_consider = [0, 50]
 if __name__ == '__main__':
     sample_per_length = 16
 
-    data_file = 'data/' + dataset_name + '.csv'
+    data_file = 'data_original/' + dataset_name + '.csv'
     validation_result = validate_brute_force(data_file_path=data_file, feature_num=5, len_to_test=len_to_test,
                                              sample_per_length=sample_per_length, rows_to_consider=rows_to_consider)
 

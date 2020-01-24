@@ -1,13 +1,4 @@
-import math
-import csv
-
-import genex.database.genex_database as gxdb
-from genex.preprocess import genex_normalize
-from genex.utils import normalize_sequence
-import heapq
-import time
-from genex.cluster import sim_between_seq
-import matplotlib.pyplot as plt
+import genex.database.genexengine as gxdb
 
 fn = 'SART2018_HbO.csv'
 
@@ -51,7 +42,7 @@ df_norm_list = new_db.data_normalized.values.tolist()
 df_norm_list = map(lambda x: gxdb._row_to_feature_and_data(x), df_norm_list)
 # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
 # query = next((item for item in query_set if item.id in dict(df_norm_list).keys()), None)
-# fetch the data for the query
+# fetch the data_original for the query
 query = query_set[10]
 query.set_data(query.fetch_data(df_norm_list))
 
