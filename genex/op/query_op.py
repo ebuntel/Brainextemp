@@ -1,4 +1,5 @@
 import heapq
+import math
 
 import numpy as np
 from dtw import dtw
@@ -11,58 +12,56 @@ from genex.utils.ts_utils import lb_kim_sequence, lb_keogh_sequence
 from genex.utils.utils import get_trgt_len_within_r, get_sequences_represented, _isOverlap, reduce_by_key
 
 
-def sim_between_seq(seq1: Sequence, seq2: Sequence, dt_index: int):
+def sim_between_seq(seq1: Sequence, seq2: Sequence, pnorm: int):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
-    :param dt_index: the distance type that can be: 0, 1, or 2
+    :param pnorm: the distance type that can be: 0, 1, or 2
     :param seq1: Time series sequence
     :param seq2: Time series sequence
     :return float: return the Normalized DTW distance between sequence 1 (seq1) and sequence 2 (seq2)
     """
-    # dist_type_index = {'eu': 0,
+    # dt_pnorm_dict = {'eu': 0,
     #                    'ma': 1,
     #                    'ch': 2,
     #                    'min': 2}
-
-    if dt_index == 0:
-        return np.sqrt(fastdtw(seq1.get_data(), seq2.get_data(), dist=lambda x, y: np.square(x-y))[0] /
-                       (len(seq1) + len(seq2)))
-    elif dt_index == 1:
-        return fastdtw(seq1.get_data(), seq2.get_data(), dist=lambda x, y: np.abs(x-y))[0] / (len(seq1) + len(seq2))
-    elif dt_index == 2:
-        return fastdtw(seq1.get_data(), seq2.get_data(), dist=0)[0]
+    dist = fastdtw(seq1.get_data(), seq2.get_data(), dist=pnorm)[0]
+    if pnorm == 2:
+        return np.sqrt(dist / (len(seq1) + len(seq2)))
+    elif pnorm == 1:
+        return dist / (len(seq1) + len(seq2))
+    elif pnorm == math.inf:
+        return dist
     else:
         raise Exception('Unsupported dist type in sim_between_seq, this should never happen!')
 
 
-def sim_between_array(a1: np.ndarray, a2: np.ndarray, dt_index: int):
+def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
     :param a1:
     :param a2:
-    :param dt_index: the distance type that can be: 0, 1, or 2
+    :param pnorm: the distance type that can be: 0, 1, or 2
     :return float: return the Normalized DTW distance between sequence 1 (seq1) and sequence 2 (seq2)
     """
-    # dist_type_index = {'eu': 0,
+    # dt_pnorm_dict = {'eu': 0,
     #                    'ma': 1,
     #                    'ch': 2,
     #                    'min': 2}
 
-    if dt_index == 0:
-        return np.sqrt(dtw(a1, a2, dist=lambda x, y: np.square(x-y))[0] /
-                       (len(a1) + len(a2)))
-    elif dt_index == 1:
-        return fastdtw(a1, a2, dist=lambda x, y: np.abs(x-y))[0] / (len(a1) + len(a2))
-    elif dt_index == 2:
-        return fastdtw(a1, a2, dist=0)[0]
+    dist = fastdtw(a1, a2, dist=pnorm)[0]
+    if pnorm == 2:
+        return np.sqrt(dist / (len(a1) + len(a2)))
+    elif pnorm == 1:
+        return dist / (len(a1) + len(a2))
+    elif pnorm == math.inf:
+        return dist
     else:
         raise Exception('Unsupported dist type in sim_between_seq, this should never happen!')
 
-
 def get_dist_query(query, target, dt_index):
-    return sim_between_seq(query, target, dt_index=dt_index), target
+    return sim_between_seq(query, target, pnorm=dt_index), target
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, dt_index: int,
