@@ -64,7 +64,7 @@ def get_dist_query(query, target, dt_index):
     return sim_between_seq(query, target, pnorm=dt_index), target
 
 
-def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, dt_index: int,
+def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, pnorm: int,
                      _lb_opt_cluster: str, _lb_opt_repr: str,
                      overlap: float, exclude_same_id: bool, radius: int, st: float):
     """
@@ -125,10 +125,10 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, d
 
             if _lb_opt_repr == 'bsf':
                 this_candidates = \
-                    bsf_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, st=st, dt_index=dt_index)
+                    bsf_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, st=st, dt_index=pnorm)
             else:
                 this_candidates = \
-                    naive_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, dt_index=dt_index)
+                    naive_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, dt_index=pnorm)
 
             candidates += this_candidates
             cluster_dict.pop(target_l)
@@ -148,10 +148,10 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, d
 
     if _lb_opt_cluster == 'bsf':
         # print('Using bsf')
-        return bsf_search(q, k, candidates, dt_index=dt_index)
+        return bsf_search(q, k, candidates, dt_index=pnorm)
     elif _lb_opt_cluster == 'none':
         # print('Using naive')
-        return naive_search(q, k, candidates, overlap, exclude_same_id, dt_index=dt_index)
+        return naive_search(q, k, candidates, overlap, exclude_same_id, dt_index=pnorm)
     else:
         raise Exception('_query_partition: unsupported _lb_opt_cluster: ' + str(_lb_opt_cluster))
 

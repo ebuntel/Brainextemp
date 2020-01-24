@@ -24,9 +24,9 @@ from gxe_utils import from_csv
 
 def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
                      dist_type, _lb_opt_repr, _lb_opt_cluster, _radius, use_spark: bool):
-    num_cores = 32
-    driver_mem = 64
-    max_result_mem = 64
+    num_cores = 12
+    driver_mem = 32
+    max_result_mem = 32
     # create gxdb from a csv file
 
     # set up where to save the results
