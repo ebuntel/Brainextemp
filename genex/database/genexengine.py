@@ -1,5 +1,6 @@
 import heapq
 import json
+import math
 import multiprocessing
 import os
 import pickle
@@ -39,15 +40,15 @@ def min_norm(x, y):
     return chebyshev(x, y)
 
 
-dist_func_index = {'eu': eu_norm,
-                   'ma': ma_norm,
-                   'ch': ch_norm,
-                   'min': min_norm
-                   }
-dist_type_index = {'eu': 0,
-                   'ma': 1,
-                   'ch': 2,
-                   'min': 2}
+dt_func_dict = {'eu': eu_norm,
+                'ma': ma_norm,
+                'ch': ch_norm,
+                'min': min_norm
+                }
+dt_pnorm_dict = {'eu': 2,
+                 'ma': 1,
+                 'ch': math.inf,
+                 'min': math.inf}
 
 
 class GenexEngine:
@@ -126,7 +127,7 @@ class GenexEngine:
 
         # determine the distance calculation function
         try:
-            dist_func = dist_func_index[dist_type]
+            dist_func = dt_func_dict[dist_type]
         except ValueError:
             raise Exception('Unknown distance type: ' + str(dist_type))
 
@@ -179,7 +180,7 @@ class GenexEngine:
         :return: a list containing best k matches for given query sequence
         """
         dist_type = self.build_conf.get('dist_type')
-        dt_index = dist_type_index[dist_type]
+        dt_index = dt_pnorm_dict[dist_type]
         start, end = self.build_conf.get('loi')
 
         query.fetch_and_set_data(self.data_normalized)
@@ -337,7 +338,7 @@ class GenexEngine:
 
         query_args = {  # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
             'q': query, 'k': best_k, 'ke': _ke, 'data_normalized': data_normalized,
-            'loi': loi, 'dt_index': dist_type_index[dist_type],
+            'loi': loi, 'pnorm': dt_pnorm_dict[dist_type],
             '_lb_opt_cluster': _lb_opt_cluster, '_lb_opt_repr': _lb_opt_repr,
             'overlap': overlap, 'exclude_same_id': exclude_same_id, 'radius': _radius, 'st': st
         }

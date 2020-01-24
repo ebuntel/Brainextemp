@@ -8,10 +8,10 @@ from gxe_utils import from_csv, from_db
 from pyspark import SparkContext, SparkConf
 
 
-spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
-java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
-os.environ['JAVA_HOME'] = java8_location
-findspark.init(spark_home=spark_location)
+# spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
+# java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
+# os.environ['JAVA_HOME'] = java8_location
+# findspark.init(spark_home=spark_location)
 
 # create gxdb from a csv file
 data_file = 'data_original/ItalyPower.csv'
@@ -23,7 +23,7 @@ mydb = from_csv(data_file, feature_num=2, num_worker=16, use_spark=True, driver_
 mydb.save(path=db_path)
 mydb.stop()
 del mydb
-mydb = from_db(path=db_path, num_worker=16)
+mydb = from_db(path=db_path, num_worker=32)
 
 start = time.time()
 mydb.build(st=0.1)
@@ -33,7 +33,7 @@ print('Building took ' + str(time.time() - start) + ' sec')
 mydb.save(path=db_path)
 mydb.stop()
 del mydb
-mydb = from_db(path=db_path, num_worker=16)
+mydb = from_db(path=db_path, num_worker=32)
 
 # generate the query sets
 q = mydb.get_random_seq_of_len(15, seed=1)

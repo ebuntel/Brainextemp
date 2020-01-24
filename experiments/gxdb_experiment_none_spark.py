@@ -16,13 +16,13 @@ from gxe_utils import from_csv, from_db
 data_file = 'data_original/ItalyPower.csv'
 db_path = 'results/test_db'
 
-mydb = from_csv(data_file, feature_num=2, num_worker=16, use_spark=False)
+mydb = from_csv(data_file, feature_num=2, num_worker=32, use_spark=False)
 
 # Save reloading unbuilt Genex Engine
 mydb.save(path=db_path)
 mydb.stop()
 del mydb
-mydb = from_db(path=db_path, num_worker=16)
+mydb = from_db(path=db_path, num_worker=32)
 
 start = time.time()
 mydb.build(st=0.1)
