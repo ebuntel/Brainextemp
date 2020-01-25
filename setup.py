@@ -1,10 +1,40 @@
+import cython
+import numpy
+import pandas
+import scipy
 import setuptools
+import tslearn
+
+from genex.misc import pr_red
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+USE_SPARK = True
+try:
+    print('Checking Spark backend')
+    import pyspark
+    sc = pyspark.SparkContext()
+except:
+    print('Either PySpark or Spark is not correclt installed. Skipping Spark packages.')
+    print('You can still use Spark in Genex if you install Spark later.')
+    USE_SPARK = False
+
+requires = ['Cython',
+            'numpy',
+            'scipy',
+            'pandas',
+            'tslearn',
+            'pyspark',
+            ] if USE_SPARK else ['Cython',
+                                 'numpy',
+                                 'scipy',
+                                 'pandas',
+                                 'tslearn',
+                                 ]
+
 setuptools.setup(
-    name="genex-ApocalyVec", # Replace with your own username
+    name="genex-ApocalyVec",  # Replace with your own username
     version="0.0.1",
     author="ApocalyVec",
     author_email="s-vector.lee@hotmail.com",
@@ -12,11 +42,13 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/ApocalyVec/Genex",
-    packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
-)
+    install_requires=requires)
+
+pr_red('Unable to install FastDTW, please run this command in the terminal to install the required package: ')
+pr_red('pip install git+git://github.com/ApocalyVec/fastdtw.git')
