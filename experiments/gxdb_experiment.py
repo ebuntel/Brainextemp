@@ -1,12 +1,7 @@
-import os
 import time
-import findspark
 import matplotlib.pyplot as plt
 
-from gxe_utils import from_csv, from_db
-
-from pyspark import SparkContext, SparkConf
-
+from genex.utils.gxe_utils import from_csv, from_db
 
 # spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
 # java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'

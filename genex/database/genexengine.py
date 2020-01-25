@@ -1,27 +1,23 @@
 import heapq
 import json
 import math
-import multiprocessing
 import os
 import pickle
 import random
 
-from pyspark import SparkContext
 import numpy as np
 import shutil
 from scipy.spatial.distance import cityblock
-from scipy.spatial.distance import minkowski
 from scipy.spatial.distance import euclidean
 from scipy.spatial.distance import chebyshev
 
 from genex.classes.Sequence import Sequence
-from genex.misc import pr_red
 from genex.op.query_op import _query_partition
-from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _pr_spark_conf, _create_sc
+from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark
 from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxdb_query_arguments
 
-from mutiproces_utils import _cluster_multi_process, _query_bf_mp, _query_mp
-from process_utils import _slice_time_series
+from genex.utils.mutiproces_utils import _cluster_multi_process, _query_bf_mp, _query_mp
+from genex.utils.process_utils import _slice_time_series
 
 
 def eu_norm(x, y):
