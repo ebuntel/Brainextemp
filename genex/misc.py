@@ -14,3 +14,7 @@ def merge_dict(dicts: list):
         print(str(ae))
         raise Exception('duplicate dict keys: dict item replaced!')
     return merged_dict
+
+def fd_workaround():
+    pr_red('Unable to install FastDTW, please run this command in the terminal to install the required package: ')
+    pr_red('pip install git+git://github.com/ApocalyVec/fastdtw.git')

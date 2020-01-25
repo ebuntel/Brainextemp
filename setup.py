@@ -5,7 +5,7 @@ import scipy
 import setuptools
 import tslearn
 
-from genex.misc import pr_red
+from genex.misc import pr_red, fd_workaround
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -50,6 +50,4 @@ setuptools.setup(
     python_requires='>=3.6',
     install_requires=requires)
 
-pr_red('Unable to install FastDTW, please run this command in the terminal to install the required package: ')
-pr_red('pip install git+git://github.com/ApocalyVec/fastdtw.git')
-
+fd_workaround()
