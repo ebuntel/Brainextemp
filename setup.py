@@ -52,3 +52,4 @@ setuptools.setup(
 
 pr_red('Unable to install FastDTW, please run this command in the terminal to install the required package: ')
 pr_red('pip install git+git://github.com/ApocalyVec/fastdtw.git')
+
