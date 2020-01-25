@@ -3,7 +3,7 @@ from pyspark import SparkContext, SparkConf
 from genex.op.query_op import get_dist_query
 from genex.op.cluster_op import _cluster_groups, _cluster_to_meta, _cluster_reduce_func
 from genex.misc import pr_red
-from process_utils import _group_time_series
+from genex.utils.process_utils import _group_time_series
 
 
 def _create_sc(num_cores: int, driver_mem: int, max_result_mem: int):
