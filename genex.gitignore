@@ -129,7 +129,6 @@ dmypy.json
 .pyre/
 
 # Genex Specific gitignore
-experiments/
 archived/
 archived/clusters/
 genex_ApocalyVec.egg-info/

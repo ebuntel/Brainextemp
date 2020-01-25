@@ -4,7 +4,7 @@ import matplotlib
 import pandas as pd
 import numpy as np
 
-from experiments.plot_rand_query_result_RMSE import autolabel
+from genex.experiments.plot_rand_query_result_RMSE import autolabel
 
 date = 'Jan-23-2020-22-N-noneSpark-R0-noOpt'
 notes = 'noneSpark-R0-noOpt'
