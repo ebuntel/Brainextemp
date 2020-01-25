@@ -1,9 +1,7 @@
-import os
 import time
-import findspark
 import matplotlib.pyplot as plt
 
-from gxe_utils import from_csv, from_db
+from genex.utils.gxe_utils import from_csv, from_db
 
 
 

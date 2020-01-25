@@ -1,11 +1,10 @@
 import math
 import multiprocessing
-from functools import reduce
 
-from genex.op.cluster_op import _randomize, _cluster_groups, _cluster_to_meta, _cluster_reduce_func
+from genex.op.cluster_op import _cluster_groups, _cluster_to_meta, _cluster_reduce_func
 from genex.op.query_op import get_dist_query, _query_partition
 from genex.utils.utils import flatten
-from process_utils import _grouper, _group_time_series, reduce_by_key, get_second
+from genex.utils.process_utils import _grouper, _group_time_series, reduce_by_key, get_second
 
 
 def _partitioner(data, slice_num):
