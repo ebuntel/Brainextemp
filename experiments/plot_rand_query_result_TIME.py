@@ -1,11 +1,26 @@
 import matplotlib.pyplot as plt
+import matplotlib
 
 import pandas as pd
 import numpy as np
 
 from experiments.plot_rand_query_result_RMSE import autolabel
 
-date = 'Jan-19-2020-21-N-BSFKimOnly-R1'
+date = 'Jan-23-2020-22-N-noneSpark-R0-noOpt'
+notes = 'noneSpark-R0-noOpt'
+# date = 'Jan-23-2020-21-N-UseSpark-R0-noOpt'
+# notes = 'UseSpark-R0-noOpt'
+# date = 'Jan-24-2020-2-N-UseSpark-R1-noOpt'
+# notes = 'UseSpark-R1-noOpt'
+# date = 'Jan-23-2020-22-N-noneSpark-R0-noOpt'
+# notes = 'noneSpark-R0-noOpt'
+# date = 'Jan-24-2020-3-N-UseSpark-R1-bsfKimOnly'
+# notes = 'UseSpark-R1-bsfKimOnly'
+
+font = {'family': 'DejaVu Sans',
+        'weight': 'bold',
+        'size': 12}
+matplotlib.rc('font', **font)
 
 file_list = [
     'results/' + date + '/Gun_Point_TRAIN',
@@ -66,11 +81,11 @@ for i, alg in enumerate(algorithm_dict.keys()):
 
 ax.set_ylabel('Time (seconds)')
 ax.set_xlabel('Distance Type')
-ax.set_title('Query Timing Evaluation for difference distance  \n [Opt: Vectorization, BSFKimOnly, R1]')
+ax.set_title('Query Timing Evaluation for Difference Distances \n' + notes)
 ax.set_xticks(x)
 ax.set_xticklabels(['Euclidean', 'Manhattan', 'Chebyshev'])
 ax.legend()
-
 fig.tight_layout()
 
+print('The average query time is ' + str(np.mean(algorithm_dict['BrainEx Query'])))
 plt.show()
