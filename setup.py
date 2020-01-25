@@ -34,7 +34,7 @@ requires = ['Cython',
                                  ]
 
 setuptools.setup(
-    name="genex-ApocalyVec",  # Replace with your own username
+    name="genex",  # Replace with your own username
     version="0.0.1",
     author="ApocalyVec",
     author_email="s-vector.lee@hotmail.com",
