@@ -2,8 +2,7 @@ import heapq
 import math
 
 import numpy as np
-from dtw import dtw
-from fastdtw import fastdtw
+import fastdtw
 from pyspark.broadcast import Broadcast
 
 from genex.classes.Sequence import Sequence
@@ -12,7 +11,7 @@ from genex.utils.ts_utils import lb_kim_sequence, lb_keogh_sequence
 from genex.utils.utils import get_trgt_len_within_r, get_sequences_represented, _isOverlap, reduce_by_key
 
 
-def sim_between_seq(seq1: Sequence, seq2: Sequence, pnorm: int):
+def sim_between_seq(seq1: Sequence, seq2: Sequence, pnorm: int, use_fast=True):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
@@ -25,7 +24,8 @@ def sim_between_seq(seq1: Sequence, seq2: Sequence, pnorm: int):
     #                    'ma': 1,
     #                    'ch': 2,
     #                    'min': 2}
-    dist = fastdtw(seq1.get_data(), seq2.get_data(), dist=pnorm)[0]
+    dist = fastdtw.fastdtw(seq1.get_data(), seq1.get_data(), dist=pnorm)[0] \
+        if use_fast else fastdtw.dtw(seq1.get_data(), seq1.get_data(), dist=pnorm)
     if pnorm == 2:
         return np.sqrt(dist / (len(seq1) + len(seq2)))
     elif pnorm == 1:
@@ -36,7 +36,7 @@ def sim_between_seq(seq1: Sequence, seq2: Sequence, pnorm: int):
         raise Exception('Unsupported dist type in sim_between_seq, this should never happen!')
 
 
-def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int):
+def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, use_fast=True):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
@@ -50,7 +50,7 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int):
     #                    'ch': 2,
     #                    'min': 2}
 
-    dist = fastdtw(a1, a2, dist=pnorm)[0]
+    dist = fastdtw.fastdtw(a1, a2, dist=pnorm)[0] if use_fast else fastdtw.dtw(a1, a2, dist=pnorm)
     if pnorm == 2:
         return np.sqrt(dist / (len(a1) + len(a2)))
     elif pnorm == 1:
