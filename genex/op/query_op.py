@@ -6,9 +6,14 @@ import fastdtw
 from pyspark.broadcast import Broadcast
 
 from genex.classes.Sequence import Sequence
-from genex.misc import merge_dict
+from genex.misc import merge_dict, fd_workaround
 from genex.utils.ts_utils import lb_kim_sequence, lb_keogh_sequence
 from genex.utils.utils import get_trgt_len_within_r, get_sequences_represented, _isOverlap, reduce_by_key
+
+try:
+    from fastdtw import fastdtw
+except ImportError:
+    fd_workaround()
 
 
 def sim_between_seq(seq1: Sequence, seq2: Sequence, pnorm: int, use_fast=True):

@@ -1,16 +1,9 @@
-import csv
 import os
 import time
 from datetime import datetime
-import findspark
-
-import genex.database.genexengine as gxdb
-from pyspark import SparkContext, SparkConf
 
 import numpy as np
 import pandas as pd
-from datetime import date
-
 
 # spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7'  # Set your own
 # java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
@@ -19,7 +12,7 @@ from datetime import date
 
 
 # create the spark context
-from gxe_utils import from_csv
+from genex.utils.gxe_utils import from_csv
 
 
 def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
