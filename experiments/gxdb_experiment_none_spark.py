@@ -14,7 +14,7 @@ from gxe_utils import from_csv, from_db
 
 # create gxdb from a csv file
 data_file = 'data_original/ItalyPower.csv'
-db_path = 'results/test_db'
+db_path = 'results/archived/test_db'
 
 mydb = from_csv(data_file, feature_num=2, num_worker=32, use_spark=False)
 

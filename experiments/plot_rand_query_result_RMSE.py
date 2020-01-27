@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-
+import matplotlib
 import pandas as pd
 import numpy as np
 
@@ -8,7 +8,7 @@ import numpy as np
 def get_mse(file_name: str, best_k: int, num_sample: int, num_most_k: int) -> float:
     assert best_k <= 15
     offset_start = 2
-    diff_col_num = 6
+    diff_col_num = 5
     offset_between_sample = 2
     mse_list = []
 
@@ -17,8 +17,8 @@ def get_mse(file_name: str, best_k: int, num_sample: int, num_most_k: int) -> fl
         row_start = offset_start + (num_most_k + offset_between_sample) * i
         row_end = row_start + best_k
         mse_list += list(df.iloc[row_start:row_end, diff_col_num].values)
-
-    return np.sqrt(np.mean(mse_list))
+    rtn = np.mean(mse_list)
+    return rtn
 
 
 def autolabel(rects, ax, dataset):
@@ -33,15 +33,21 @@ def autolabel(rects, ax, dataset):
 
 
 if __name__ == '__main__':
+    font = {'family': 'DejaVu Sans',
+            'weight': 'bold',
+            'size': 12}
+    matplotlib.rc('font', **font)
 
-    date = 'Jan-19-2020-12-N-BSFKimOnly-R1'
+    date = 'Jan-24-2020-3-N-UseSpark-R1-bsfKimOnly'
+    notes = 'UseSpark-R1-bsfKimOnly'
 
+    # dist_type = 'ma'
+    # title = 'Manhattan Query Accuracy across Datasets \n' + notes
     dist_type = 'eu'
-    title = 'Euclidean Query Accuracy across Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
-    dist_type = 'ma'
-    title = 'Manhattan Query Accuracy across Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
-    dist_type = 'ch'
-    title = 'Chebyshev Query Accuracy across Datasets \n [Opt: Vectorization, BSFKimOnly, R1]'
+    title = 'Euclidean Query Accuracy across Datasets \n' + notes
+    # dist_type = 'ch'
+    # title = 'Chebyshev Query Accuracy across Datasets \n' + notes
+
     file_dict = {'Gun Point': 'results/' + date + '/Gun_Point_TRAIN_' + dist_type + '.csv',
                  'ECG Five Days': 'results/' + date + '/ECGFiveDays_' + dist_type + '.csv',
                  'Italy Power Demand': 'results/' + date + '/ItalyPower_' + dist_type + '.csv',
@@ -53,6 +59,7 @@ if __name__ == '__main__':
                         'Italy Power Demand': [],
                         'Synthetic Control': []
                         }
+    overall_error_list = []
     k_to_look = [1, 3, 5, 9, 15]
 
     num_sample = 40
@@ -68,6 +75,7 @@ if __name__ == '__main__':
         for k in k_to_look:
             mse = get_mse(file_name=result_file, best_k=k, num_sample=num_sample, num_most_k=num_most_k)
             dataset_mse_dict[dataset_name].append(mse)
+        overall_error_list += dataset_mse_dict[dataset_name]
         rect = ax.bar(x + 4 * i * width/len(dataset_mse_dict), dataset_mse_dict[dataset_name], width, label=dataset_name)
         autolabel(rect, ax, dataset_mse_dict)
 
@@ -81,3 +89,4 @@ if __name__ == '__main__':
     fig.tight_layout()
 
     plt.show()
+    print(date + ': The overall error for ' + dist_type + ' is ' + str(np.mean(overall_error_list)))
