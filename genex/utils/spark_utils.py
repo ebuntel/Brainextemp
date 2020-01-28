@@ -62,3 +62,20 @@ def _query_bf_spark(query, sc: SparkContext, data_normalized: list, start, end, 
     dist_rdd = slice_rdd.map(lambda x: get_dist_query(query, x, dt_index=dt_index))
     candidate_list = dist_rdd.collect()
     return candidate_list
+
+
+def _broadcast_kwargs(sc: SparkContext, kwargs_dict):
+    """
+    return the broadcast version of the kwargs values
+    :param kwargs_dict:
+    """
+    rtn = dict(((key, sc.broadcast(value=value)) for key, value in kwargs_dict))
+    return rtn
+
+
+def _destory_kwarg_bc(kwargs_dict: dict):
+    """
+    destroy the values in the kwarg dictionary
+    :param kwargs_dict:
+    """
+    [value.destroy() for key, value in kwargs_dict]

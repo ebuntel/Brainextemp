@@ -120,7 +120,7 @@ def run_exp_set(exp_set, num_sample, num_query,
 
 
 datasets = [
-    'ItalyPower',
+    # 'ItalyPower',
     'ECGFiveDays',
     'Gun_Point_TRAIN',
     'synthetic_control_TRAIN'

@@ -13,7 +13,7 @@ from scipy.spatial.distance import chebyshev
 
 from genex.classes.Sequence import Sequence
 from genex.op.query_op import _query_partition
-from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark
+from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broadcast_kwargs, _destory_kwarg_bc
 from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxdb_query_arguments
 
 from genex.utils.mutiproces_utils import _cluster_multi_process, _query_bf_mp, _query_mp
@@ -74,6 +74,8 @@ class GenexEngine:
         self.build_conf = None
         self.bf_query_buffer = dict()
 
+        self._data_normalized_bc = None
+
     def __set_conf(self, conf):
         self.conf = conf
 
@@ -130,6 +132,7 @@ class GenexEngine:
         if self.is_using_spark():  # If using Spark backend
             self.clusters, self.cluster_meta_dict = _cluster_with_spark(self.mp_context, self.data_normalized,
                                                                         start, end, st, dist_func, verbose)
+            self._data_normalized_bc = self.mp_context.broadcast(self.data_normalized)
         else:
             self.clusters, self.cluster_meta_dict = self.clusters, self.cluster_meta_dict = \
                 _cluster_multi_process(self.mp_context,
@@ -304,7 +307,6 @@ class GenexEngine:
                 raise Exception('query: _ke cannot be greater than the number of subsequences in the database.')
 
         query.fetch_and_set_data(self._get_data_normalized())
-        data_normalized = self._get_data_normalized()
 
         st = self.build_conf.get('similarity_threshold')
         dist_type = self.build_conf.get('dist_type')
@@ -320,18 +322,20 @@ class GenexEngine:
         #                      radius=_radius, st=st
         #                      )
         # seq_num = self.get_num_subsequences()
-        if self.is_using_spark():
-            query = self.mp_context.broadcast(query)
-            data_normalized = self.mp_context.broadcast(data_normalized)
+        # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
+        dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
+        q = self.mp_context.broadcast(query) if self.is_using_spark() else query
 
-        query_args = {  # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
-            'q': query, 'k': best_k, 'ke': _ke, 'data_normalized': data_normalized, 'pnorm': dt_pnorm_dict[dist_type],
-            'lb_opt': _lb_opt,
-            'overlap': overlap, 'exclude_same_id': exclude_same_id, 'radius': _radius, 'st': st
-        }
-        if self.is_using_spark():
-            query_rdd = self.clusters.mapPartitions(lambda c: _query_partition(cluster=c, **query_args))
+        query_args = {'q': q, 'k': best_k, 'ke': _ke, 'data_normalized': dn, 'pnorm': dt_pnorm_dict[dist_type],
+                           'lb_opt': _lb_opt, 'overlap': overlap, 'exclude_same_id': exclude_same_id, 'radius': _radius,
+                           'st': st
+                           }
+        if self.is_using_spark():  # The only place in query where it checks if is using Spark
+
+            query_rdd = self.clusters.mapPartitions(
+                lambda c: _query_partition(**query_args, cluster=c))
             candidates = query_rdd.collect()
+            q.destroy()
         else:
             candidates = _query_mp(self.mp_context, self.clusters, **query_args)
 

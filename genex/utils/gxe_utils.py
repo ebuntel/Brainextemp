@@ -127,6 +127,7 @@ def from_db(path: str,
         engine.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'rb')))
         build_conf = json.load(open(os.path.join(path, 'build_conf.json'), 'rb'))
         engine.set_build_conf(build_conf)
+        engine._data_normalized_bc = engine.mp_context.broadcast(engine.data_normalized)
     return engine
 
 
