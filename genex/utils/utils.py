@@ -118,23 +118,7 @@ def _validate_gxdb_query_arguments(args: dict):
     :param args:
     :return:
     """
-
-    _lb_opt_repr_options = ['lbh', 'bsf', 'none']
-    _lb_opt_cluster_options = ['lbh', 'bsf', 'lbh_bst', 'none']
-    try:
-        assert args['_lb_opt_repr'] in _lb_opt_repr_options
-    except AssertionError:
-        print(
-            'Query check argument failed: query _lb_opt_repr must be one of the following ' + str(_lb_opt_repr_options))
-        raise AssertionError
-
-    try:
-        assert args['_lb_opt_cluster'] in _lb_opt_cluster_options
-    except AssertionError:
-        print(
-            'Query check argument failed: query _lb_opt_cluster must be one of the following ' + str(
-                _lb_opt_cluster_options))
-        raise AssertionError
+    pass
 
 
 def _df_to_list(df, feature_num):

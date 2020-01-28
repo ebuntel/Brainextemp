@@ -35,7 +35,7 @@ requires = ['Cython',
 
 setuptools.setup(
     name="genex",  # Replace with your own username
-    version="0.0.1",
+    version="0.0.2",
     author="ApocalyVec",
     author_email="s-vector.lee@hotmail.com",
     description="This package is a General Exploration System that implements DTW in exploring time series",

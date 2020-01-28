@@ -21,7 +21,7 @@ del mydb
 mydb = from_db(path=db_path, num_worker=32)
 
 start = time.time()
-mydb.build(st=0.1)
+mydb.build(st=0.1, loi=slice(13, 16))
 print('Building took ' + str(time.time() - start) + ' sec')
 
 # Save reloading built Genex Engine
@@ -34,10 +34,13 @@ mydb = from_db(path=db_path, num_worker=32)
 q = mydb.get_random_seq_of_len(15, seed=1)
 
 start = time.time()
-# query_result = mydb.query(query=q, best_k=5, _lb_opt_repr='bsf', _lb_opt_cluster='bsf')
-# query_result = mydb.query_brute_force(query=q, best_k=5)
-query_result = mydb.query(query=q, best_k=5, _radius=1, _lb_opt_repr='none')
-duration = time.time() - start
+query_result = mydb.query(query=q, best_k=5, _radius=1, _lb_opt=True)
+duration_withOpt = time.time() - start
+
+start = time.time()
+query_result = mydb.query(query=q, best_k=5, _radius=1, _lb_opt=False)
+duration_noOpt = time.time() - start
+
 # TODO memory optimization:  memory optimization, encode features (ids), length batches
 # plot the query result
 plt.plot(q.fetch_data(mydb.data_normalized), linewidth=5, color='red')
