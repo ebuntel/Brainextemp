@@ -10,34 +10,10 @@ from genex.utils.ts_utils import lb_kim_sequence, lb_keogh_sequence
 from genex.utils.utils import get_trgt_len_within_r, get_sequences_represented, _isOverlap, reduce_by_key
 
 try:
-    import fastdtw
+    from fastdtw import fastdtw
+    from fastdtw import dtw
 except ImportError:
     fd_workaround()
-
-
-def sim_between_seq(seq1: Sequence, seq2: Sequence, pnorm: int, use_fast=True):
-    """
-    calculate the similarity between sequence 1 and sequence 2 using DTW
-
-    :param pnorm: the distance type that can be: 0, 1, or 2
-    :param seq1: Time series sequence
-    :param seq2: Time series sequence
-    :return float: return the Normalized DTW distance between sequence 1 (seq1) and sequence 2 (seq2)
-    """
-    # dt_pnorm_dict = {'eu': 0,
-    #                    'ma': 1,
-    #                    'ch': 2,
-    #                    'min': 2}
-    dist = fastdtw.fastdtw(seq1.get_data(), seq1.get_data(), dist=pnorm)[0] \
-        if use_fast else fastdtw.dtw(seq1.get_data(), seq1.get_data(), dist=pnorm)
-    if pnorm == 2:
-        return np.sqrt(dist / (len(seq1) + len(seq2)))
-    elif pnorm == 1:
-        return dist / (len(seq1) + len(seq2))
-    elif pnorm == math.inf:
-        return dist
-    else:
-        raise Exception('Unsupported dist type in sim_between_seq, this should never happen!')
 
 
 def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, use_fast=True):
@@ -54,7 +30,7 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, use_fast=True)
     #                    'ch': 2,
     #                    'min': 2}
 
-    dist = fastdtw.fastdtw(a1, a2, dist=pnorm)[0] if use_fast else fastdtw.dtw(a1, a2, dist=pnorm)
+    dist = fastdtw(a1, a2, dist=pnorm)[0] if use_fast else dtw(a1, a2, dist=pnorm)[0]
     if pnorm == 2:
         return np.sqrt(dist / (len(a1) + len(a2)))
     elif pnorm == 1:
@@ -62,14 +38,14 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, use_fast=True)
     elif pnorm == math.inf:
         return dist
     else:
-        raise Exception('Unsupported dist type in sim_between_seq, this should never happen!')
+        raise Exception('Unsupported dist type in array, this should never happen!')
 
-def get_dist_query(query, target, dt_index):
-    return sim_between_seq(query, target, pnorm=dt_index), target
+def get_dist_query(query: Sequence, target: Sequence, dt_index):
+    return sim_between_array(query.get_data(), target.get_data(), pnorm=dt_index), target
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
-                     _lb_opt: bool,  overlap: float, exclude_same_id: bool, radius: int, st: float):
+                     lb_opt: bool,  overlap: float, exclude_same_id: bool, radius: int, st: float):
     """
     This function finds k best matches for given query sequence on the worker node
 
@@ -123,7 +99,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
             # this_candidates = naive_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster)
             # duration_nonopt = time.time() - start
 
-            if _lb_opt:
+            if lb_opt:
                 this_candidates = \
                     bsf_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, st=st, dt_index=pnorm)
             else:
@@ -146,7 +122,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
     # rtn = naive_search(q, k, candidates, overlap, exclude_same_id)
     # duration_nonopt = time.time() - start
 
-    if _lb_opt == 'bsf':
+    if lb_opt == 'bsf':
         # print('Using bsf')
         return bsf_search(q, k, candidates, dt_index=pnorm)
     else:
@@ -156,7 +132,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
 
 def naive_search_rspace(q, k, r_list, cluster, dt_index):
     c_list = []
-    target_reprs = [(sim_between_seq(x, q, dt_index), x) for x in r_list]  # calculate DTW
+    target_reprs = [(sim_between_array(x.get_data(), q.get_data(), dt_index), x) for x in r_list]  # calculate DTW
     heapq.heapify(target_reprs)  # heap sort R-space
     # get enough sequence from the clusters represented to query
     while len(target_reprs) > 0 and len(c_list) < k:
@@ -168,7 +144,7 @@ def naive_search_rspace(q, k, r_list, cluster, dt_index):
 
 def naive_search(q: Sequence, k: int, candidates: list, overlap: float, exclude_same_id: bool, dt_index: int):
     query_result = []
-    c_dist_list = [(sim_between_seq(x, q, dt_index), x) for x in candidates]
+    c_dist_list = [(sim_between_array(x.get_data(), q.get_data(), dt_index), x) for x in candidates]
     heapq.heapify(c_dist_list)
 
     # note that we are using k here
@@ -192,7 +168,7 @@ def bsf_search(q, k, candidates, dt_index: int):
         # print('Using bsf')
         if len(query_result) < k:
             # take the negative distance so to have a maxheap
-            heapq.heappush(query_result, (-sim_between_seq(q, c, dt_index, use_fast=True), c))
+            heapq.heappush(query_result, (-sim_between_array(q.get_data(), c.get_data(), dt_index, use_fast=True), c))
         else:  # len(dist_heap) == k or >= k
             # if the new seq is better than the heap head
             if -lb_kim_sequence(c.data, q.data) < query_result[0][0]:
@@ -210,7 +186,7 @@ def bsf_search(q, k, candidates, dt_index: int):
             if -lb_keogh_sequence(q.data, c_interp_data) < query_result[0][0]:
                 # prune_count += 1
                 continue
-            dist = -sim_between_seq(q, c, dt_index, use_fast=True)
+            dist = -sim_between_array(q.get_data(), c.get_data(), dt_index, use_fast=True)
             if dist > query_result[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(query_result)
                 heapq.heappush(query_result, (dist, c))
@@ -237,7 +213,7 @@ def bsf_search_rspace(q, ke, r_list, cluster, st, dt_index: int):
         if len(get_sequences_represented([r[1] for r in result_list],
                                          cluster)) < ke:  # keep track of how many sequences are we querying right now
             # take the negative distance so to have a maxheap
-            heapq.heappush(result_list, (sim_between_seq(q, r, dt_index, use_fast=False), r))
+            heapq.heappush(result_list, (sim_between_array(q.get_data(), r.get_data(), dt_index, use_fast=False), r))
         else:  # len(dist_heap) == k or >= k
             # a = lb_kim_sequence(r.data, q.data)
             if lb_kim_sequence(r.data, q.data) > st:
@@ -257,7 +233,7 @@ def bsf_search_rspace(q, ke, r_list, cluster, st, dt_index: int):
             if lb_keogh_sequence(q.data, r_interp_data) > st:
                 # prune_count += 1
                 continue
-            dist = sim_between_seq(q, r, dt_index, use_fast=False)
+            dist = sim_between_array(q.get_data(), r.get_data(), dt_index, use_fast=False)
             if dist < result_list[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(result_list)
                 heapq.heappush(result_list, (dist, r))

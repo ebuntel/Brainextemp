@@ -280,12 +280,11 @@ class GenexEngine:
 
     def query(self, query: Sequence, best_k: int,
               exclude_same_id: bool = False, overlap: float = 1.0,
-              lb_opt: bool = False, _ke=None, _radius: int = 0):
+              _lb_opt: bool = False, _ke=None, _radius: int = 1):
         """
         Find best k matches for given query sequence using Distributed Genex method
 
-        :param loi:
-        :param lb_opt:
+        :param _lb_opt:
         :param query:
         :param _radius:
         :param _ke:
@@ -327,7 +326,7 @@ class GenexEngine:
 
         query_args = {  # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
             'q': query, 'k': best_k, 'ke': _ke, 'data_normalized': data_normalized, 'pnorm': dt_pnorm_dict[dist_type],
-            'lb_opt': lb_opt,
+            'lb_opt': _lb_opt,
             'overlap': overlap, 'exclude_same_id': exclude_same_id, 'radius': _radius, 'st': st
         }
         if self.is_using_spark():

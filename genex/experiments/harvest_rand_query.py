@@ -16,7 +16,7 @@ from genex.utils.gxe_utils import from_csv
 
 
 def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
-                     dist_type, _lb_opt_repr, _lb_opt_cluster, _radius, use_spark: bool):
+                     dist_type, _lb_opt, _radius, use_spark: bool):
     num_cores = 12
     driver_mem = 32
     max_result_mem = 32
@@ -57,9 +57,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
             len(query_set)) + '; query = ' + str(q))
         start = time.time()
         print('Running Genex Query ...')
-        query_result_gx = mydb.query(query=q, best_k=15,
-                                     _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
-                                     _radius=_radius)
+        query_result_gx = mydb.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
         gx_time = time.time() - start
 
         start = time.time()
@@ -115,10 +113,10 @@ def generate_exp_set(dataset_list, dist_type, notes: str):
 
 
 def run_exp_set(exp_set, num_sample, num_query,
-                _lb_opt_repr, _lb_opt_cluster, radius, use_spark):
+                _lb_opt, radius, use_spark):
     for es in exp_set:
         experiment_genex(**es, num_sample=num_sample, num_query=num_query,
-                         _lb_opt_repr=_lb_opt_repr, _lb_opt_cluster=_lb_opt_cluster, _radius=radius, use_spark=use_spark)
+                         _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark)
 
 
 datasets = [
@@ -128,47 +126,45 @@ datasets = [
     'synthetic_control_TRAIN'
 ]
 ########################################################################################################################
-ex_config_0 = {
-    'num_sample': 40,
-    'num_query': 40,
-    '_lb_opt_repr': 'none',
-    '_lb_opt_cluster': 'none',
-    'radius': 0,
-    'use_spark': True
-}
-start = time.time()
-notes_0 = 'UseSpark-R0-noOpt'
-es_eu_0 = generate_exp_set(datasets, 'eu', notes=notes_0)
-es_ma_0 = generate_exp_set(datasets, 'ma', notes=notes_0)
-es_ch_0 = generate_exp_set(datasets, 'ch', notes=notes_0)
-run_exp_set(es_eu_0, **ex_config_0)
-run_exp_set(es_ma_0, **ex_config_0)
-run_exp_set(es_ch_0, **ex_config_0)
-duration1 = time.time() - start
-print('Finished at')
-print(datetime.now())
-print('The experiment with radius 0 took ' + str(duration1/3600) + ' hrs')
+# ex_config_0 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt': False,
+#     'radius': 0,
+#     'use_spark': True
+# }
+# start = time.time()
+# notes_0 = 'UseSpark-R0-noOpt'
+# es_eu_0 = generate_exp_set(datasets, 'eu', notes=notes_0)
+# es_ma_0 = generate_exp_set(datasets, 'ma', notes=notes_0)
+# es_ch_0 = generate_exp_set(datasets, 'ch', notes=notes_0)
+# run_exp_set(es_eu_0, **ex_config_0)
+# run_exp_set(es_ma_0, **ex_config_0)
+# run_exp_set(es_ch_0, **ex_config_0)
+# duration1 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment with radius 0 took ' + str(duration1/3600) + ' hrs')
 ########################################################################################################################
-ex_config_1 = {
-    'num_sample': 40,
-    'num_query': 40,
-    '_lb_opt_repr': 'none',
-    '_lb_opt_cluster': 'none',
-    'radius': 0,
-    'use_spark': False
-}
-start = time.time()
-notes_1 = 'noneSpark-R0-noOpt'
-es_eu_1 = generate_exp_set(datasets, 'eu', notes=notes_1)
-es_ma_1 = generate_exp_set(datasets, 'ma', notes=notes_1)
-es_ch_1 = generate_exp_set(datasets, 'ch', notes=notes_1)
-run_exp_set(es_eu_1, **ex_config_1)
-run_exp_set(es_ma_1, **ex_config_1)
-run_exp_set(es_ch_1, **ex_config_1)
-duration1 = time.time() - start
-print('Finished at')
-print(datetime.now())
-print('The experiment with radius 0 took ' + str(duration1/3600) + ' hrs')
+# ex_config_1 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt': False,
+#     'radius': 0,
+#     'use_spark': False
+# }
+# start = time.time()
+# notes_1 = 'noneSpark-R0-noOpt'
+# es_eu_1 = generate_exp_set(datasets, 'eu', notes=notes_1)
+# es_ma_1 = generate_exp_set(datasets, 'ma', notes=notes_1)
+# es_ch_1 = generate_exp_set(datasets, 'ch', notes=notes_1)
+# run_exp_set(es_eu_1, **ex_config_1)
+# run_exp_set(es_ma_1, **ex_config_1)
+# run_exp_set(es_ch_1, **ex_config_1)
+# duration1 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment with radius 0 took ' + str(duration1/3600) + ' hrs')
 
 ########################################################################################################################
 # ex_config_2 = {
@@ -192,53 +188,51 @@ print('The experiment with radius 0 took ' + str(duration1/3600) + ' hrs')
 # print('The experiment with radius 0 took ' + str(duration2/3600) + ' hrs')
 
 ########################################################################################################################
-ex_config_3 = {
-    'num_sample': 40,
-    'num_query': 40,
-    '_lb_opt_repr': 'bsf',
-    '_lb_opt_cluster': 'bsf',
-    'radius': 0,
-    'use_spark': True
-}
-start = time.time()
-notes_3 = 'UseSpark-R0-bsfKimOnly'
-es_eu_3 = generate_exp_set(datasets, 'eu', notes=notes_3)
-es_ma_3 = generate_exp_set(datasets, 'ma', notes=notes_3)
-es_ch_3 = generate_exp_set(datasets, 'ch', notes=notes_3)
-run_exp_set(es_eu_3, **ex_config_3)
-run_exp_set(es_ma_3, **ex_config_3)
-run_exp_set(es_ch_3, **ex_config_3)
-duration3 = time.time() - start
-print('Finished at')
-print(datetime.now())
-print('The experiment took ' + str(duration3/3600) + ' hrs')
+# ex_config_3 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt': True,
+#     'radius': 0,
+#     'use_spark': True
+# }
+# start = time.time()
+# notes_3 = 'UseSpark-R0-bsfKimOnly'
+# es_eu_3 = generate_exp_set(datasets, 'eu', notes=notes_3)
+# es_ma_3 = generate_exp_set(datasets, 'ma', notes=notes_3)
+# es_ch_3 = generate_exp_set(datasets, 'ch', notes=notes_3)
+# run_exp_set(es_eu_3, **ex_config_3)
+# run_exp_set(es_ma_3, **ex_config_3)
+# run_exp_set(es_ch_3, **ex_config_3)
+# duration3 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment took ' + str(duration3/3600) + ' hrs')
 # ########################################################################################################################
-ex_config_4 = {
-    'num_sample': 40,
-    'num_query': 40,
-    '_lb_opt_repr': 'none',
-    '_lb_opt_cluster': 'none',
-    'radius': 1,
-    'use_spark': True
-}
-start = time.time()
-notes_4 = 'UseSpark-R1-noOpt'
-es_eu_4 = generate_exp_set(datasets, 'eu', notes=notes_4)
-es_ma_4 = generate_exp_set(datasets, 'ma', notes=notes_4)
-es_ch_4 = generate_exp_set(datasets, 'ch', notes=notes_4)
-run_exp_set(es_eu_4, **ex_config_4)
-run_exp_set(es_ma_4, **ex_config_4)
-run_exp_set(es_ch_4, **ex_config_4)
-duration4 = time.time() - start
-print('Finished at')
-print(datetime.now())
-print('The experiment took ' + str(duration4/3600) + ' hrs')
+# ex_config_4 = {
+#     'num_sample': 40,
+#     'num_query': 40,
+#     '_lb_opt_repr': 'none',
+#     '_lb_opt_cluster': 'none',
+#     'radius': 1,
+#     'use_spark': True
+# }
+# start = time.time()
+# notes_4 = 'UseSpark-R1-noOpt'
+# es_eu_4 = generate_exp_set(datasets, 'eu', notes=notes_4)
+# es_ma_4 = generate_exp_set(datasets, 'ma', notes=notes_4)
+# es_ch_4 = generate_exp_set(datasets, 'ch', notes=notes_4)
+# run_exp_set(es_eu_4, **ex_config_4)
+# run_exp_set(es_ma_4, **ex_config_4)
+# run_exp_set(es_ch_4, **ex_config_4)
+# duration4 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment took ' + str(duration4/3600) + ' hrs')
 ########################################################################################################################
 ex_config_5 = {
     'num_sample': 40,
     'num_query': 40,
-    '_lb_opt_repr': 'bsf',
-    '_lb_opt_cluster': 'bsf',
+    '_lb_opt': True,
     'radius': 1,
     'use_spark': True
 }
@@ -254,3 +248,23 @@ duration5 = time.time() - start
 print('Finished at')
 print(datetime.now())
 print('The experiment took ' + str(duration5/3600) + ' hrs')
+########################################################################################################################
+ex_config_6 = {
+    'num_sample': 40,
+    'num_query': 40,
+    '_lb_opt': False,
+    'radius': 1,
+    'use_spark': True
+}
+start = time.time()
+notes_6 = 'UseSpark-R1-noOpt'
+es_eu_6 = generate_exp_set(datasets, 'eu', notes=notes_6)
+es_ma_6 = generate_exp_set(datasets, 'ma', notes=notes_6)
+es_ch_6 = generate_exp_set(datasets, 'ch', notes=notes_6)
+run_exp_set(es_eu_6, **ex_config_6)
+run_exp_set(es_ma_6, **ex_config_6)
+run_exp_set(es_ch_6, **ex_config_6)
+duration6 = time.time() - start
+print('Finished at')
+print(datetime.now())
+print('The experiment took ' + str(duration6/3600) + ' hrs')
