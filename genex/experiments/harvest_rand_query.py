@@ -229,35 +229,17 @@ datasets = [
 # print(datetime.now())
 # print('The experiment took ' + str(duration4/3600) + ' hrs')
 ########################################################################################################################
-ex_config_5 = {
-    'num_sample': 40,
-    'num_query': 40,
-    '_lb_opt': True,
-    'radius': 1,
-    'use_spark': True
-}
-start = time.time()
-notes_5 = 'UseSpark-R1-bsfKimOnly'
-es_eu_5 = generate_exp_set(datasets, 'eu', notes=notes_5)
-es_ma_5 = generate_exp_set(datasets, 'ma', notes=notes_5)
-es_ch_5 = generate_exp_set(datasets, 'ch', notes=notes_5)
-run_exp_set(es_eu_5, **ex_config_5)
-run_exp_set(es_ma_5, **ex_config_5)
-run_exp_set(es_ch_5, **ex_config_5)
-duration5 = time.time() - start
-print('Finished at')
-print(datetime.now())
-print('The experiment took ' + str(duration5/3600) + ' hrs')
+num_sample = 400
 ########################################################################################################################
 ex_config_6 = {
-    'num_sample': 40,
+    'num_sample': num_sample,
     'num_query': 40,
     '_lb_opt': False,
     'radius': 1,
     'use_spark': True
 }
 start = time.time()
-notes_6 = 'UseSpark-R1-noOpt'
+notes_6 = 'UseSpark-R1-noOpt_numSample400'
 es_eu_6 = generate_exp_set(datasets, 'eu', notes=notes_6)
 es_ma_6 = generate_exp_set(datasets, 'ma', notes=notes_6)
 es_ch_6 = generate_exp_set(datasets, 'ch', notes=notes_6)
@@ -268,3 +250,24 @@ duration6 = time.time() - start
 print('Finished at')
 print(datetime.now())
 print('The experiment took ' + str(duration6/3600) + ' hrs')
+
+########################################################################################################################
+ex_config_5 = {
+    'num_sample': num_sample,
+    'num_query': 40,
+    '_lb_opt': True,
+    'radius': 1,
+    'use_spark': True
+}
+start = time.time()
+notes_5 = 'UseSpark-R1-LBOpt_numSample400'
+es_eu_5 = generate_exp_set(datasets, 'eu', notes=notes_5)
+es_ma_5 = generate_exp_set(datasets, 'ma', notes=notes_5)
+es_ch_5 = generate_exp_set(datasets, 'ch', notes=notes_5)
+run_exp_set(es_eu_5, **ex_config_5)
+run_exp_set(es_ma_5, **ex_config_5)
+run_exp_set(es_ch_5, **ex_config_5)
+duration5 = time.time() - start
+print('Finished at')
+print(datetime.now())
+print('The experiment took ' + str(duration5/3600) + ' hrs')
