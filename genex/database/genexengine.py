@@ -278,14 +278,14 @@ class GenexEngine:
     def is_using_spark(self):
         return self.conf['backend'] == 'spark'
 
-    def query(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
-              loi: slice = None,
-              _lb_opt_repr: str = 'none', _repr_kim_rf=0.5, _repr_keogh_rf=0.75,
-              _lb_opt_cluster: str = 'none', _cluster_kim_rf=0.5, _cluster_keogh_rf=0.75,
-              _ke=None, _radius: int = 0):
+    def query(self, query: Sequence, best_k: int,
+              exclude_same_id: bool = False, overlap: float = 1.0,
+              lb_opt: bool = False, _ke=None, _radius: int = 0):
         """
         Find best k matches for given query sequence using Distributed Genex method
 
+        :param loi:
+        :param lb_opt:
         :param query:
         :param _radius:
         :param _ke:
@@ -293,13 +293,6 @@ class GenexEngine:
         :param best_k: Number of best matches to retrieve
         :param exclude_same_id: Whether to exclude query sequence in the retrieved matches
         :param overlap: Value for overlapping parameter (Must be between 0 and 1 inclusive)
-        :param _lb_opt_repr: Type of optimization used for representatives (lbh or none)
-        :param _repr_kim_rf: Value of LB_Kim reduction factor for representatives (0.25 or 0.5 or 0.75)
-        :param _repr_keogh_rf: Value of LB_Keogh reduction factor for representatives (0.25 or 0.5 or 0.75)
-        :param _lb_opt_cluster: Type of optimization used for clusters (lbh or bsf or lbh_bst or none)
-        :param _lb_opt_repr: lbh, none
-        :param _cluster_kim_rf: Value of LB_Kim reduction factor for clusters (0.25 or 0.5 or 0.75)
-        :param _cluster_keogh_rf: Value of LB_Keogh reduction factor for clusters (0.25 or 0.5 or 0.75)
 
         :return: a list containing k best matches for given query sequence
         """
@@ -333,9 +326,8 @@ class GenexEngine:
             data_normalized = self.mp_context.broadcast(data_normalized)
 
         query_args = {  # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
-            'q': query, 'k': best_k, 'ke': _ke, 'data_normalized': data_normalized,
-            'loi': loi, 'pnorm': dt_pnorm_dict[dist_type],
-            '_lb_opt_cluster': _lb_opt_cluster, '_lb_opt_repr': _lb_opt_repr,
+            'q': query, 'k': best_k, 'ke': _ke, 'data_normalized': data_normalized, 'pnorm': dt_pnorm_dict[dist_type],
+            'lb_opt': lb_opt,
             'overlap': overlap, 'exclude_same_id': exclude_same_id, 'radius': _radius, 'st': st
         }
         if self.is_using_spark():

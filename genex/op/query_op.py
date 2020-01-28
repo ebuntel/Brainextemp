@@ -68,9 +68,8 @@ def get_dist_query(query, target, dt_index):
     return sim_between_seq(query, target, pnorm=dt_index), target
 
 
-def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, pnorm: int,
-                     _lb_opt_cluster: str, _lb_opt_repr: str,
-                     overlap: float, exclude_same_id: bool, radius: int, st: float):
+def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
+                     _lb_opt: bool,  overlap: float, exclude_same_id: bool, radius: int, st: float):
     """
     This function finds k best matches for given query sequence on the worker node
 
@@ -78,33 +77,30 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, p
     :param q: Query sequence
     :param k: number of best matches to retrieve
     :param data_normalized:
-    :param _lb_opt_cluster:Type of optimization used for clusters ('bsf', 'lbh', 'lbh_bst, 'none')
-    :param _lb_opt_repr:Type of optimization used for representatives ('lbh', 'none')
-    :param loi: Length of interest, default value is none
     :param exclude_same_id: whether to exclude the query sequence when finding best matches
     :param overlap: Overlapping parameter( must be between 0 and 1 inclusive)
 
     :return: a list containing retrieved matches for given query sequence on that worker node
     """
+    """We automatically use Traditional DTW if optimization is set to True"""
+
     if isinstance(q, Broadcast):
         q = q.value
     if isinstance(data_normalized, Broadcast):
         data_normalized = data_normalized.value
 
-    cluster_filtered = [x for x in cluster if x[0] in range(loi.start, loi.stop)] if loi is not None else cluster
-    cluster_dict = dict(list(reduce_by_key(lambda x, y: merge_dict([x, y]), cluster_filtered)))
-    try:
-        assert cluster_filtered
-    except AssertionError as ve:
-        print('Given loi is ' + str(loi))
-        print('sequence length in the database: ' + str(list(cluster_dict.keys())))
-        raise Exception('cluster does not have the given query loi!')
+    cluster_dict = dict(list(reduce_by_key(lambda x, y: merge_dict([x, y]), cluster)))
     q_length = len(q.data)
-
-    query_result = []
-
-    # note that we are using ke here
     candidates = []
+    # cluster_filtered = [x for x in cluster if x[0] in range(loi.start, loi.stop)] if loi is not None else cluster
+    # cluster_dict = dict(list(reduce_by_key(lambda x, y: merge_dict([x, y]), cluster_filtered)))
+    # try:
+    #     assert cluster_filtered
+    # except AssertionError as ve:
+    #     print('Given loi is ' + str(loi))
+    #     print('sequence length in the database: ' + str(list(cluster_dict.keys())))
+    #     raise Exception('cluster does not have the given query loi!')
+
     while len(cluster_dict) > 0 and len(candidates) < ke:
         available_lens = list(cluster_dict.keys())
         # the specific sized sequences from which the candidates will be extracted, depending on the query length and
@@ -127,7 +123,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, p
             # this_candidates = naive_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster)
             # duration_nonopt = time.time() - start
 
-            if _lb_opt_repr == 'bsf':
+            if _lb_opt:
                 this_candidates = \
                     bsf_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, st=st, dt_index=pnorm)
             else:
@@ -150,14 +146,12 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, loi: slice, p
     # rtn = naive_search(q, k, candidates, overlap, exclude_same_id)
     # duration_nonopt = time.time() - start
 
-    if _lb_opt_cluster == 'bsf':
+    if _lb_opt == 'bsf':
         # print('Using bsf')
         return bsf_search(q, k, candidates, dt_index=pnorm)
-    elif _lb_opt_cluster == 'none':
+    else:
         # print('Using naive')
         return naive_search(q, k, candidates, overlap, exclude_same_id, dt_index=pnorm)
-    else:
-        raise Exception('_query_partition: unsupported _lb_opt_cluster: ' + str(_lb_opt_cluster))
 
 
 def naive_search_rspace(q, k, r_list, cluster, dt_index):
@@ -198,25 +192,25 @@ def bsf_search(q, k, candidates, dt_index: int):
         # print('Using bsf')
         if len(query_result) < k:
             # take the negative distance so to have a maxheap
-            heapq.heappush(query_result, (-sim_between_seq(q, c, dt_index), c))
+            heapq.heappush(query_result, (-sim_between_seq(q, c, dt_index, use_fast=True), c))
         else:  # len(dist_heap) == k or >= k
             # if the new seq is better than the heap head
             if -lb_kim_sequence(c.data, q.data) < query_result[0][0]:
                 # prune_count += 1
                 continue
             # interpolate for keogh calculation
-            # if len(c) != len(q):
-            #     c_interp_data = np.interp(np.linspace(0, 1, len(q)),
-            #                                       np.linspace(0, 1, len(c.data)), c.data)
-            # else:
-            #     c_interp_data = c.data
-            # if -lb_keogh_sequence(c_interp_data, q.data) < query_result[0][0]:
-            #     # prune_count += 1
-            #     continue
-            # if -lb_keogh_sequence(q.data, c_interp_data) < query_result[0][0]:
-            #     # prune_count += 1
-            #     continue
-            dist = -sim_between_seq(q, c, dt_index)
+            if len(c) != len(q):
+                c_interp_data = np.interp(np.linspace(0, 1, len(q)),
+                                                  np.linspace(0, 1, len(c.data)), c.data)
+            else:
+                c_interp_data = c.data
+            if -lb_keogh_sequence(c_interp_data, q.data) < query_result[0][0]:
+                # prune_count += 1
+                continue
+            if -lb_keogh_sequence(q.data, c_interp_data) < query_result[0][0]:
+                # prune_count += 1
+                continue
+            dist = -sim_between_seq(q, c, dt_index, use_fast=True)
             if dist > query_result[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(query_result)
                 heapq.heappush(query_result, (dist, c))
@@ -227,11 +221,11 @@ def bsf_search(q, k, candidates, dt_index: int):
 
 def bsf_search_rspace(q, ke, r_list, cluster, st, dt_index: int):
     """
-
+    Not using fastDTW for the sake of optization
     :param q:
     :param ke:
     :param r_list:
-    :param cluster: dict, repr -> list of sequences representated
+    :param cluster: dict, repr -> list of sequences represented
     :return:
     """
     # use ranked heap
@@ -243,27 +237,27 @@ def bsf_search_rspace(q, ke, r_list, cluster, st, dt_index: int):
         if len(get_sequences_represented([r[1] for r in result_list],
                                          cluster)) < ke:  # keep track of how many sequences are we querying right now
             # take the negative distance so to have a maxheap
-            heapq.heappush(result_list, (sim_between_seq(q, r, dt_index), r))
+            heapq.heappush(result_list, (sim_between_seq(q, r, dt_index, use_fast=False), r))
         else:  # len(dist_heap) == k or >= k
             # a = lb_kim_sequence(r.data, q.data)
             if lb_kim_sequence(r.data, q.data) > st:
                 # prune_count += 1
                 continue
             # interpolate for keogh calculation
-            # if len(r) != len(q):
-            #     r_interp_data = np.interp(np.linspace(0, 1, len(q)),
-            #                                       np.linspace(0, 1, len(r.data)), r.data)
-            # else:
-            #     r_interp_data = r.data
-            # # b = lb_keogh_sequence(candidate_interp_data, q.data)
-            # if lb_keogh_sequence(r_interp_data, q.data) > st:
-            #     # prune_count += 1
-            #     continue
-            # # c = lb_keogh_sequence(q.data, candidate_interp_data)
-            # if lb_keogh_sequence(q.data, r_interp_data) > st:
-            #     # prune_count += 1
-            #     continue
-            dist = sim_between_seq(q, r, dt_index)
+            if len(r) != len(q):
+                r_interp_data = np.interp(np.linspace(0, 1, len(q)),
+                                                  np.linspace(0, 1, len(r.data)), r.data)
+            else:
+                r_interp_data = r.data
+            # b = lb_keogh_sequence(candidate_interp_data, q.data)
+            if lb_keogh_sequence(r_interp_data, q.data) > st:
+                # prune_count += 1
+                continue
+            # c = lb_keogh_sequence(q.data, candidate_interp_data)
+            if lb_keogh_sequence(q.data, r_interp_data) > st:
+                # prune_count += 1
+                continue
+            dist = sim_between_seq(q, r, dt_index, use_fast=False)
             if dist < result_list[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(result_list)
                 heapq.heappush(result_list, (dist, r))
