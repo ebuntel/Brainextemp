@@ -14,12 +14,16 @@ import pandas as pd
 # create the spark context
 from genex.utils.gxe_utils import from_csv
 
+########################################################################################################################
+mp_args = {'num_cores': 12,
+           'driver_mem': 25,
+           'max_result_mem': 25}
+
+
+########################################################################################################################
 
 def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
                      dist_type, _lb_opt, _radius, use_spark: bool):
-    num_cores = 12
-    driver_mem = 32
-    max_result_mem = 32
     # create gxdb from a csv file
 
     # set up where to save the results
@@ -28,9 +32,9 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     result_df = pd.DataFrame(columns=result_headers[0, :])
 
     print('Performing clustering ...')
-    mydb = from_csv(data, feature_num=feature_num, num_worker=num_cores,
-                    use_spark=use_spark, driver_mem=driver_mem, max_result_mem=max_result_mem,
-                    add_uuid=add_uuid, _rows_to_consider=num_sample)
+    gxe = from_csv(data, num_worker=mp_args['num_cores'], driver_mem=mp_args['driver_mem'],
+                   max_result_mem=mp_args['max_result_mem'],
+                   feature_num=feature_num, use_spark=use_spark, add_uuid=add_uuid, _rows_to_consider=num_sample)
 
     print('Generating query of max seq len ...')
     # generate the query sets
@@ -39,11 +43,11 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
     for i in range(num_query):
-        query_set.append(mydb.get_random_seq_of_len(int(mydb.get_max_seq_len() / 2), seed=i))
+        query_set.append(gxe.get_random_seq_of_len(int(gxe.get_max_seq_len() / 2), seed=i))
 
     cluster_start_time = time.time()
     print('Using dist_type = ' + str(dist_type))
-    mydb.build(st=0.1, dist_type=dist_type)
+    gxe.build(st=0.1, dist_type=dist_type)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
     print('Clustering took ' + str(cluster_time) + ' sec')
@@ -57,13 +61,17 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
             len(query_set)) + '; query = ' + str(q))
         start = time.time()
         print('Running Genex Query ...')
-        query_result_gx = mydb.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
+        # query_result_gx = mydb.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
+        print('...Not Actually running... Simulating results!')
+        query_result_gx = [(0.0, [1, 2, 3])] * 15
         gx_time = time.time() - start
 
         start = time.time()
         print('Genex  query took ' + str(gx_time) + ' sec')
         print('Running Brute Force Query ...')
-        query_result_bf = mydb.query_brute_force(query=q, best_k=15)
+        query_result_bf = gxe.query_brute_force(query=q, best_k=15)
+        # print('...Not Actually running... Simulating results!')
+        # query_result_bf = [(0.0, [1, 2, 3])] * 15
         bf_time = time.time() - start
         print('Brute force query took ' + str(bf_time) + ' sec')
         # save the results
@@ -86,9 +94,9 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     result_df = result_df.append({'diff': np.mean(overall_diff_list)}, ignore_index=True)
     result_df.to_csv(output)
     # terminate the spark session
-    mydb.stop()
+    gxe.stop()
 
-    return mydb
+    return gxe
 
 
 def generate_exp_set(dataset_list, dist_type, notes: str):
@@ -249,7 +257,7 @@ run_exp_set(es_ch_6, **ex_config_6)
 duration6 = time.time() - start
 print('Finished at')
 print(datetime.now())
-print('The experiment took ' + str(duration6/3600) + ' hrs')
+print('The experiment took ' + str(duration6 / 3600) + ' hrs')
 
 ########################################################################################################################
 ex_config_5 = {
@@ -270,4 +278,4 @@ run_exp_set(es_ch_5, **ex_config_5)
 duration5 = time.time() - start
 print('Finished at')
 print(datetime.now())
-print('The experiment took ' + str(duration5/3600) + ' hrs')
+print('The experiment took ' + str(duration5 / 3600) + ' hrs')

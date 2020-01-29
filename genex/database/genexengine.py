@@ -7,6 +7,8 @@ import random
 
 import numpy as np
 import shutil
+
+from pyspark.rdd import RDD
 from scipy.spatial.distance import cityblock
 from scipy.spatial.distance import euclidean
 from scipy.spatial.distance import chebyshev
@@ -15,6 +17,7 @@ from genex.classes.Sequence import Sequence
 from genex.op.query_op import _query_partition
 from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broadcast_kwargs, _destory_kwarg_bc
 from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxdb_query_arguments
+from genex.utils.context_utils import _multiprocess_backend
 
 from genex.utils.mutiproces_utils import _cluster_multi_process, _query_bf_mp, _query_mp
 from genex.utils.process_utils import _slice_time_series
@@ -169,10 +172,11 @@ class GenexEngine:
                 rtn += value
         return rtn
 
-    def query_brute_force(self, query: Sequence, best_k: int):
+    def query_brute_force(self, query: Sequence, best_k: int, _use_cache: bool = True):
         """
         Retrieve best k matches for query sequence using Brute force method
 
+        :param _use_cache:
         :param query: Sequence being queried
         :param best_k: Number of best matches to retrieve for the given query
 
@@ -183,34 +187,47 @@ class GenexEngine:
         start, end = self.build_conf.get('loi')
 
         query.fetch_and_set_data(self.data_normalized)
-        bf_query_key = (dist_type, query, start, end)
 
-        if bf_query_key not in self.bf_query_buffer.keys():
+        candidate_list = self.query_bf_produce_c(query, start, end, dt_index, best_k, _use_cache)
+
+        return candidate_list[:best_k]
+
+    def query_bf_produce_c(self, query, start, end, dt_index, best_k, use_cache):
+        candidate_list = self.check_bf_query_cache(query, start, end, best_k=best_k)
+        if not candidate_list:  # there is no cached brute force result
             if self.is_using_spark():
                 candidate_list = _query_bf_spark(query, self.mp_context, self.data_normalized, start, end, dt_index)
             else:
                 candidate_list = _query_bf_mp(query, self.mp_context, self.data_normalized, start, end, dt_index)
-
-            candidate_list.sort(key=lambda x: x[0])
-            self.bf_query_buffer[bf_query_key] = candidate_list
+                candidate_list.sort(key=lambda x: x[0])
         else:
-            print('bf_query: using buffered bf results, key=' + str([str(x) for x in bf_query_key]))
-            candidate_list = self.bf_query_buffer[bf_query_key]  # retrieve the buffer candidate list
+            print('bf_query: using buffered bf results')
+        return candidate_list
 
-        return candidate_list[:best_k]
+    def check_bf_query_cache(self, query, start, end, best_k):
+        key = (query, start, end)
+        try:
+            return self.bf_query_buffer[key] if len(self.bf_query_buffer[key]) >= best_k else None
+        except KeyError:
+            return None
 
-    def group_sequences(self):
-        """
-        helper function to monitor memory usage
-        """
-        input_rdd = self.mp_context.parallelize(self.data_normalized, numSlices=self.mp_context.defaultParallelism)
-        # process all possible length
-        start, end = _process_loi(None)
+    def reset_mp(self, use_spark, **kwargs):
+        self.stop()
+        self.mp_context = _multiprocess_backend(use_spark, kwargs)
 
-        slice_rdd = input_rdd.mapPartitions(
-            lambda x: _slice_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
 
-        return slice_rdd.collect()
+    # def group_sequences(self):
+    #     """
+    #     helper function to monitor memory usage
+    #     """
+    #     input_rdd = self.mp_context.parallelize(self.data_normalized, numSlices=self.mp_context.defaultParallelism)
+    #     # process all possible length
+    #     start, end = _process_loi(None)
+    #
+    #     slice_rdd = input_rdd.mapPartitions(
+    #         lambda x: _slice_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+    #
+    #     return slice_rdd.collect()
 
     def get_random_seq_of_len(self, sequence_len, seed):
         random.seed(seed)
@@ -332,10 +349,11 @@ class GenexEngine:
                            }
         if self.is_using_spark():  # The only place in query where it checks if is using Spark
 
-            query_rdd = self.clusters.mapPartitions(
+            query_rdd: RDD = self.clusters.mapPartitions(
                 lambda c: _query_partition(**query_args, cluster=c))
             candidates = query_rdd.collect()
             q.destroy()
+            query_rdd.unpersist()
         else:
             candidates = _query_mp(self.mp_context, self.clusters, **query_args)
 
@@ -355,6 +373,13 @@ class GenexEngine:
             best_matches.append(heapq.heappop(candidates))
 
         return best_matches
+
+    def query_on_batch(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
+              _lb_opt: bool = False, _ke=None, _radius: int = 1):
+        pass
+
+    def query_bf_on_batc(self):
+        pass
 
     def set_cluster_meta_dict(self, cluster_meta_dict):
         self.cluster_meta_dict = cluster_meta_dict

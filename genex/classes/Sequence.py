@@ -43,7 +43,7 @@ class Sequence:
         return True
 
     def del_data(self):
-        self.data = None
+        del self.data
 
     def get_data(self):
         if self.data is None:
