@@ -15,7 +15,7 @@ import pandas as pd
 from genex.utils.gxe_utils import from_csv
 
 ########################################################################################################################
-mp_args = {'num_cores': 12,
+mp_args = {'num_worker': 12,
            'driver_mem': 25,
            'max_result_mem': 25}
 
@@ -32,7 +32,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     result_df = pd.DataFrame(columns=result_headers[0, :])
 
     print('Performing clustering ...')
-    gxe = from_csv(data, num_worker=mp_args['num_cores'], driver_mem=mp_args['driver_mem'],
+    gxe = from_csv(data, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
                    max_result_mem=mp_args['max_result_mem'],
                    feature_num=feature_num, use_spark=use_spark, add_uuid=add_uuid, _rows_to_consider=num_sample)
 
@@ -61,9 +61,9 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
             len(query_set)) + '; query = ' + str(q))
         start = time.time()
         print('Running Genex Query ...')
-        # query_result_gx = mydb.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
-        print('...Not Actually running... Simulating results!')
-        query_result_gx = [(0.0, [1, 2, 3])] * 15
+        query_result_gx = gxe.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
+        # print('...Not Actually running... Simulating results!')
+        # query_result_gx = [(0.0, [1, 2, 3])] * 15
         gx_time = time.time() - start
 
         start = time.time()
@@ -88,7 +88,11 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
         result_df = result_df.append({'diff': np.mean(diff_list)}, ignore_index=True)
         result_df.to_csv(output)
 
-        print('     Done')
+        # evict the mp context every 3 queries
+        print('Done')
+        if i % 3:
+            gxe.reset_mp(use_spark=use_spark, **mp_args)
+            print('     Evicting Multiprocess Context')
 
     # save the overall difference
     result_df = result_df.append({'diff': np.mean(overall_diff_list)}, ignore_index=True)
@@ -128,7 +132,7 @@ def run_exp_set(exp_set, num_sample, num_query,
 
 
 datasets = [
-    # 'ItalyPower',
+    'ItalyPower',
     'ECGFiveDays',
     'Gun_Point_TRAIN',
     'synthetic_control_TRAIN'

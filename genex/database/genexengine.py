@@ -213,7 +213,7 @@ class GenexEngine:
 
     def reset_mp(self, use_spark, **kwargs):
         self.stop()
-        self.mp_context = _multiprocess_backend(use_spark, kwargs)
+        self.mp_context = _multiprocess_backend(use_spark, **kwargs)
 
 
     # def group_sequences(self):

@@ -79,7 +79,7 @@ def from_csv(file_name, feature_num: int,
 
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
 
-    mp_context = _multiprocess_backend(use_spark, num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+    mp_context = _multiprocess_backend(use_spark, num_worker=num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
 
     return GenexEngine(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
                        global_min=global_min,
@@ -113,7 +113,7 @@ def from_db(path: str,
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
 
-    mp_context = _multiprocess_backend(is_conf_using_spark(conf), num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+    mp_context = _multiprocess_backend(is_conf_using_spark(conf), num_worker=num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
     init_params = {'data_raw': data_raw, 'data_original': data, 'data_normalized': data_normalized,
                    'mp_context': mp_context,
                    'global_max': conf['global_max'], 'global_min': conf['global_min'],
