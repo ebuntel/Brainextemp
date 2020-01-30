@@ -90,9 +90,9 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
 
         # evict the mp context every 3 queries
         print('Done')
-        if i % 3:
-            gxe.reset_mp(use_spark=use_spark, **mp_args)
-            print('     Evicting Multiprocess Context')
+        # if i % 3:
+        #     gxe.reset_mp(use_spark=use_spark, **mp_args)
+        #     print('     Evicting Multiprocess Context')
 
     # save the overall difference
     result_df = result_df.append({'diff': np.mean(overall_diff_list)}, ignore_index=True)
@@ -241,7 +241,7 @@ datasets = [
 # print(datetime.now())
 # print('The experiment took ' + str(duration4/3600) + ' hrs')
 ########################################################################################################################
-num_sample = 400
+num_sample = 200
 ########################################################################################################################
 ex_config_6 = {
     'num_sample': num_sample,

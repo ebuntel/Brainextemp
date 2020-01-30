@@ -188,20 +188,20 @@ class GenexEngine:
 
         query.fetch_and_set_data(self.data_normalized)
 
-        candidate_list = self.query_bf_produce_c(query, start, end, dt_index, best_k, _use_cache)
+        candidate_list = self.query_bf_produce_candidates(query, start, end, dt_index, best_k, _use_cache)
 
         return candidate_list[:best_k]
 
-    def query_bf_produce_c(self, query, start, end, dt_index, best_k, use_cache):
+    def query_bf_produce_candidates(self, query, start, end, dt_index, best_k, use_cache):
         candidate_list = self.check_bf_query_cache(query, start, end, best_k=best_k)
         if not candidate_list:  # there is no cached brute force result
             if self.is_using_spark():
                 candidate_list = _query_bf_spark(query, self.mp_context, self.data_normalized, start, end, dt_index)
             else:
                 candidate_list = _query_bf_mp(query, self.mp_context, self.data_normalized, start, end, dt_index)
-                candidate_list.sort(key=lambda x: x[0])
         else:
             print('bf_query: using buffered bf results')
+        candidate_list.sort(key=lambda x: x[0])
         return candidate_list
 
     def check_bf_query_cache(self, query, start, end, best_k):

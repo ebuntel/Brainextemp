@@ -18,7 +18,7 @@ mydb = from_csv(data_file, feature_num=2, num_worker=16, use_spark=True, driver_
 mydb.save(path=db_path)
 mydb.stop()
 del mydb
-mydb = from_db(path=db_path, num_worker=32)
+mydb = from_db(path=db_path, num_worker=16)
 
 start = time.time()
 mydb.build(st=0.1, loi=slice(13, 16))
@@ -34,21 +34,21 @@ mydb = from_db(path=db_path, num_worker=32)
 q = mydb.get_random_seq_of_len(15, seed=1)
 
 start = time.time()
-query_result = mydb.query_brute_force(query=q, best_k=5)
+query_result_bf = mydb.query_brute_force(query=q, best_k=5)
 duration_bf = time.time() - start
 
 start = time.time()
-query_result = mydb.query(query=q, best_k=5, _radius=1, _lb_opt=True)
+query_result_0 = mydb.query(query=q, best_k=5, _radius=1, _lb_opt=True)
 duration_withOpt = time.time() - start
 
 start = time.time()
-query_result = mydb.query(query=q, best_k=5, _radius=1, _lb_opt=False)
+query_result_1 = mydb.query(query=q, best_k=5, _radius=1, _lb_opt=False)
 duration_noOpt = time.time() - start
 
 # TODO memory optimization:  memory optimization, encode features (ids), length batches
 # plot the query result
 plt.plot(q.fetch_data(mydb.data_normalized), linewidth=5, color='red')
-for qr in query_result:
+for qr in query_result_bf:
     plt.plot(qr[1].fetch_data(mydb.data_normalized), color='blue', label=str(qr[0]))
 plt.legend()
 plt.show()
