@@ -38,8 +38,8 @@ if __name__ == '__main__':
             'size': 12}
     matplotlib.rc('font', **font)
 
-    date = 'Jan-24-2020-3-N-UseSpark-R1-bsfKimOnly'
-    notes = 'UseSpark-R1-bsfKimOnly'
+    date = 'Jan-30-2020-12-N-UseSpark-R1-noOptFastDTW_numSample400'
+    notes = 'UseSpark-R1-noOptFastDTW_numSample400'
 
     # dist_type = 'ma'
     # title = 'Manhattan Query Accuracy across Datasets \n' + notes
@@ -58,7 +58,7 @@ if __name__ == '__main__':
                         'ECG Five Days': [],
                         'Italy Power Demand': [],
                         'Synthetic Control': []
-                        }
+                        }  # the second dimension is 'k to look
     overall_error_list = []
     k_to_look = [1, 3, 5, 9, 15]
 

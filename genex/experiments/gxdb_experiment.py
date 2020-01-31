@@ -9,18 +9,19 @@ from genex.utils.gxe_utils import from_csv, from_db
 # findspark.init(spark_home=spark_location)
 
 # create gxdb from a csv file
-data_file = 'data_original/ItalyPower.csv'
+data_file = 'genex/experiments/data_original/ItalyPower.csv'
 db_path = 'results/archived/test_db'
 
-mydb = from_csv(data_file, feature_num=2, num_worker=16, use_spark=True, driver_mem=64, max_result_mem=64)
+mydb = from_csv(data_file, feature_num=2, num_worker=12, use_spark=True, driver_mem=64, max_result_mem=64)
 
 # Save reloading unbuilt Genex database
 mydb.save(path=db_path)
 mydb.stop()
 del mydb
-mydb = from_db(path=db_path, num_worker=16)
+mydb = from_db(path=db_path, num_worker=12)
 
 start = time.time()
+mydb.build(st=0.1)
 mydb.build(st=0.1, loi=slice(13, 16))
 print('Building took ' + str(time.time() - start) + ' sec')
 
@@ -28,7 +29,7 @@ print('Building took ' + str(time.time() - start) + ' sec')
 mydb.save(path=db_path)
 mydb.stop()
 del mydb
-mydb = from_db(path=db_path, num_worker=32)
+mydb = from_db(path=db_path, num_worker=12)
 
 # generate the query sets
 q = mydb.get_random_seq_of_len(15, seed=1)
@@ -38,7 +39,7 @@ query_result_bf = mydb.query_brute_force(query=q, best_k=5)
 duration_bf = time.time() - start
 
 start = time.time()
-query_result_0 = mydb.query(query=q, best_k=5, _radius=1, _lb_opt=True)
+query_result_0 = mydb.query(query=q, best_k=5)
 duration_withOpt = time.time() - start
 
 start = time.time()
@@ -48,7 +49,7 @@ duration_noOpt = time.time() - start
 # TODO memory optimization:  memory optimization, encode features (ids), length batches
 # plot the query result
 plt.plot(q.fetch_data(mydb.data_normalized), linewidth=5, color='red')
-for qr in query_result_bf:
+for qr in query_result_0:
     plt.plot(qr[1].fetch_data(mydb.data_normalized), color='blue', label=str(qr[0]))
 plt.legend()
 plt.show()
