@@ -1,10 +1,8 @@
 import math
-import multiprocessing
 
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
-from genex.misc import pr_red
 from genex.classes.Sequence import Sequence
 
 
@@ -253,3 +251,5 @@ def _calculate_overlap(seq1, seq2) -> float:
         print(seq1)
         print(seq2)
         raise Exception('FATAL: sequence 100% overlap, please report the bug')
+
+

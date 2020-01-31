@@ -43,7 +43,7 @@ class Sequence:
         return True
 
     def del_data(self):
-        self.data = None
+        del self.data
 
     def get_data(self):
         if self.data is None:
@@ -58,7 +58,7 @@ class Sequence:
         try:
             input_dict = dict(input_list)  # validate by converting input_list into a dict
         except (TypeError, ValueError):
-            raise Exception('sequence: fetch_data: input_list is not key-value pair.')
+            raise Exception('Sequence: fetch_data: input_list is not key-value pair. Type: ' + str(type(input_list)))
 
         try:
             return input_dict[self.seq_id][self.start:self.end+1]

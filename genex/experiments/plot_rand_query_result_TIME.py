@@ -6,16 +6,9 @@ import numpy as np
 
 from genex.experiments.plot_rand_query_result_RMSE import autolabel
 
-date = 'Jan-23-2020-22-N-noneSpark-R0-noOpt'
-notes = 'noneSpark-R0-noOpt'
-# date = 'Jan-23-2020-21-N-UseSpark-R0-noOpt'
-# notes = 'UseSpark-R0-noOpt'
-# date = 'Jan-24-2020-2-N-UseSpark-R1-noOpt'
-# notes = 'UseSpark-R1-noOpt'
-# date = 'Jan-23-2020-22-N-noneSpark-R0-noOpt'
-# notes = 'noneSpark-R0-noOpt'
-# date = 'Jan-24-2020-3-N-UseSpark-R1-bsfKimOnly'
-# notes = 'UseSpark-R1-bsfKimOnly'
+
+date = 'Jan-30-2020-15-N-UseSpark-R1-LBOptNormalDTW_numSample400'
+notes = 'UseSpark-R1-LBOptNormalDTW_numSample400'
 
 font = {'family': 'DejaVu Sans',
         'weight': 'bold',

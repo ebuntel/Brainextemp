@@ -1,5 +1,4 @@
 import json
-import multiprocessing
 import os
 import pickle
 import uuid
@@ -8,9 +7,8 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
 from genex import GenexEngine
-from genex.misc import pr_red
-from genex.utils.spark_utils import _create_sc, _pr_spark_conf
 from genex.utils.utils import _create_f_uuid_map, _df_to_list, genex_normalize
+from genex.utils.context_utils import _multiprocess_backend
 
 
 def from_csv(file_name, feature_num: int,
@@ -81,7 +79,7 @@ def from_csv(file_name, feature_num: int,
 
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
 
-    mp_context = _multiprocess_backend(use_spark, num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+    mp_context = _multiprocess_backend(use_spark, num_worker=num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
 
     return GenexEngine(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
                        global_min=global_min,
@@ -115,7 +113,7 @@ def from_db(path: str,
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
 
-    mp_context = _multiprocess_backend(is_conf_using_spark(conf), num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+    mp_context = _multiprocess_backend(is_conf_using_spark(conf), num_worker=num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
     init_params = {'data_raw': data_raw, 'data_original': data, 'data_normalized': data_normalized,
                    'mp_context': mp_context,
                    'global_max': conf['global_max'], 'global_min': conf['global_min'],
@@ -127,6 +125,8 @@ def from_db(path: str,
         engine.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'rb')))
         build_conf = json.load(open(os.path.join(path, 'build_conf.json'), 'rb'))
         engine.set_build_conf(build_conf)
+        if engine.is_using_spark():
+            engine._data_normalized_bc = engine.mp_context.broadcast(engine.data_normalized)
     return engine
 
 
@@ -134,16 +134,3 @@ def is_conf_using_spark(conf):
     return conf['backend'] == 'spark'
 
 
-def _multiprocess_backend(use_spark, num_worker, driver_mem, max_result_mem):
-    """
-    :return None if not using spark
-    """
-    if use_spark:
-        pr_red('Genex Engine: Using PySpark Backend')
-        mp_context = _create_sc(num_cores=num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
-        _pr_spark_conf(mp_context)
-    else:
-        pr_red('Genex Engine: Using Python Native Multiprocessing')
-        mp_context = multiprocessing.Pool(num_worker, maxtasksperchild=1)
-
-    return mp_context

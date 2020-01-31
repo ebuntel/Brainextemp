@@ -54,11 +54,35 @@ def _cluster_to_meta_spark(cluster_rdd):
 
 def _query_bf_spark(query, sc: SparkContext, data_normalized: list, start, end, dt_index):
     input_rdd = sc.parallelize(data_normalized, numSlices=sc.defaultParallelism)
-    group_rdd = input_rdd.mapPartitions(
+    pp_rdd = input_rdd.mapPartitions(
         lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
-    slice_rdd = group_rdd.flatMap(lambda x: x[1])
+    pp_rdd = pp_rdd.flatMap(lambda x: x[1])
     # for debug purpose
     # a = slice_rdd.collect()
-    dist_rdd = slice_rdd.map(lambda x: get_dist_query(query, x, dt_index=dt_index))
-    candidate_list = dist_rdd.collect()
+    pp_rdd = pp_rdd.map(lambda x: get_dist_query(query, x, dt_index=dt_index))
+    candidate_list = pp_rdd.collect()
+    # clear data stored in the candidate list
+    [c.del_data() for dist, c in candidate_list]
+
+    input_rdd.unpersist()
+    pp_rdd.unpersist()
+    del input_rdd, pp_rdd
+
     return candidate_list
+
+
+def _broadcast_kwargs(sc: SparkContext, kwargs_dict):
+    """
+    return the broadcast version of the kwargs values
+    :param kwargs_dict:
+    """
+    rtn = dict(((key, sc.broadcast(value=value)) for key, value in kwargs_dict))
+    return rtn
+
+
+def _destory_kwarg_bc(kwargs_dict: dict):
+    """
+    destroy the values in the kwarg dictionary
+    :param kwargs_dict:
+    """
+    [value.destroy() for key, value in kwargs_dict]
