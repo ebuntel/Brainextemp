@@ -4,6 +4,7 @@ import math
 import os
 import pickle
 import random
+from statistics import mode
 
 import numpy as np
 import shutil
@@ -20,7 +21,6 @@ from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _val
 from genex.utils.context_utils import _multiprocess_backend
 
 from genex.utils.mutiproces_utils import _cluster_multi_process, _query_bf_mp, _query_mp
-from genex.utils.process_utils import _slice_time_series
 
 
 def eu_norm(x, y):
@@ -71,13 +71,18 @@ class GenexEngine:
         self.mp_context = kwargs['mp_context']
         self.clusters = None
         self.cluster_meta_dict = None
-        self.conf = {'global_max': kwargs['global_max'],
-                     'global_min': kwargs['global_min'],
-                     'backend': kwargs['backend']}
+        if 'conf' in kwargs.keys():
+            self.conf = kwargs['conf']
+        else:
+            self.conf = {'global_max': kwargs['global_max'],
+                         'global_min': kwargs['global_min'],
+                         'backend': kwargs['backend'],
+                         'has_uuid': kwargs['has_uuid']}
         self.build_conf = None
         self.bf_query_buffer = dict()
 
         self._data_normalized_bc = None
+        self.feature_num = len(self.data_normalized[0][0])
 
     def __set_conf(self, conf):
         self.conf = conf
@@ -101,7 +106,7 @@ class GenexEngine:
             return False
         return True
 
-    def build(self, st: float, dist_type: str = 'eu', loi: slice = None, verbose: int = 1,
+    def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1,
               _batch_size=None, _is_cluster=True):
         """
         Groups and clusters the time series set
@@ -116,7 +121,7 @@ class GenexEngine:
 
         """
         _validate_gxdb_build_arguments(locals())
-        start, end = _process_loi(loi)
+        start, end = _process_loi(loi, max_len=self.get_max_seq_len())
         # update build configuration
         self.build_conf = {'similarity_threshold': st,
                            'dist_type': dist_type,
@@ -298,7 +303,7 @@ class GenexEngine:
     def is_using_spark(self):
         return self.conf['backend'] == 'spark'
 
-    def query(self, query: Sequence, best_k: int,
+    def query(self, query, best_k: int,
               exclude_same_id: bool = False, overlap: float = 1.0,
               _lb_opt: bool = False, _ke=None, _radius: int = 1):
         """
@@ -323,7 +328,13 @@ class GenexEngine:
             if _ke > self.get_num_subsequences():
                 raise Exception('query: _ke cannot be greater than the number of subsequences in the database.')
 
-        query.fetch_and_set_data(self._get_data_normalized())
+        if type(query) is Sequence:
+            query.fetch_and_set_data(self._get_data_normalized())
+        else:  # if query is an time series outside of the original dataset, make it into a Sequence object.
+            try:
+                query = Sequence(seq_id=tuple('outside sequence'), start=0, end=len(query), data=np.asarray(query))
+            except TypeError as e:
+                raise Exception('Query must be an iterable consisted of numbers')
 
         st = self.build_conf.get('similarity_threshold')
         dist_type = self.build_conf.get('dist_type')
@@ -396,6 +407,25 @@ class GenexEngine:
         else:
             self.mp_context.terminate()
             self.mp_context.close()
+
+    def predice_label_knn(self, query, k, label_index, verbose=0):
+        """
+
+        :param query:
+        :param k:
+        :param label_index: which label in the time series id to predict
+        """
+        try:
+            assert label_index <= self.feature_num - 1
+        except AssertionError as e:
+            raise Exception('Given label index is out of bound of the number of features in the dataset')
+        label_index = label_index + 1 if self.conf['has_uuid'] else label_index
+        kn = self.query(query, k, exclude_same_id=True)
+        kn_labels = [n[1].seq_id[label_index] for n in kn]
+        res = mode(kn_labels)
+        if verbose == 1:
+            print(str(kn_labels.count(res)) + ' out of ' + str(len(kn_labels)) + ' voted positive for label:' + str(res))
+        return res
 
 
 def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:

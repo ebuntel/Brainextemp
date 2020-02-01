@@ -11,10 +11,11 @@ from genex.utils.gxe_utils import from_csv, from_db
 # findspark.init(spark_home=spark_location)
 
 # create gxdb from a csv file
-data_file = 'data_original/ItalyPower.csv'
+# data_file = 'data_original/ECGFiveDays_altered.csv'
+data_file = 'data_original/WormsTwoClass_TRAIN.tsv'
 db_path = 'results/archived/test_db'
 
-mydb = from_csv(data_file, feature_num=2, num_worker=32, use_spark=False)
+mydb = from_csv(data_file, feature_num=1, add_uuid=True, num_worker=12, use_spark=False, _rows_to_consider=5)
 
 # Save reloading unbuilt Genex Engine
 mydb.save(path=db_path)

@@ -1,9 +1,11 @@
 import math
+from logging import warning
 
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
 from genex.classes.Sequence import Sequence
+from genex.misc import prYellow
 
 
 def normalize_sequence(seq: Sequence, max, min, z_normalize=True):
@@ -95,11 +97,13 @@ def _validate_gxdb_build_arguments(args: dict):
     # TODO finish the exception messages
 
     if 'loi' in args and args['loi'] is not None:
+        loi = args['loi']
         try:
-            assert args['loi'].step == None
-        except AssertionError as ae:
-            raise Exception('Build check argument failed: build loi(length of interest) does not support stepping, '
-                            'loi.step=' + str(args['loi'].step))
+            iter(loi)
+            assert len(loi) == 1 or len(loi) == 2
+        except (AssertionError, TypeError) as ae:
+            raise Exception('Build check argument failed: the Length of Interest (loi) must be an iterable of length'
+                            '1 or 2')
     try:
         assert 0. < args['st'] < 1.
     except AssertionError as ae:
@@ -147,22 +151,28 @@ def _row_to_feature_and_data(row, feature_num):
     return seq_id, data
 
 
-def _process_loi(loi: slice):
+def _process_loi(loi, max_len):
     """
     Process the length of interest parameter to get the start and end index
     :param loi: length of interest parameter
     :return: start and end index
     """
-    start = 1
-    end = math.inf
     if loi is not None:
-        if loi.start is not None:
-            start = loi.start
-        if loi.stop is not None:
-            end = loi.stop
-
-    assert start > 0
-    return start, end
+        start = max(1, loi[0])
+        if len(loi) == 2:
+            end = min(max_len, loi[1])
+            if loi[1] > max_len:
+                warning(
+                    'Warning: Length of interest must end less or equal to the length of the longest time series in the '
+                    'dataset, setting end to that max.')
+        else:
+            end = max_len
+        if loi[0] < 1:
+            warning('Warning: Length of interest must start at a value greater than 1, setting start to 1.')
+    else:
+        start = 1
+        end = max_len
+    return int(start), int(end)
 
 
 from functools import reduce

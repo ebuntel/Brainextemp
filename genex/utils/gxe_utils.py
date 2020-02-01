@@ -7,6 +7,7 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
 from genex import GenexEngine
+from genex.misc import allUnique
 from genex.utils.utils import _create_f_uuid_map, _df_to_list, genex_normalize
 from genex.utils.context_utils import _multiprocess_backend
 
@@ -14,7 +15,6 @@ from genex.utils.context_utils import _multiprocess_backend
 def from_csv(file_name, feature_num: int,
              num_worker: int,
              use_spark: bool, driver_mem: int = 16, max_result_mem: int = 16,
-             add_uuid=False,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
              _is_z_normalize=True):
@@ -23,7 +23,6 @@ def from_csv(file_name, feature_num: int,
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
 
-    :param add_uuid:
     :param _is_z_normalize:
     :param _memory_opt:
     :param driver_mem:
@@ -40,10 +39,16 @@ def from_csv(file_name, feature_num: int,
 
     :return: a genex_database object that holds the original time series
     """
+    if file_name.endswith('.csv'):
+        df = pd.read_csv(file_name)
+    elif file_name.endswith('.tsv'):
+        file_name.endswith('.tsv')
+        df = pd.read_csv(file_name, sep='\t')
+    else:
+        raise Exception('Unrecognized file type, make sure that the data file extension is either csv or tsv.')
 
-    df = pd.read_csv(file_name)
-
-    if feature_num == 0:
+    feature_col = df.iloc[:, 0:feature_num].values
+    if feature_num == 0 or not allUnique(feature_col):
         add_uuid = True
         print('msg: from_csv, feature num is 0')
 
@@ -79,10 +84,11 @@ def from_csv(file_name, feature_num: int,
 
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
 
-    mp_context = _multiprocess_backend(use_spark, num_worker=num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+    mp_context = _multiprocess_backend(use_spark, num_worker=num_worker, driver_mem=driver_mem,
+                                       max_result_mem=max_result_mem)
 
     return GenexEngine(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
-                       global_min=global_min,
+                       global_min=global_min, has_uuid=add_uuid,
                        mp_context=mp_context, backend='multiprocess' if not use_spark else 'spark')
 
 
@@ -113,11 +119,10 @@ def from_db(path: str,
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
 
-    mp_context = _multiprocess_backend(is_conf_using_spark(conf), num_worker=num_worker, driver_mem=driver_mem, max_result_mem=max_result_mem)
+    mp_context = _multiprocess_backend(is_conf_using_spark(conf), num_worker=num_worker, driver_mem=driver_mem,
+                                       max_result_mem=max_result_mem)
     init_params = {'data_raw': data_raw, 'data_original': data, 'data_normalized': data_normalized,
-                   'mp_context': mp_context,
-                   'global_max': conf['global_max'], 'global_min': conf['global_min'],
-                   'backend': conf['backend']}
+                   'mp_context': mp_context, 'conf': conf}
     engine: GenexEngine = GenexEngine(**init_params)
 
     if os.path.exists(os.path.join(path, 'clusters.gxdb')):
@@ -132,5 +137,3 @@ def from_db(path: str,
 
 def is_conf_using_spark(conf):
     return conf['backend'] == 'spark'
-
-
