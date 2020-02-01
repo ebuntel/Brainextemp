@@ -51,7 +51,10 @@ class Sequence:
         return self.data
 
     def fetch_and_set_data(self, input_list):
-        self.data = self.fetch_data(input_list)
+        try:
+            self.data = self.fetch_data(input_list)
+        except KeyError as e:
+            raise Exception('Query Sequence ID (feature/label) list not found in the the original dataset')
 
     def fetch_data(self, input_list):
         # TODO not tested

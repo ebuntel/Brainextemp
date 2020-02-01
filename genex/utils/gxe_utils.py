@@ -15,6 +15,7 @@ from genex.utils.context_utils import _multiprocess_backend
 def from_csv(file_name, feature_num: int,
              num_worker: int,
              use_spark: bool, driver_mem: int = 16, max_result_mem: int = 16,
+             num_channels: int = 1,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
              _is_z_normalize=True):
@@ -47,31 +48,27 @@ def from_csv(file_name, feature_num: int,
     else:
         raise Exception('Unrecognized file type, make sure that the data file extension is either csv or tsv.')
 
-    feature_col = df.iloc[:, 0:feature_num].values
-    if feature_num == 0 or not allUnique(feature_col):
-        add_uuid = True
-        print('msg: from_csv, feature num is 0')
-
+    add_uuid = need_uuid(df, feature_num)
     if add_uuid:
-        print('auto-generating uuid')
+        print('msg: from_csv, feature num is 0, auto-generating uuid')
         feature_num = feature_num + 1
         df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
 
-    if _memory_opt == 'uuid':
-        df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
-        feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
-        # take off the feature columns
-        df = df.drop(df.columns[list(range(1, feature_num + 1))], axis=1, inplace=False)
-        data_list = _df_to_list(df, feature_num=1)  # now the only feature is the uuid
+    # if _memory_opt == 'uuid':
+    #     df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
+    #     feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
+    #     # take off the feature columns
+    #     df = df.drop(df.columns[list(range(1, feature_num + 1))], axis=1, inplace=False)
+    #     data_list = _df_to_list(df, feature_num=1)  # now the only feature is the uuid
 
-    elif _memory_opt == 'encoding':
-        for i in range(feature_num):
-            le = LabelEncoder()
-            df.iloc[:, i] = le.fit_transform(df.iloc[:, i])
-
-        data_list = _df_to_list(df, feature_num=feature_num)
-    else:
-        data_list = _df_to_list(df, feature_num=feature_num)
+    # elif _memory_opt == 'encoding':
+    #     for i in range(feature_num):
+    #         le = LabelEncoder()
+    #         df.iloc[:, i] = le.fit_transform(df.iloc[:, i])
+    #
+    #     data_list = _df_to_list(df, feature_num=feature_num)
+    # else:
+    data_list = _df_to_list(df, feature_num=feature_num)
 
     if _rows_to_consider is not None:
         if type(_rows_to_consider) == list:
@@ -83,13 +80,16 @@ def from_csv(file_name, feature_num: int,
             raise Exception('_rows_to_consider must be either a list or an integer')
 
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
-
     mp_context = _multiprocess_backend(use_spark, num_worker=num_worker, driver_mem=driver_mem,
                                        max_result_mem=max_result_mem)
-
     return GenexEngine(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
                        global_min=global_min, has_uuid=add_uuid,
                        mp_context=mp_context, backend='multiprocess' if not use_spark else 'spark')
+
+
+def need_uuid(df, feature_num):
+    feature_col = df.iloc[:, 0:feature_num].values.tolist()
+    return feature_num == 0 or not allUnique(feature_col)
 
 
 def from_db(path: str,

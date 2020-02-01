@@ -12,19 +12,19 @@ from genex.utils.gxe_utils import from_csv, from_db
 
 # create gxdb from a csv file
 # data_file = 'data_original/ECGFiveDays_altered.csv'
-data_file = 'data_original/WormsTwoClass_TRAIN.tsv'
+data_file = 'data_original/ItalyPowerDemand_TRAIN.tsv'
 db_path = 'results/archived/test_db'
 
-mydb = from_csv(data_file, feature_num=1, add_uuid=True, num_worker=12, use_spark=False, _rows_to_consider=5)
+mydb = from_csv(data_file, feature_num=1, num_worker=12, use_spark=False)
 
 # Save reloading unbuilt Genex Engine
 mydb.save(path=db_path)
 mydb.stop()
 del mydb
-mydb = from_db(path=db_path, num_worker=32)
+mydb = from_db(path=db_path, num_worker=12)
 
 start = time.time()
-mydb.build(st=0.1, loi=slice(13, 16))
+mydb.build(st=0.1)
 print('Building took ' + str(time.time() - start) + ' sec')
 
 # Save reloading after built
