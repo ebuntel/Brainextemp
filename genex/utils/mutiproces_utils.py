@@ -8,18 +8,25 @@ from genex.utils.process_utils import _grouper, _group_time_series, reduce_by_ke
 
 
 def _partitioner(data, slice_num):
-    _slice_size = math.floor(len(data) / slice_num)
+    _slice_size = len(data) if len(data) < slice_num else math.floor(len(data) / slice_num)
     return _grouper(_slice_size, data)
 
 
 def __partition_and_group(data, slice_num, start, end, p: multiprocessing.pool, shuffle=True):
     data_partition = _partitioner(data, p._processes)
     group_arg_partition = [(x, start, end) for x in data_partition]
+
+    # Linear partitioning for debugging
+    # group_partition = []
+    # for arg in group_arg_partition:
+    #     group_partition.append(_group_time_series(*arg))
+
     group_partition = p.starmap(_group_time_series, group_arg_partition)
     return group_partition
 
 
 def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end, st, dist_func, verbose):
+    # if len(data_normalized) < p._processe:  # group the time series first if # time series < # worker
     group_partition = __partition_and_group(data_normalized, p._processes, start, end, p)
     cluster_arg_partition = [(x, st, dist_func, verbose) for x in group_partition]
     """

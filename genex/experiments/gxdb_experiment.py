@@ -9,10 +9,10 @@ from genex.utils.gxe_utils import from_csv, from_db
 # findspark.init(spark_home=spark_location)
 
 # create gxdb from a csv file
-data_file = 'genex/experiments/data_original/ItalyPower.csv'
+data_file = 'data_original/ItalyPowerDemand_TRAIN.tsv'
 db_path = 'results/archived/test_db'
 
-mydb = from_csv(data_file, feature_num=2, num_worker=12, use_spark=True, driver_mem=64, max_result_mem=64)
+mydb = from_csv(data_file, feature_num=1, num_worker=12, use_spark=True, driver_mem=12, max_result_mem=12)
 
 # Save reloading unbuilt Genex database
 mydb.save(path=db_path)
@@ -22,7 +22,6 @@ mydb = from_db(path=db_path, num_worker=12)
 
 start = time.time()
 mydb.build(st=0.1)
-mydb.build(st=0.1, loi=slice(13, 16))
 print('Building took ' + str(time.time() - start) + ' sec')
 
 # Save reloading built Genex Engine
@@ -53,3 +52,8 @@ for qr in query_result_0:
     plt.plot(qr[1].fetch_data(mydb.data_normalized), color='blue', label=str(qr[0]))
 plt.legend()
 plt.show()
+
+
+predicted_l0 = mydb.predice_label_knn([1, 2, 3], 10, 0)
+predicted_l1 = mydb.predice_label_knn(q, 10, 0, verbose=1)
+

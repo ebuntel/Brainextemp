@@ -31,18 +31,18 @@ def _group_time_series(time_series, start, end):
             target_length = i + 1
             if target_length not in rtn.keys():
                 rtn[target_length] = []
-            rtn[target_length] += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
+            rtn[target_length] += _get_sublist_as_sequences(single_time_series=ts_data, data_id=ts_id, length=i)
     return list(rtn.items())
 
 
-def _get_sublist_as_sequences(data_list, data_id, length):
+def _get_sublist_as_sequences(single_time_series, data_id, length):
     # if given length is greater than the size of the data_list itself, the
     # function returns an empty list
     rtn = []
-    for i in range(0, len(data_list) - length):
+    for i in range(0, len(single_time_series) - length):
         # if the second number in range() is less than 1, the iteration will not run
         # data_list[i:i+length]  # for debug purposes
-        rtn.append(Sequence(start=i, end=i + length, seq_id=data_id, data=np.array(data_list[i:i + length + 1])))
+        rtn.append(Sequence(start=i, end=i + length, seq_id=data_id, data=np.array(single_time_series[i:i + length + 1])))
     return rtn
 
 
@@ -63,7 +63,7 @@ def _slice_time_series(time_series, start, end):
         ts_data = ts[1]
         # we take min because min can be math.inf
         for i in range(start, min(end, len(ts_data))):
-            rtn += _get_sublist_as_sequences(data_list=ts_data, data_id=ts_id, length=i)
+            rtn += _get_sublist_as_sequences(single_time_series=ts_data, data_id=ts_id, length=i)
     return rtn
 
 

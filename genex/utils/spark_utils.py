@@ -42,6 +42,7 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, start, end, st, dist_
     cluster_rdd.count()
     # Combining two dictionary using **kwargs concept
     cluster_meta_dict = _cluster_to_meta_spark(cluster_rdd)
+
     return cluster_rdd, cluster_meta_dict
 
 
