@@ -38,6 +38,7 @@ q = mydb.get_random_seq_of_len(15, seed=1)
 start = time.time()
 query_result = mydb.query_brute_force(query=q, best_k=5)
 duration_bf = time.time() - start
+start = time.time()
 query_result = mydb.query(query=q, best_k=5)
 duration_genex = time.time() - start
 
