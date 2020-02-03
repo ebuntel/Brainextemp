@@ -9,8 +9,8 @@ from genex.utils.gxe_utils import from_csv, from_db
 # findspark.init(spark_home=spark_location)
 
 # create gxdb from a csv file
-data_file = 'data_original/ItalyPowerDemand_TRAIN.tsv'
-db_path = 'results/archived/test_db'
+data_file = 'data_original/ItalyPower.csv'
+db_path = 'results/test_db'
 
 mydb = from_csv(data_file, feature_num=1, num_worker=12, use_spark=True, driver_mem=12, max_result_mem=12)
 

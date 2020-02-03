@@ -238,20 +238,24 @@ class GenexEngine:
         random.seed(seed)
 
         target = random.choice(self.data_normalized)
-
         try:
             start = random.randint(0, len(target[1]) - sequence_len)
             seq = Sequence(target[0], start, start + sequence_len - 1)
         except ValueError:
             raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
                             'an implementation error, please report to the Repository as an issue.')
-
         try:
             assert len(seq.fetch_data(self.data_original)) == sequence_len
         except AssertionError:
             raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
                             'an implementation error, please report to the Repository as an issue.')
         return seq
+
+    def get_seqs_of_len(self, seq_len):
+        pass
+
+    def get_norm_ts_list(self):
+        return [Sequence(seq_id=x[0], start=0, end=len(x[1]) - 1, data=x[1]) for x in self.data_normalized]
 
     def save(self, path: str):
         """
@@ -329,10 +333,13 @@ class GenexEngine:
                 raise Exception('query: _ke cannot be greater than the number of subsequences in the database.')
 
         if type(query) is Sequence:
-            query.fetch_and_set_data(self._get_data_normalized())
+            if query.data is None:
+                query.fetch_and_set_data(self._get_data_normalized())
+            else:
+                pass
         else:  # if query is an time series outside of the original dataset, make it into a Sequence object.
             try:
-                query = Sequence(seq_id=tuple('outside sequence'), start=0, end=len(query), data=np.asarray(query))
+                query = Sequence(seq_id=('outside sequence', 1), start=0, end=len(query), data=np.asarray(query))
             except TypeError as e:
                 raise Exception('Query must be an iterable consisted of numbers')
 
@@ -389,8 +396,9 @@ class GenexEngine:
               _lb_opt: bool = False, _ke=None, _radius: int = 1):
         pass
 
-    def query_bf_on_batc(self):
+    def query_bf_on_batch(self):
         pass
+
 
     def set_cluster_meta_dict(self, cluster_meta_dict):
         self.cluster_meta_dict = cluster_meta_dict
@@ -427,6 +435,8 @@ class GenexEngine:
             print(str(kn_labels.count(res)) + ' out of ' + str(len(kn_labels)) + ' voted positive for label:' + str(res))
         return res
 
+    def predice_label_knn_on_batch(self):
+        pass
 
 def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
     """

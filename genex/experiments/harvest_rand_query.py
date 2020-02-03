@@ -1,6 +1,7 @@
 import os
 import time
 from datetime import datetime
+from logging import warning
 
 import numpy as np
 import pandas as pd
@@ -103,7 +104,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     return gxe
 
 
-def generate_exp_set(dataset_list, dist_type, notes: str):
+def generate_exp_set_inplace(dataset_list, dist_type, notes: str):
     today = datetime.now()
     dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
     if not os.path.exists(dir_name):
@@ -124,6 +125,25 @@ def generate_exp_set(dataset_list, dist_type, notes: str):
     return config_list
 
 
+def generate_exp_set_from_root(root, dist_type, notes: str):
+    today = datetime.now()
+    dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
+    if not os.path.exists(dir_name):
+        os.mkdir(dir_name)
+
+    config_list = []
+    dataset_list = get_dataset_train_path(root)
+    for d_name, d_path in dataset_list:
+        config_list.append({
+            'data': d_path,
+            'output': os.path.join(dir_name, d_name + '_' + dist_type + '.csv'),
+            'feature_num': 0,
+            'add_uuid': True,
+            'dist_type': dist_type
+        })
+    return config_list
+
+
 def run_exp_set(exp_set, num_sample, num_query,
                 _lb_opt, radius, use_spark):
     for es in exp_set:
@@ -131,12 +151,27 @@ def run_exp_set(exp_set, num_sample, num_query,
                          _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark)
 
 
-datasets = [
-    'ItalyPower',
-    'ECGFiveDays',
-    'Gun_Point_TRAIN',
-    'synthetic_control_TRAIN'
-]
+def get_dataset_train_path(root):
+    trailing = '_TRAIN.tsv'
+    data_path_list = {}
+    for name in os.listdir(root):
+        assert os.path.isdir(os.path.join(root, name))
+        this_path = os.path.join(root, name, name + trailing)
+        print('Adding ' + this_path)
+        try:
+            assert os.path.isfile(this_path)
+        except AssertionError:
+            warning('File not exist: ' + this_path)
+        data_path_list[name] = this_path
+    return data_path_list
+
+
+# datasets = [
+#     'ItalyPower',
+#     'ECGFiveDays',
+#     'Gun_Point_TRAIN',
+#     'synthetic_control_TRAIN'
+# ]
 ########################################################################################################################
 # ex_config_0 = {
 #     'num_sample': 40,
@@ -241,45 +276,63 @@ datasets = [
 # print(datetime.now())
 # print('The experiment took ' + str(duration4/3600) + ' hrs')
 ########################################################################################################################
-num_sample = 200
+# num_sample = 200
 ########################################################################################################################
-ex_config_6 = {
+# ex_config_6 = {
+#     'num_sample': num_sample,
+#     'num_query': 40,
+#     '_lb_opt': False,
+#     'radius': 1,
+#     'use_spark': True
+# }
+# start = time.time()
+# notes_6 = 'UseSpark-R1-noOpt_numSample400'
+# es_eu_6 = generate_exp_set(datasets, 'eu', notes=notes_6)
+# es_ma_6 = generate_exp_set(datasets, 'ma', notes=notes_6)
+# es_ch_6 = generate_exp_set(datasets, 'ch', notes=notes_6)
+# run_exp_set(es_eu_6, **ex_config_6)
+# run_exp_set(es_ma_6, **ex_config_6)
+# run_exp_set(es_ch_6, **ex_config_6)
+# duration6 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment took ' + str(duration6 / 3600) + ' hrs')
+
+########################################################################################################################
+# ex_config_5 = {
+#     'num_sample': num_sample,
+#     'num_query': 40,
+#     '_lb_opt': True,
+#     'radius': 1,
+#     'use_spark': True
+# }
+# start = time.time()
+# notes_5 = 'UseSpark-R1-LBOpt_numSample400'
+# es_eu_5 = generate_exp_set(datasets, 'eu', notes=notes_5)
+# es_ma_5 = generate_exp_set(datasets, 'ma', notes=notes_5)
+# es_ch_5 = generate_exp_set(datasets, 'ch', notes=notes_5)
+# run_exp_set(es_eu_5, **ex_config_5)
+# run_exp_set(es_ma_5, **ex_config_5)
+# run_exp_set(es_ch_5, **ex_config_5)
+# duration5 = time.time() - start
+# print('Finished at')
+# print(datetime.now())
+# print('The experiment took ' + str(duration5 / 3600) + ' hrs')
+
+num_sample = 400
+root = '/home/apocalyvec/data/UCRArchive_2018'
+notes_ucr_0 = 'UCR0_numSample400'
+ex_config_ucr_0 = {
     'num_sample': num_sample,
     'num_query': 40,
     '_lb_opt': False,
     'radius': 1,
     'use_spark': True
 }
-start = time.time()
-notes_6 = 'UseSpark-R1-noOpt_numSample400'
-es_eu_6 = generate_exp_set(datasets, 'eu', notes=notes_6)
-es_ma_6 = generate_exp_set(datasets, 'ma', notes=notes_6)
-es_ch_6 = generate_exp_set(datasets, 'ch', notes=notes_6)
-run_exp_set(es_eu_6, **ex_config_6)
-run_exp_set(es_ma_6, **ex_config_6)
-run_exp_set(es_ch_6, **ex_config_6)
-duration6 = time.time() - start
-print('Finished at')
-print(datetime.now())
-print('The experiment took ' + str(duration6 / 3600) + ' hrs')
+es_eu_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
+es_ma_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
+es_ch_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
 
-########################################################################################################################
-ex_config_5 = {
-    'num_sample': num_sample,
-    'num_query': 40,
-    '_lb_opt': True,
-    'radius': 1,
-    'use_spark': True
-}
-start = time.time()
-notes_5 = 'UseSpark-R1-LBOpt_numSample400'
-es_eu_5 = generate_exp_set(datasets, 'eu', notes=notes_5)
-es_ma_5 = generate_exp_set(datasets, 'ma', notes=notes_5)
-es_ch_5 = generate_exp_set(datasets, 'ch', notes=notes_5)
-run_exp_set(es_eu_5, **ex_config_5)
-run_exp_set(es_ma_5, **ex_config_5)
-run_exp_set(es_ch_5, **ex_config_5)
-duration5 = time.time() - start
-print('Finished at')
-print(datetime.now())
-print('The experiment took ' + str(duration5 / 3600) + ' hrs')
+run_exp_set(es_eu_ucr_0, ex_config_ucr_0)
+run_exp_set(es_ma_ucr_0, ex_config_ucr_0)
+run_exp_set(es_ch_ucr_0, ex_config_ucr_0)
