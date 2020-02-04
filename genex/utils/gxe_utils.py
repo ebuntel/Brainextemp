@@ -15,7 +15,7 @@ from genex.utils.context_utils import _multiprocess_backend
 def from_csv(file_name, feature_num: int,
              num_worker: int,
              use_spark: bool, driver_mem: int = 16, max_result_mem: int = 16,
-             num_channels: int = 1,
+             _ts_dim: int = 1,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
              _is_z_normalize=True):
@@ -84,7 +84,8 @@ def from_csv(file_name, feature_num: int,
                                        max_result_mem=max_result_mem)
     return GenexEngine(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
                        global_min=global_min, has_uuid=add_uuid,
-                       mp_context=mp_context, backend='multiprocess' if not use_spark else 'spark')
+                       mp_context=mp_context, backend='multiprocess' if not use_spark else 'spark',
+                       seq_dim=_ts_dim)
 
 
 def need_uuid(df, feature_num):

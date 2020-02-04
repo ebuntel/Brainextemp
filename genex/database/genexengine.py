@@ -17,7 +17,7 @@ from scipy.spatial.distance import chebyshev
 from genex.classes.Sequence import Sequence
 from genex.op.query_op import _query_partition
 from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broadcast_kwargs, _destory_kwarg_bc
-from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxdb_query_arguments
+from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxe_query_arguments
 from genex.utils.context_utils import _multiprocess_backend
 
 from genex.utils.mutiproces_utils import _cluster_multi_process, _query_bf_mp, _query_mp
@@ -77,7 +77,8 @@ class GenexEngine:
             self.conf = {'global_max': kwargs['global_max'],
                          'global_min': kwargs['global_min'],
                          'backend': kwargs['backend'],
-                         'has_uuid': kwargs['has_uuid']}
+                         'has_uuid': kwargs['has_uuid'],
+                         'seq_dim': kwargs['seq_dim']}
         self.build_conf = None
         self.bf_query_buffer = dict()
 
@@ -105,6 +106,18 @@ class GenexEngine:
         except KeyError:
             return False
         return True
+
+    def check_dim(self, seq):
+        """
+        raises exception if the dimension of the given sequences' does not match the sequence dim of the stored dim
+        :param seq: the sequence of which to check against
+        """
+        seq_shape = seq.data.shape if type(seq) is Sequence else np.asarray(seq).shape
+        try:
+            assert len(seq_shape) == 2
+            assert seq_shape[-1] == self.conf['seq_dim']
+        except AssertionError:
+            print('Error checking dimension, expected: (' + self.conf['seq_dim'] + ',n), got ' + str(seq_shape))
 
     def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1,
               _batch_size=None, _is_cluster=True):
@@ -187,6 +200,7 @@ class GenexEngine:
 
         :return: a list containing best k matches for given query sequence
         """
+        self.check_dim(query)
         dist_type = self.build_conf.get('dist_type')
         dt_index = dt_pnorm_dict[dist_type]
         start, end = self.build_conf.get('loi')
@@ -324,7 +338,8 @@ class GenexEngine:
 
         :return: a list containing k best matches for given query sequence
         """
-        _validate_gxdb_query_arguments(locals())
+        _validate_gxe_query_arguments(locals())
+        self.check_dim(query)
         _ke_factor = 1
         if _ke is None or _ke < best_k:
             _ke = best_k * _ke_factor

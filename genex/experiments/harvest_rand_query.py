@@ -23,7 +23,7 @@ mp_args = {'num_worker': 12,
 
 ########################################################################################################################
 
-def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
+def experiment_genex(data, output, feature_num, num_sample, num_query,
                      dist_type, _lb_opt, _radius, use_spark: bool):
     # create gxdb from a csv file
 
@@ -35,7 +35,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     print('Performing clustering ...')
     gxe = from_csv(data, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
                    max_result_mem=mp_args['max_result_mem'],
-                   feature_num=feature_num, use_spark=use_spark, add_uuid=add_uuid, _rows_to_consider=num_sample)
+                   feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample)
 
     print('Generating query of max seq len ...')
     # generate the query sets
@@ -119,7 +119,6 @@ def generate_exp_set_inplace(dataset_list, dist_type, notes: str):
             'data': d_path,
             'output': os.path.join(dir_name, d + '_' + dist_type + '.csv'),
             'feature_num': 0,
-            'add_uuid': True,
             'dist_type': dist_type
         })
     return config_list
@@ -133,12 +132,11 @@ def generate_exp_set_from_root(root, dist_type, notes: str):
 
     config_list = []
     dataset_list = get_dataset_train_path(root)
-    for d_name, d_path in dataset_list:
+    for d_name, d_path in dataset_list.items():
         config_list.append({
             'data': d_path,
             'output': os.path.join(dir_name, d_name + '_' + dist_type + '.csv'),
             'feature_num': 0,
-            'add_uuid': True,
             'dist_type': dist_type
         })
     return config_list
@@ -319,7 +317,7 @@ def get_dataset_train_path(root):
 # print(datetime.now())
 # print('The experiment took ' + str(duration5 / 3600) + ' hrs')
 
-num_sample = 400
+num_sample = 40
 root = '/home/apocalyvec/data/UCRArchive_2018'
 notes_ucr_0 = 'UCR0_numSample400'
 ex_config_ucr_0 = {
@@ -333,6 +331,6 @@ es_eu_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
 es_ma_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
 es_ch_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
 
-run_exp_set(es_eu_ucr_0, ex_config_ucr_0)
-run_exp_set(es_ma_ucr_0, ex_config_ucr_0)
-run_exp_set(es_ch_ucr_0, ex_config_ucr_0)
+run_exp_set(es_eu_ucr_0, **ex_config_ucr_0)
+run_exp_set(es_ma_ucr_0, **ex_config_ucr_0)
+run_exp_set(es_ch_ucr_0, **ex_config_ucr_0)
