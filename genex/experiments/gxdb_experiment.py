@@ -45,8 +45,8 @@ duration_withOpt = time.time() - start
 start = time.time()
 query_result_1 = mygxe.query(query=q, best_k=5, _radius=1, _lb_opt=False)
 duration_noOpt = time.time() - start
+query_result = mygxe.query(query=q, best_k=5, _lb_opt=True)
 
-# TODO memory optimization:  memory optimization, encode features (ids), length batches
 # plot the query result
 plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
 for qr in query_result_0:

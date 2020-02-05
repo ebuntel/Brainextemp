@@ -88,7 +88,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
             # print('searching')
             target_cluster = cluster_dict[target_l]
             target_reprs = target_cluster.keys()
-            [x.fetch_and_set_data(data_normalized) for x in target_reprs]  # fetch data_original for the representatives
+            r_data = [x.fetch_data(data_normalized) for x in target_reprs]  # fetch data_original for the representatives
 
             # start = time.time()
             # this_candidates = get_sequences_represented(
@@ -101,10 +101,10 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
 
             if lb_opt:
                 this_candidates = \
-                    bsf_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, st=st, dt_index=pnorm)
+                    bsf_search_rspace(q, k, r_data, r_list=target_reprs, cluster=target_cluster, st=st, dt_index=pnorm)
             else:
                 this_candidates = \
-                    naive_search_rspace(q, k, r_list=target_reprs, cluster=target_cluster, dt_index=pnorm)
+                    naive_search_rspace(q, k, r_data, r_list=target_reprs, cluster=target_cluster, dt_index=pnorm)
 
             candidates += this_candidates
             cluster_dict.pop(target_l)
@@ -112,7 +112,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
 
     # process exclude same id
     candidates = [x for x in candidates if x.seq_id != q.seq_id] if exclude_same_id else candidates
-    [x.fetch_and_set_data(data_normalized) for x in candidates]  # fetch data_original for the candidates]
+    c_data = [x.fetch_data(data_normalized) for x in candidates]  # fetch data_original for the candidates]
     # print('# Sequences in the candidate list:: ' + str(len(candidates)))
 
     # start = time.time()
@@ -124,15 +124,15 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
 
     if lb_opt == 'bsf':
         # print('Using bsf')
-        return bsf_search(q, k, candidates, dt_index=pnorm)
+        return bsf_search(q, k, c_data, candidates, dt_index=pnorm)
     else:
         # print('Using naive')
-        return naive_search(q, k, candidates, overlap, exclude_same_id, dt_index=pnorm)
+        return naive_search(q, k, c_data, candidates, overlap, exclude_same_id, dt_index=pnorm)
 
 
-def naive_search_rspace(q, k, r_list, cluster, dt_index):
+def naive_search_rspace(q, k, r_data, r_list, cluster, dt_index):
     c_list = []
-    target_reprs = [(sim_between_array(x.get_data(), q.get_data(), dt_index), x) for x in r_list]  # calculate DTW
+    target_reprs = [(sim_between_array(rd, q.get_data(), dt_index), r) for rd, r in zip(r_data, r_list)]  # calculate DTW
     heapq.heapify(target_reprs)  # heap sort R-space
     # get enough sequence from the clusters represented to query
     while len(target_reprs) > 0 and len(c_list) < k:
@@ -142,9 +142,9 @@ def naive_search_rspace(q, k, r_list, cluster, dt_index):
     return c_list
 
 
-def naive_search(q: Sequence, k: int, candidates: list, overlap: float, exclude_same_id: bool, dt_index: int):
+def naive_search(q: Sequence, k: int, c_data, candidates: list, overlap: float, exclude_same_id: bool, dt_index: int):
     query_result = []
-    c_dist_list = [(sim_between_array(x.get_data(), q.get_data(), dt_index), x) for x in candidates]
+    c_dist_list = [(sim_between_array(cd, q.get_data(), dt_index), c) for cd, c in zip(c_data, candidates)]
     heapq.heapify(c_dist_list)
 
     # note that we are using k here
@@ -159,34 +159,34 @@ def naive_search(q: Sequence, k: int, candidates: list, overlap: float, exclude_
     return query_result
 
 
-def bsf_search(q, k, candidates, dt_index: int):
+def bsf_search(q, k, c_data, candidates, dt_index: int):
     # use ranked heap
     # prune_count = 0
     query_result = list()
     # print('Num seq in the querying cluster: ' + str(len(querying_cluster)))
-    for c in candidates:
+    for cd, c in zip(c_data, candidates):
         # print('Using bsf')
         if len(query_result) < k:
             # take the negative distance so to have a maxheap
-            heapq.heappush(query_result, (-sim_between_array(q.get_data(), c.get_data(), dt_index, use_fast=True), c))
+            heapq.heappush(query_result, (-sim_between_array(q.get_data(), cd, dt_index, use_fast=True), c))
         else:  # len(dist_heap) == k or >= k
             # if the new seq is better than the heap head
-            if -lb_kim_sequence(c.data, q.data) < query_result[0][0]:
+            if -lb_kim_sequence(cd, q.data) < query_result[0][0]:
                 # prune_count += 1
                 continue
             # interpolate for keogh calculation
             if len(c) != len(q):
                 c_interp_data = np.interp(np.linspace(0, 1, len(q)),
-                                                  np.linspace(0, 1, len(c.data)), c.data)
+                                                  np.linspace(0, 1, len(cd)), cd)
             else:
-                c_interp_data = c.data
+                c_interp_data = cd
             if -lb_keogh_sequence(c_interp_data, q.data) < query_result[0][0]:
                 # prune_count += 1
                 continue
             if -lb_keogh_sequence(q.data, c_interp_data) < query_result[0][0]:
                 # prune_count += 1
                 continue
-            dist = -sim_between_array(q.get_data(), c.get_data(), dt_index, use_fast=True)
+            dist = -sim_between_array(q.get_data(), cd, dt_index, use_fast=True)
             if dist > query_result[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(query_result)
                 heapq.heappush(query_result, (dist, c))
@@ -195,7 +195,7 @@ def bsf_search(q, k, candidates, dt_index: int):
         return [(-x[0], x[1]) for x in query_result]
 
 
-def bsf_search_rspace(q, ke, r_list, cluster, st, dt_index: int):
+def bsf_search_rspace(q, ke, r_data, r_list, cluster, st, dt_index: int):
     """
     Not using fastDTW for the sake of optization
     :param q:
@@ -208,23 +208,23 @@ def bsf_search_rspace(q, ke, r_list, cluster, st, dt_index: int):
     # prune_count = 0
     result_list = list()
     # print(r_list)
-    for r in r_list:
+    for rd, r in zip(r_data, r_list):
         # print('Using bsf')
         if len(get_sequences_represented([r[1] for r in result_list],
                                          cluster)) < ke:  # keep track of how many sequences are we querying right now
             # take the negative distance so to have a maxheap
-            heapq.heappush(result_list, (sim_between_array(q.get_data(), r.get_data(), dt_index, use_fast=False), r))
+            heapq.heappush(result_list, (sim_between_array(q.get_data(), rd, dt_index, use_fast=False), r))
         else:  # len(dist_heap) == k or >= k
             # a = lb_kim_sequence(r.data, q.data)
-            if lb_kim_sequence(r.data, q.data) > st:
+            if lb_kim_sequence(rd, q.data) > st:
                 # prune_count += 1
                 continue
             # interpolate for keogh calculation
             if len(r) != len(q):
                 r_interp_data = np.interp(np.linspace(0, 1, len(q)),
-                                                  np.linspace(0, 1, len(r.data)), r.data)
+                                                  np.linspace(0, 1, len(rd)), rd)
             else:
-                r_interp_data = r.data
+                r_interp_data = rd
             # b = lb_keogh_sequence(candidate_interp_data, q.data)
             if lb_keogh_sequence(r_interp_data, q.data) > st:
                 # prune_count += 1
@@ -233,7 +233,7 @@ def bsf_search_rspace(q, ke, r_list, cluster, st, dt_index: int):
             if lb_keogh_sequence(q.data, r_interp_data) > st:
                 # prune_count += 1
                 continue
-            dist = sim_between_array(q.get_data(), r.get_data(), dt_index, use_fast=False)
+            dist = sim_between_array(q.get_data(), rd, dt_index, use_fast=False)
             if dist < result_list[0][0]:  # first index denotes the top of the heap, second gets the dist
                 heapq.heappop(result_list)
                 heapq.heappush(result_list, (dist, r))

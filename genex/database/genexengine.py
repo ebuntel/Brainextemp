@@ -198,7 +198,6 @@ class GenexEngine:
         dist_type = self.build_conf.get('dist_type')
         dt_index = dt_pnorm_dict[dist_type]
         start, end = self.build_conf.get('loi')
-
         query.fetch_and_set_data(self.data_normalized)
 
         candidate_list = self.qbf(query, dt_index, best_k, _use_cache)
