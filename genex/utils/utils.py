@@ -114,7 +114,7 @@ def _validate_gxdb_build_arguments(args: dict):
     return
 
 
-def _validate_gxdb_query_arguments(args: dict):
+def _validate_gxe_query_arguments(args: dict):
     """
     sanity check function for the arguments of query as a class method @ genex_databse object
     :param args:

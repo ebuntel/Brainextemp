@@ -42,6 +42,12 @@ class Sequence:
     def __gt__(self, other):
         return True
 
+    # def __iter__(self):
+    #     return iter(self.data)
+    #
+    # def __getitem__(self, i):
+    #     return self.data[i]
+
     def del_data(self):
         del self.data
 

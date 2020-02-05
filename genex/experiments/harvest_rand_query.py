@@ -17,14 +17,14 @@ from genex.utils.gxe_utils import from_csv
 
 ########################################################################################################################
 mp_args = {'num_worker': 12,
-           'driver_mem': 25,
-           'max_result_mem': 25}
+           'driver_mem': 12,
+           'max_result_mem': 12}
 
 
 ########################################################################################################################
 
-def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
-                     dist_type, _lb_opt, _radius, use_spark: bool):
+def experiment_genex(data, output, feature_num, num_sample, num_query,
+                     dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float):
     # create gxdb from a csv file
 
     # set up where to save the results
@@ -35,20 +35,24 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
     print('Performing clustering ...')
     gxe = from_csv(data, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
                    max_result_mem=mp_args['max_result_mem'],
-                   feature_num=feature_num, use_spark=use_spark, add_uuid=add_uuid, _rows_to_consider=num_sample)
+                   feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample)
 
     print('Generating query of max seq len ...')
     # generate the query sets
     query_set = list()
+    query_len = gxe.get_max_seq_len()
+    loi = (int(query_len * (1 - loi_range)), int(query_len * (1 + loi_range)))
     # get the number of subsequences
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
     for i in range(num_query):
-        query_set.append(gxe.get_random_seq_of_len(int(gxe.get_max_seq_len() / 2), seed=i))
+        query_set.append(gxe.get_random_seq_of_len(query_len, seed=i))
 
     cluster_start_time = time.time()
-    print('Using dist_type = ' + str(dist_type))
-    gxe.build(st=0.1, dist_type=dist_type)
+    print('Using dist_type = ' + str(dist_type) + ', Length of query is ' + str(query_len))
+    print('Using loi offset of ' + str(loi_range))
+    print('Building length of interest is ' + str(loi))
+    gxe.build(st=0.1, dist_type=dist_type, loi=loi)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
     print('Clustering took ' + str(cluster_time) + ' sec')
@@ -70,7 +74,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query, add_uuid,
         start = time.time()
         print('Genex  query took ' + str(gx_time) + ' sec')
         print('Running Brute Force Query ...')
-        query_result_bf = gxe.query_brute_force(query=q, best_k=15)
+        query_result_bf = gxe.query_brute_force(query=q, best_k=15, _use_cache=False)
         # print('...Not Actually running... Simulating results!')
         # query_result_bf = [(0.0, [1, 2, 3])] * 15
         bf_time = time.time() - start
@@ -119,7 +123,6 @@ def generate_exp_set_inplace(dataset_list, dist_type, notes: str):
             'data': d_path,
             'output': os.path.join(dir_name, d + '_' + dist_type + '.csv'),
             'feature_num': 0,
-            'add_uuid': True,
             'dist_type': dist_type
         })
     return config_list
@@ -133,22 +136,21 @@ def generate_exp_set_from_root(root, dist_type, notes: str):
 
     config_list = []
     dataset_list = get_dataset_train_path(root)
-    for d_name, d_path in dataset_list:
+    for d_name, d_path in dataset_list.items():
         config_list.append({
             'data': d_path,
             'output': os.path.join(dir_name, d_name + '_' + dist_type + '.csv'),
             'feature_num': 0,
-            'add_uuid': True,
             'dist_type': dist_type
         })
     return config_list
 
 
 def run_exp_set(exp_set, num_sample, num_query,
-                _lb_opt, radius, use_spark):
+                _lb_opt, radius, use_spark, loi_range):
     for es in exp_set:
         experiment_genex(**es, num_sample=num_sample, num_query=num_query,
-                         _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark)
+                         _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range)
 
 
 def get_dataset_train_path(root):
@@ -319,20 +321,21 @@ def get_dataset_train_path(root):
 # print(datetime.now())
 # print('The experiment took ' + str(duration5 / 3600) + ' hrs')
 
-num_sample = 400
+num_sample = 100
 root = '/home/apocalyvec/data/UCRArchive_2018'
 notes_ucr_0 = 'UCR0_numSample400'
 ex_config_ucr_0 = {
     'num_sample': num_sample,
-    'num_query': 40,
+    'num_query': 50,
     '_lb_opt': False,
     'radius': 1,
-    'use_spark': True
+    'use_spark': True,
+    'loi_range': 0.1
 }
 es_eu_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
 es_ma_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
 es_ch_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
 
-run_exp_set(es_eu_ucr_0, ex_config_ucr_0)
-run_exp_set(es_ma_ucr_0, ex_config_ucr_0)
-run_exp_set(es_ch_ucr_0, ex_config_ucr_0)
+run_exp_set(es_eu_ucr_0, **ex_config_ucr_0)
+run_exp_set(es_ma_ucr_0, **ex_config_ucr_0)
+run_exp_set(es_ch_ucr_0, **ex_config_ucr_0)
