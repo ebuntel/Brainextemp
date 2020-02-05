@@ -4,6 +4,7 @@ import math
 import os
 import pickle
 import random
+import statistics
 from statistics import mode
 
 import numpy as np
@@ -70,6 +71,7 @@ class GenexEngine:
         self.data_normalized = kwargs['data_normalized']
         self.mp_context = kwargs['mp_context']
         self.clusters = None
+        self.subsequences = None
         self.cluster_meta_dict = None
         if 'conf' in kwargs.keys():
             self.conf = kwargs['conf']
@@ -114,13 +116,14 @@ class GenexEngine:
         """
         seq_shape = seq.data.shape if type(seq) is Sequence else np.asarray(seq).shape
         try:
-            assert len(seq_shape) == 2
-            assert seq_shape[-1] == self.conf['seq_dim']
+            assert len(seq_shape) == 2 or len(seq_shape) == 1
+            if len(seq_shape) == 2:
+                assert seq_shape[-1] == self.conf['seq_dim']
         except AssertionError:
-            print('Error checking dimension, expected: (' + self.conf['seq_dim'] + ',n), got ' + str(seq_shape))
+            raise Exception(
+                'Error checking dimension, expected: (' + str(self.conf['seq_dim']) + ',n), got ' + str(seq_shape))
 
-    def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1,
-              _batch_size=None, _is_cluster=True):
+    def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1):
         """
         Groups and clusters the time series set
 
@@ -140,10 +143,6 @@ class GenexEngine:
                            'dist_type': dist_type,
                            'loi': (start, end)}
 
-        # exit without clustering
-        if not _is_cluster:
-            return
-
         # determine the distance calculation function
         try:
             dist_func = dt_func_dict[dist_type]
@@ -151,14 +150,16 @@ class GenexEngine:
             raise Exception('Unknown distance type: ' + str(dist_type))
 
         if self.is_using_spark():  # If using Spark backend
-            self.clusters, self.cluster_meta_dict = _cluster_with_spark(self.mp_context, self.data_normalized,
-                                                                        start, end, st, dist_func, verbose)
+            self.subsequences, self.clusters, self.cluster_meta_dict = _cluster_with_spark(self.mp_context,
+                                                                                           self.data_normalized,
+                                                                                           start, end, st, dist_func,
+                                                                                           verbose)
             self._data_normalized_bc = self.mp_context.broadcast(self.data_normalized)
         else:
-            self.clusters, self.cluster_meta_dict = self.clusters, self.cluster_meta_dict = \
-                _cluster_multi_process(self.mp_context,
-                                       self.data_normalized,
-                                       start, end, st, dist_func, verbose)
+            self.subsequences, self.clusters, self.cluster_meta_dict = _cluster_multi_process(self.mp_context,
+                                                                                              self.data_normalized,
+                                                                                              start, end, st, dist_func,
+                                                                                              verbose)
 
     def get_cluster(self, rprs: Sequence):
         length = None
@@ -181,14 +182,7 @@ class GenexEngine:
             assert self.clusters is not None
         except AssertionError:
             raise Exception('get_num_subsequences: the database must be build before calling this function')
-
-        rtn = 0
-        clusters = [x[1] for x in self.cluster_meta_dict.items()]
-
-        for c in clusters:
-            for key, value in c.items():
-                rtn += value
-        return rtn
+        return self.subsequences.count() if self.is_using_spark() else len(self.subsequences)
 
     def query_brute_force(self, query: Sequence, best_k: int, _use_cache: bool = True):
         """
@@ -200,31 +194,33 @@ class GenexEngine:
 
         :return: a list containing best k matches for given query sequence
         """
-        self.check_dim(query)
+        query = self._process_query(query)
         dist_type = self.build_conf.get('dist_type')
         dt_index = dt_pnorm_dict[dist_type]
         start, end = self.build_conf.get('loi')
 
         query.fetch_and_set_data(self.data_normalized)
 
-        candidate_list = self.query_bf_produce_candidates(query, start, end, dt_index, best_k, _use_cache)
+        candidate_list = self.qbf(query, dt_index, best_k, _use_cache)
 
         return candidate_list[:best_k]
 
-    def query_bf_produce_candidates(self, query, start, end, dt_index, best_k, use_cache):
-        candidate_list = self.check_bf_query_cache(query, start, end, best_k=best_k)
+    def qbf(self, query, dt_index, best_k, use_cache):
+        candidate_list = self.check_bf_query_cache(query, best_k=best_k) if use_cache else None
         if not candidate_list:  # there is no cached brute force result
             if self.is_using_spark():
-                candidate_list = _query_bf_spark(query, self.mp_context, self.data_normalized, start, end, dt_index)
+                candidate_list = _query_bf_spark(query, self.mp_context, self.subsequences, dt_index)
             else:
-                candidate_list = _query_bf_mp(query, self.mp_context, self.data_normalized, start, end, dt_index)
+                candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index)
         else:
             print('bf_query: using buffered bf results')
+        if use_cache:
+            self.bf_query_buffer[query] = candidate_list
         candidate_list.sort(key=lambda x: x[0])
         return candidate_list
 
-    def check_bf_query_cache(self, query, start, end, best_k):
-        key = (query, start, end)
+    def check_bf_query_cache(self, query, best_k):
+        key = query
         try:
             return self.bf_query_buffer[key] if len(self.bf_query_buffer[key]) >= best_k else None
         except KeyError:
@@ -233,7 +229,6 @@ class GenexEngine:
     def reset_mp(self, use_spark, **kwargs):
         self.stop()
         self.mp_context = _multiprocess_backend(use_spark, **kwargs)
-
 
     # def group_sequences(self):
     #     """
@@ -287,13 +282,13 @@ class GenexEngine:
         # save the clusters if the db is built
         if self.clusters is not None:
             self._save_cluster(path)
-            pickle.dump(self.cluster_meta_dict, open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'wb'))
+            pickle.dump(self.cluster_meta_dict, open(os.path.join(path, 'cluster_meta_dict.gxe'), 'wb'))
             with open(path + '/build_conf.json', 'w') as f:
                 json.dump(self.build_conf, f, indent=4)
 
         # save data_original files
-        pickle.dump(self.data_original, open(os.path.join(path, 'data_original.gxdb'), 'wb'))
-        pickle.dump(self.data_normalized, open(os.path.join(path, 'data_normalized.gxdb'), 'wb'))
+        pickle.dump(self.data_original, open(os.path.join(path, 'data_original.gxe'), 'wb'))
+        pickle.dump(self.data_normalized, open(os.path.join(path, 'data_normalized.gxe'), 'wb'))
         self.data_raw.to_csv(os.path.join(path, 'data_raw.csv'))
 
         # save configs
@@ -302,15 +297,19 @@ class GenexEngine:
 
     def _save_cluster(self, path):
         if self.is_using_spark():
-            self.clusters.saveAsPickleFile(os.path.join(path, 'clusters.gxdb'))
+            self.clusters.saveAsPickleFile(os.path.join(path, 'clusters.gxe'))
+            self.subsequences.saveAsPickleFile(os.path.join(path, 'subsequences.gxe'))
         else:
-            pickle.dump(self.clusters, open(os.path.join(path, 'clusters.gxdb'), 'wb'))
+            pickle.dump(self.clusters, open(os.path.join(path, 'clusters.gxe'), 'wb'))
+            pickle.dump(self.subsequences, open(os.path.join(path, 'subsequences.gxe'), 'wb'))
 
     def load_cluster(self, path):
         if self.is_using_spark():
-            self._set_clusters(self.get_mp_context().pickleFile(os.path.join(path, 'clusters.gxdb/*')))
+            self._set_clusters(self.get_mp_context().pickleFile(os.path.join(path, 'clusters.gxe/*')))
+            self._set_subsequences(self.get_mp_context().pickleFile(os.path.join(path, 'subsequences.gxe/*')))
         else:
-            self._set_clusters(pickle.load(open(os.path.join(path, 'clusters.gxdb'), 'rb')))
+            self._set_clusters(pickle.load(open(os.path.join(path, 'clusters.gxe'), 'rb')))
+            self._set_subsequences(pickle.load(open(os.path.join(path, 'subsequences.gxe'), 'rb')))
 
     def is_id_exists(self, sequence: Sequence):
         return sequence.seq_id in dict(self.data_original).keys()
@@ -318,15 +317,19 @@ class GenexEngine:
     def _get_data_normalized(self):
         return self.data_normalized
 
+    def _set_subsequences(self, subsequences):
+        self.subsequences = subsequences
+
     def is_using_spark(self):
         return self.conf['backend'] == 'spark'
 
     def query(self, query, best_k: int,
               exclude_same_id: bool = False, overlap: float = 1.0,
-              _lb_opt: bool = False, _ke=None, _radius: int = 1):
+              _lb_opt: bool = False, _ke=None, _radius: int = 1, _ke_factor: int = 1):
         """
         Find best k matches for given query sequence using Distributed Genex method
 
+        :param _ke_factor:
         :param _lb_opt:
         :param query:
         :param _radius:
@@ -339,47 +342,19 @@ class GenexEngine:
         :return: a list containing k best matches for given query sequence
         """
         _validate_gxe_query_arguments(locals())
-        self.check_dim(query)
-        _ke_factor = 1
-        if _ke is None or _ke < best_k:
-            _ke = best_k * _ke_factor
-        else:
-            if _ke > self.get_num_subsequences():
-                raise Exception('query: _ke cannot be greater than the number of subsequences in the database.')
+        query = self._process_query(query)
 
-        if type(query) is Sequence:
-            if query.data is None:
-                query.fetch_and_set_data(self._get_data_normalized())
-            else:
-                pass
-        else:  # if query is an time series outside of the original dataset, make it into a Sequence object.
-            try:
-                query = Sequence(seq_id=('outside sequence', 1), start=0, end=len(query), data=np.asarray(query))
-            except TypeError as e:
-                raise Exception('Query must be an iterable consisted of numbers')
-
+        _ke = self._process_ke(_ke_factor, best_k)
         st = self.build_conf.get('similarity_threshold')
         dist_type = self.build_conf.get('dist_type')
 
-        # for debug purposes
-        # a = _query_partition(cluster=self.cluster_rdd.collect(), q=query, k=best_k, ke=_ke,
-        #                      data_normalized=data_normalized, loi=loi,
-        #                      _lb_opt_cluster=_lb_opt_cluster, _lb_opt_repr=_lb_opt_repr,
-        #                      exclude_same_id=exclude_same_id, overlap=overlap,
-        #
-        #                      repr_kim_rf=_repr_kim_rf, repr_keogh_rf=_repr_keogh_rf,
-        #                      cluster_kim_rf=_cluster_kim_rf, cluster_keogh_rf=_cluster_keogh_rf,
-        #                      radius=_radius, st=st
-        #                      )
-        # seq_num = self.get_num_subsequences()
-        # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
         dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
         q = self.mp_context.broadcast(query) if self.is_using_spark() else query
-
+        # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
         query_args = {'q': q, 'k': best_k, 'ke': _ke, 'data_normalized': dn, 'pnorm': dt_pnorm_dict[dist_type],
-                           'lb_opt': _lb_opt, 'overlap': overlap, 'exclude_same_id': exclude_same_id, 'radius': _radius,
-                           'st': st
-                           }
+                      'lb_opt': _lb_opt, 'overlap': overlap, 'exclude_same_id': exclude_same_id, 'radius': _radius,
+                      'st': st
+                      }
         if self.is_using_spark():  # The only place in query where it checks if is using Spark
 
             query_rdd: RDD = self.clusters.mapPartitions(
@@ -408,12 +383,31 @@ class GenexEngine:
         return best_matches
 
     def query_on_batch(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
-              _lb_opt: bool = False, _ke=None, _radius: int = 1):
+                       _lb_opt: bool = False, _ke=None, _radius: int = 1):
         pass
 
     def query_bf_on_batch(self):
         pass
 
+    def _process_query(self, query):
+        if type(query) is Sequence:
+            if query.data is None:
+                query.fetch_and_set_data(self._get_data_normalized())
+            else:
+                pass
+        else:  # if query is an time series outside of the original dataset, make it into a Sequence object.
+            try:
+                query = Sequence(seq_id=('outside sequence', 0), start=0, end=len(query), data=np.asarray(query))
+            except TypeError as e:
+                raise Exception('Unsupported query type: the query must be an iterable consisted of numbers')
+        self.check_dim(query)
+        return query
+
+    def _process_ke(self, ke_factor, best_k):
+        _ke = best_k * ke_factor
+        if _ke > self.get_num_subsequences():
+            raise Exception('query: _ke cannot be smaller than the number of subsequences in the database.')
+        return _ke
 
     def set_cluster_meta_dict(self, cluster_meta_dict):
         self.cluster_meta_dict = cluster_meta_dict
@@ -433,7 +427,7 @@ class GenexEngine:
 
     def predice_label_knn(self, query, k, label_index, verbose=0):
         """
-
+        will return None if the voting result result in a tie
         :param query:
         :param k:
         :param label_index: which label in the time series id to predict
@@ -445,13 +439,18 @@ class GenexEngine:
         label_index = label_index + 1 if self.conf['has_uuid'] else label_index
         kn = self.query(query, k, exclude_same_id=True)
         kn_labels = [n[1].seq_id[label_index] for n in kn]
-        res = mode(kn_labels)
+        try:
+            res = mode(kn_labels)
+        except statistics.StatisticsError:
+            return None
         if verbose == 1:
-            print(str(kn_labels.count(res)) + ' out of ' + str(len(kn_labels)) + ' voted positive for label:' + str(res))
+            print(
+                str(kn_labels.count(res)) + ' out of ' + str(len(kn_labels)) + ' voted positive for label:' + str(res))
         return res
 
     def predice_label_knn_on_batch(self):
         pass
+
 
 def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
     """

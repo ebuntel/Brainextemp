@@ -98,14 +98,14 @@ def from_db(path: str,
             driver_mem: int = 16, max_result_mem: int = 16,
             ):
     """
-    returns a previously saved gxdb object from its saved path
+    returns a previously saved gxe object from its saved path
 
     :param max_result_mem:
     :param driver_mem:
     :param use_spark:
     :param num_worker:
     :param sc: spark context on which the database will run
-    :param path: path of the saved gxdb object
+    :param path: path of the saved gxe object
 
     :return: a genex database object that holds clusters of time series data_original
     """
@@ -115,8 +115,8 @@ def from_db(path: str,
         raise ValueError('There is no such database, check the path again.')
 
     data_raw = pd.read_csv(os.path.join(path, 'data_raw.csv'))
-    data = pickle.load(open(os.path.join(path, 'data_original.gxdb'), 'rb'))
-    data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
+    data = pickle.load(open(os.path.join(path, 'data_original.gxe'), 'rb'))
+    data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxe'), 'rb'))
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
 
@@ -126,9 +126,9 @@ def from_db(path: str,
                    'mp_context': mp_context, 'conf': conf}
     engine: GenexEngine = GenexEngine(**init_params)
 
-    if os.path.exists(os.path.join(path, 'clusters.gxdb')):
+    if os.path.exists(os.path.join(path, 'clusters.gxe')):
         engine.load_cluster(path)
-        engine.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'rb')))
+        engine.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxe'), 'rb')))
         build_conf = json.load(open(os.path.join(path, 'build_conf.json'), 'rb'))
         engine.set_build_conf(build_conf)
         if engine.is_using_spark():
