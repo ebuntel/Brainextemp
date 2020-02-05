@@ -95,7 +95,7 @@ def need_uuid(df, feature_num):
 
 def from_db(path: str,
             num_worker: int,
-            driver_mem: int = 16, max_result_mem: int = 16,
+            driver_mem: int = 4, max_result_mem: int = 4,
             ):
     """
     returns a previously saved gxe object from its saved path

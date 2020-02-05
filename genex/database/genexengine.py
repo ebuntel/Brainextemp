@@ -21,7 +21,7 @@ from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broad
 from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxe_query_arguments
 from genex.utils.context_utils import _multiprocess_backend
 
-from genex.utils.mutiproces_utils import _cluster_multi_process, _query_bf_mp, _query_mp
+from genex.utils.mutiprocess_utils import _cluster_multi_process, _query_bf_mp, _query_mp
 
 
 def eu_norm(x, y):
@@ -205,12 +205,14 @@ class GenexEngine:
         return candidate_list[:best_k]
 
     def qbf(self, query, dt_index, best_k, use_cache):
+        dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
         candidate_list = self.check_bf_query_cache(query, best_k=best_k) if use_cache else None
+
         if not candidate_list:  # there is no cached brute force result
             if self.is_using_spark():
-                candidate_list = _query_bf_spark(query, self.mp_context, self.subsequences, dt_index)
+                candidate_list = _query_bf_spark(query, self.mp_context, self.subsequences, dt_index, data_list=dn)
             else:
-                candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index)
+                candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, data_list=dn)
         else:
             print('bf_query: using buffered bf results')
         if use_cache:
@@ -432,7 +434,7 @@ class GenexEngine:
         :param label_index: which label in the time series id to predict
         """
         try:
-            assert label_index <= self.feature_num - 1
+            assert label_index < self.feature_num - 1
         except AssertionError as e:
             raise Exception('Given label index is out of bound of the number of features in the dataset')
         label_index = label_index + 1 if self.conf['has_uuid'] else label_index

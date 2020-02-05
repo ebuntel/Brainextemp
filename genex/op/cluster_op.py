@@ -25,21 +25,20 @@ def _randomize(arr, seed=42):
     return arr
 
 
-def _cluster_groups(groups: list, st: float, dist_func, log_level: int = 1,
-                    del_data: bool = True) -> list:
+def _cluster_groups(groups: list, st: float, dist_func, data_list, log_level: int = 1) -> list:
     result = []
     for seq_len, grp in groups:
-        result.append(cluster_with_filter(grp, st, seq_len, dist_func=dist_func))
+        result.append(cluster_with_filter(grp, st, seq_len, dist_func=dist_func, data_list=data_list))
     return result
 
 
-def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, log_level: int = 1,
-                        del_data: bool = True) -> dict:
+def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, data_list, log_level: int = 1) -> dict:
     """
     all subsequence in 'group' must be of the same length
     For example:
     [[1,4,2],[6,1,4],[1,2,3],[3,2,1]] is a valid 'sub-sequences'
 
+    :param data_list:
     :param del_data:
     :param log_level:
     :param sequence_len:
@@ -67,7 +66,7 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, lo
             min_representative = None
 
             for r in list(cluster.keys()):
-                dist = dist_func(r.data, s.data)
+                dist = dist_func(r.fetch_data(data_list), s.fetch_data(data_list))
                 if dist < min_dist:
                     min_dist = dist
                     min_representative = r
@@ -86,12 +85,6 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, lo
                 if s not in cluster.keys():
                     cluster[s] = [s]
     # print('Cluster length: ' + str(sequence_len) + '   Done!----------------------------------------------')
-
-    if del_data:
-        for value in cluster.values():
-            for s in value:
-                s.del_data()
-
     return sequence_len, cluster
 
 

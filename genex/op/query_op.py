@@ -40,8 +40,8 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, use_fast=True)
     else:
         raise Exception('Unsupported dist type in array, this should never happen!')
 
-def get_dist_query(query: Sequence, target: Sequence, dt_index):
-    return sim_between_array(query.get_data(), target.get_data(), pnorm=dt_index), target
+def _get_dist_query(query: Sequence, target: Sequence, dt_index, data_list):
+    return sim_between_array(query.get_data(), target.fetch_data(data_list), pnorm=dt_index), target
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
