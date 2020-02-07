@@ -30,7 +30,8 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, start, end, st, dist_
     # Grouping the data_original
     # group = _group_time_series(input_rdd.glom().collect()[0], start, end) # for debug purposes
     group_rdd = input_rdd.mapPartitions(
-        lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
+        lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True).cache()
+    subsequence_rdd = group_rdd.flatMap(lambda x: x[1]).cache()
     # group_partition = group_rdd.glom().collect()  # for debug purposes
     # group = group_rdd.collect()  # for debug purposes
     # Cluster the data_original with Gcluster
@@ -40,10 +41,10 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, start, end, st, dist_
         groups=x, st=st, dist_func=dist_func, log_level=verbose)).cache()
     # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
     cluster_rdd.count()
+
     # Combining two dictionary using **kwargs concept
     cluster_meta_dict = _cluster_to_meta_spark(cluster_rdd)
-
-    return cluster_rdd, cluster_meta_dict
+    return subsequence_rdd, cluster_rdd, cluster_meta_dict
 
 
 def _cluster_to_meta_spark(cluster_rdd):
@@ -53,21 +54,11 @@ def _cluster_to_meta_spark(cluster_rdd):
                 reduceByKey(_cluster_reduce_func).collect())
 
 
-def _query_bf_spark(query, sc: SparkContext, data_normalized: list, start, end, dt_index):
-    input_rdd = sc.parallelize(data_normalized, numSlices=sc.defaultParallelism)
-    pp_rdd = input_rdd.mapPartitions(
-        lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True)
-    pp_rdd = pp_rdd.flatMap(lambda x: x[1])
-    # for debug purpose
-    # a = slice_rdd.collect()
-    pp_rdd = pp_rdd.map(lambda x: get_dist_query(query, x, dt_index=dt_index))
+def _query_bf_spark(query, sc: SparkContext, subsequence_rdd, dt_index):
+    pp_rdd = subsequence_rdd.map(lambda x: get_dist_query(query, x, dt_index=dt_index))
     candidate_list = pp_rdd.collect()
     # clear data stored in the candidate list
     [c.del_data() for dist, c in candidate_list]
-
-    input_rdd.unpersist()
-    pp_rdd.unpersist()
-    del input_rdd, pp_rdd
 
     return candidate_list
 

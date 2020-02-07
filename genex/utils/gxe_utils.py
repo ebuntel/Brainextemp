@@ -14,7 +14,10 @@ from genex.utils.context_utils import _multiprocess_backend
 
 def from_csv(file_name, feature_num: int,
              num_worker: int,
-             use_spark: bool, driver_mem: int = 16, max_result_mem: int = 16,
+             use_spark: bool,
+             header=0,
+             driver_mem: int = 16, max_result_mem: int = 16,
+             _ts_dim: int = 1,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
              _is_z_normalize=True):
@@ -23,6 +26,8 @@ def from_csv(file_name, feature_num: int,
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
 
+    :param header:
+    :param _ts_dim:
     :param _is_z_normalize:
     :param _memory_opt:
     :param driver_mem:
@@ -40,38 +45,33 @@ def from_csv(file_name, feature_num: int,
     :return: a genex_database object that holds the original time series
     """
     if file_name.endswith('.csv'):
-        df = pd.read_csv(file_name)
+        df = pd.read_csv(file_name, header=header)
     elif file_name.endswith('.tsv'):
-        file_name.endswith('.tsv')
-        df = pd.read_csv(file_name, sep='\t')
+        df = pd.read_csv(file_name, sep='\t', header=header)
     else:
         raise Exception('Unrecognized file type, make sure that the data file extension is either csv or tsv.')
 
-    feature_col = df.iloc[:, 0:feature_num].values
-    if feature_num == 0 or not allUnique(feature_col):
-        add_uuid = True
-        print('msg: from_csv, feature num is 0')
-
+    add_uuid = need_uuid(df, feature_num)
     if add_uuid:
-        print('auto-generating uuid')
+        print('msg: from_csv, feature num is 0, auto-generating uuid')
         feature_num = feature_num + 1
         df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
 
-    if _memory_opt == 'uuid':
-        df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
-        feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
-        # take off the feature columns
-        df = df.drop(df.columns[list(range(1, feature_num + 1))], axis=1, inplace=False)
-        data_list = _df_to_list(df, feature_num=1)  # now the only feature is the uuid
+    # if _memory_opt == 'uuid':
+    #     df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
+    #     feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
+    #     # take off the feature columns
+    #     df = df.drop(df.columns[list(range(1, feature_num + 1))], axis=1, inplace=False)
+    #     data_list = _df_to_list(df, feature_num=1)  # now the only feature is the uuid
 
-    elif _memory_opt == 'encoding':
-        for i in range(feature_num):
-            le = LabelEncoder()
-            df.iloc[:, i] = le.fit_transform(df.iloc[:, i])
-
-        data_list = _df_to_list(df, feature_num=feature_num)
-    else:
-        data_list = _df_to_list(df, feature_num=feature_num)
+    # elif _memory_opt == 'encoding':
+    #     for i in range(feature_num):
+    #         le = LabelEncoder()
+    #         df.iloc[:, i] = le.fit_transform(df.iloc[:, i])
+    #
+    #     data_list = _df_to_list(df, feature_num=feature_num)
+    # else:
+    data_list = _df_to_list(df, feature_num=feature_num)
 
     if _rows_to_consider is not None:
         if type(_rows_to_consider) == list:
@@ -83,13 +83,17 @@ def from_csv(file_name, feature_num: int,
             raise Exception('_rows_to_consider must be either a list or an integer')
 
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
-
     mp_context = _multiprocess_backend(use_spark, num_worker=num_worker, driver_mem=driver_mem,
                                        max_result_mem=max_result_mem)
-
     return GenexEngine(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
                        global_min=global_min, has_uuid=add_uuid,
-                       mp_context=mp_context, backend='multiprocess' if not use_spark else 'spark')
+                       mp_context=mp_context, backend='multiprocess' if not use_spark else 'spark',
+                       seq_dim=_ts_dim)
+
+
+def need_uuid(df, feature_num):
+    feature_col = df.iloc[:, 0:feature_num].values.tolist()
+    return feature_num == 0 or not allUnique(feature_col)
 
 
 def from_db(path: str,
@@ -97,14 +101,14 @@ def from_db(path: str,
             driver_mem: int = 16, max_result_mem: int = 16,
             ):
     """
-    returns a previously saved gxdb object from its saved path
+    returns a previously saved gxe object from its saved path
 
     :param max_result_mem:
     :param driver_mem:
     :param use_spark:
     :param num_worker:
     :param sc: spark context on which the database will run
-    :param path: path of the saved gxdb object
+    :param path: path of the saved gxe object
 
     :return: a genex database object that holds clusters of time series data_original
     """
@@ -114,8 +118,8 @@ def from_db(path: str,
         raise ValueError('There is no such database, check the path again.')
 
     data_raw = pd.read_csv(os.path.join(path, 'data_raw.csv'))
-    data = pickle.load(open(os.path.join(path, 'data_original.gxdb'), 'rb'))
-    data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxdb'), 'rb'))
+    data = pickle.load(open(os.path.join(path, 'data_original.gxe'), 'rb'))
+    data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxe'), 'rb'))
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
 
@@ -125,9 +129,9 @@ def from_db(path: str,
                    'mp_context': mp_context, 'conf': conf}
     engine: GenexEngine = GenexEngine(**init_params)
 
-    if os.path.exists(os.path.join(path, 'clusters.gxdb')):
+    if os.path.exists(os.path.join(path, 'clusters.gxe')):
         engine.load_cluster(path)
-        engine.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxdb'), 'rb')))
+        engine.set_cluster_meta_dict(pickle.load(open(os.path.join(path, 'cluster_meta_dict.gxe'), 'rb')))
         build_conf = json.load(open(os.path.join(path, 'build_conf.json'), 'rb'))
         engine.set_build_conf(build_conf)
         if engine.is_using_spark():

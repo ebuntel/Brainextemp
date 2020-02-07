@@ -42,6 +42,12 @@ class Sequence:
     def __gt__(self, other):
         return True
 
+    # def __iter__(self):
+    #     return iter(self.data)
+    #
+    # def __getitem__(self, i):
+    #     return self.data[i]
+
     def del_data(self):
         del self.data
 
@@ -51,7 +57,10 @@ class Sequence:
         return self.data
 
     def fetch_and_set_data(self, input_list):
-        self.data = self.fetch_data(input_list)
+        try:
+            self.data = self.fetch_data(input_list)
+        except KeyError as e:
+            raise Exception('Query Sequence ID (feature/label) list not found in the the original dataset')
 
     def fetch_data(self, input_list):
         # TODO not tested

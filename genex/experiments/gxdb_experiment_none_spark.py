@@ -12,40 +12,40 @@ from genex.utils.gxe_utils import from_csv, from_db
 
 # create gxdb from a csv file
 # data_file = 'data_original/ECGFiveDays_altered.csv'
-data_file = 'data_original/WormsTwoClass_TRAIN.tsv'
-db_path = 'results/archived/test_db'
+data_file = 'data_original/ItalyPower.csv'
+db_path = 'results/test_db'
 
-mydb = from_csv(data_file, feature_num=1, add_uuid=True, num_worker=12, use_spark=False, _rows_to_consider=5)
+mygxe = from_csv(data_file, feature_num=1, num_worker=12, use_spark=False, _rows_to_consider=24)
 
 # Save reloading unbuilt Genex Engine
-mydb.save(path=db_path)
-mydb.stop()
-del mydb
-mydb = from_db(path=db_path, num_worker=32)
+mygxe.save(path=db_path)
+mygxe.stop()
+del mygxe
+mygxe = from_db(path=db_path, num_worker=12)
 
 start = time.time()
-mydb.build(st=0.1, loi=slice(13, 16))
+mygxe.build(st=0.1, loi=(16, mygxe.get_max_seq_len()))
 print('Building took ' + str(time.time() - start) + ' sec')
 
 # Save reloading after built
-mydb.save(path=db_path)
-mydb.stop()
-del mydb
-mydb = from_db(path=db_path, num_worker=16)
+mygxe.save(path=db_path)
+mygxe.stop()
+del mygxe
+mygxe = from_db(path=db_path, num_worker=12)
 
+subsequence_num = mygxe.get_num_subsequences()
 # generate the query sets
-q = mydb.get_random_seq_of_len(15, seed=1)
+q = mygxe.get_random_seq_of_len(15, seed=1)
 start = time.time()
-query_result = mydb.query_brute_force(query=q, best_k=5)
+query_result = mygxe.query_brute_force(query=q, best_k=5)
 duration_bf = time.time() - start
-query_result = mydb.query(query=q, best_k=5, _radius=1, _lb_opt=False)
-duration_noOpt = time.time() - start
 start = time.time()
-query_result = mydb.query(query=q, best_k=5, _radius=1, _lb_opt=True)
-duration_withOpt = time.time() - start
+query_result = mygxe.query(query=q, best_k=5)
+duration_genex = time.time() - start
+
 # # TODO memory optimization:  memory optimization, encode features (ids), length batches
-plt.plot(q.fetch_data(mydb.data_normalized), linewidth=5, color='red')
+plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
 for qr in query_result:
-    plt.plot(qr[1].fetch_data(mydb.data_normalized), color='blue', label=str(qr[0]))
+    plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
 plt.legend()
 plt.show()

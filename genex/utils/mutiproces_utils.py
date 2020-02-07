@@ -39,18 +39,17 @@ def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end,
     cluster_partition = p.starmap(_cluster_groups, cluster_arg_partition)
     cluster_meta_dict = _cluster_to_meta_mp(cluster_partition, p)
 
-    return cluster_partition, cluster_meta_dict
+    subsequences = flatten(p.map(get_second, flatten(group_partition)))
+    return subsequences, cluster_partition, cluster_meta_dict
 
 
 def _cluster_to_meta_mp(cluster_partition: list, p: multiprocessing.pool):
     clusters = flatten(cluster_partition)
     temp = p.map(_cluster_to_meta, clusters)
-    return list(reduce_by_key(_cluster_reduce_func, temp))
+    return tuple(reduce_by_key(_cluster_reduce_func, temp))
 
 
-def _query_bf_mp(query, p: multiprocessing.pool, data_normalized: list, start, end, dt_index):
-    group_partition = flatten( __partition_and_group(data_normalized, p._processes, start, end, p))
-    subsequences = flatten(p.map(get_second, group_partition))
+def _query_bf_mp(query, p: multiprocessing.pool, subsequences: list,  dt_index):
     dist_subsequences_arg = [(query, x, dt_index) for x in subsequences]
     dist_subsequences = p.starmap(get_dist_query, dist_subsequences_arg)
     return dist_subsequences
