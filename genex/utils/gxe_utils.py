@@ -14,7 +14,9 @@ from genex.utils.context_utils import _multiprocess_backend
 
 def from_csv(file_name, feature_num: int,
              num_worker: int,
-             use_spark: bool, driver_mem: int = 16, max_result_mem: int = 16,
+             use_spark: bool,
+             header=0,
+             driver_mem: int = 16, max_result_mem: int = 16,
              _ts_dim: int = 1,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
@@ -24,6 +26,8 @@ def from_csv(file_name, feature_num: int,
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
 
+    :param header:
+    :param _ts_dim:
     :param _is_z_normalize:
     :param _memory_opt:
     :param driver_mem:
@@ -41,10 +45,9 @@ def from_csv(file_name, feature_num: int,
     :return: a genex_database object that holds the original time series
     """
     if file_name.endswith('.csv'):
-        df = pd.read_csv(file_name)
+        df = pd.read_csv(file_name, header=header)
     elif file_name.endswith('.tsv'):
-        file_name.endswith('.tsv')
-        df = pd.read_csv(file_name, sep='\t')
+        df = pd.read_csv(file_name, sep='\t', header=header)
     else:
         raise Exception('Unrecognized file type, make sure that the data file extension is either csv or tsv.')
 
