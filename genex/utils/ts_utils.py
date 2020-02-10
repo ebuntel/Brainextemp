@@ -30,6 +30,6 @@ def lb_kim_sequence(candidate_seq, query_sequence):
     :return: lb kim lower bound distance between query and sequence
     """
 
-    lb_kim_sim = math.sqrt((candidate_seq[0] - query_sequence[0])**2 + (candidate_seq[-1] - query_sequence[-1])**2)
+    lb_kim_sim = math.sqrt((candidate_seq[0] - query_sequence[0]) ** 2 + (candidate_seq[-1] - query_sequence[-1]) ** 2)
 
     return lb_kim_sim / 2.0  # normalize

@@ -9,10 +9,10 @@ from genex.utils.gxe_utils import from_csv, from_db
 # findspark.init(spark_home=spark_location)
 
 # create gxdb from a csv file
-data = 'data_original/SART2018_HbO.csv'
+data = 'data/ItalyPower.csv'
 db_path = 'results/test_db'
 
-mygxe = from_csv(data, feature_num=5, num_worker=12, use_spark=True, driver_mem=10, max_result_mem=10)
+mygxe = from_csv(data, feature_num=0, num_worker=12, use_spark=True, driver_mem=10, max_result_mem=10, _rows_to_consider=24)
 
 # Save reloading unbuilt Genex database
 # mygxe.save(path=db_path)
@@ -21,7 +21,7 @@ mygxe = from_csv(data, feature_num=5, num_worker=12, use_spark=True, driver_mem=
 # mygxe = from_db(path=db_path, num_worker=12, driver_mem=10, max_result_mem=10)
 
 start = time.time()
-mygxe.build(st=0.1, loi=(int(0.9 * mygxe.get_max_seq_len()), mygxe.get_max_seq_len()))
+mygxe.build(st=0.1)
 print('Building took ' + str(time.time() - start) + ' sec')
 
 # Save reloading built Genex Engine

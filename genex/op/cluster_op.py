@@ -4,6 +4,8 @@ import random
 
 import math
 
+from genex.utils.ts_utils import lb_kim_sequence
+
 
 def _randomize(arr, seed=42):
     """
@@ -32,7 +34,7 @@ def _cluster_groups(groups: list, st: float, dist_func, data_list, log_level: in
     return result
 
 
-def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, data_list, log_level: int = 1) -> dict:
+def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, data_list, log_level: int = 1):
     """
     all subsequence in 'group' must be of the same length
     For example:
@@ -66,14 +68,14 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, da
             min_representative = None
 
             for r in list(cluster.keys()):
-                dist = dist_func(r.fetch_data(data_list), s.fetch_data(data_list))
+                r_data = r.fetch_data(data_list)
+                s_data = s.fetch_data(data_list)
+                if lb_kim_sequence(r_data, s_data) > min_dist:  # compute the lb_kim
+                    continue
+                dist = dist_func(r_data, s_data)
                 if dist < min_dist:
                     min_dist = dist
                     min_representative = r
-            # representatives = list(cluster.keys())  # keep a ordered list of representatives
-            # dists = [dist_func(r.get_data(), s.get_data()) for r in representatives]  # use the vectorized dist func
-            # min_dist = np.min(dists)
-            # min_representative = representatives[np.argmin(dists)]
 
             if min_dist <= st / 2.0:  # if the calculated min similarity is smaller than the
                 # similarity threshold, put subsequence in the similarity cluster keyed by the min representative
