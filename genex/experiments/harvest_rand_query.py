@@ -12,21 +12,20 @@ import pandas as pd
 # findspark.init(spark_home=spark_location)
 from genex.utils.gxe_utils import from_csv
 
-# TODO always exlude '/home/apocalyvec/data/UCRArchive_2018/Missing_value_and_variable_length_datasets_adjusted/'
 
 ########################################################################################################################
 mp_args = {'num_worker': 12,
            'driver_mem': 12,
            'max_result_mem': 12}
-
-eu_exclude = ['ChlorineConcentration',
-              'ElectricDevices',
-              'Haptics',
-              'InsectEPGRegularTrain',
-              'Lightning2',
-              'Meat',
-              'Trace',
-              ]
+exclude_list = ['Missing_value_and_variable_length_datasets_adjusted']
+# eu_exclude = ['ChlorineConcentration',
+#               'ElectricDevices',
+#               'Haptics',
+#               'InsectEPGRegularTrain',
+#               'Lightning2',
+#               'Meat',
+#               'Trace',
+#               ]
 ########################################################################################################################
 
 def experiment_genex(data, output, feature_num, num_sample, num_query,
@@ -135,7 +134,7 @@ def generate_exp_set_inplace(dataset_list, dist_type, notes: str):
     return config_list
 
 
-def generate_exp_set_from_root(root, dist_type, notes: str):
+def generate_exp_set_from_root(root, dist_type, notes: str, start:int, end:int):
     today = datetime.now()
     dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
     if not os.path.exists(dir_name):
@@ -143,6 +142,7 @@ def generate_exp_set_from_root(root, dist_type, notes: str):
 
     config_list = []
     dataset_list = get_dataset_train_path(root)
+    dataset_list = dataset_list
     for d_name, d_path in dataset_list.items():
         config_list.append({
             'data': d_path,
@@ -150,7 +150,7 @@ def generate_exp_set_from_root(root, dist_type, notes: str):
             'feature_num': 0,
             'dist_type': dist_type
         })
-    return config_list
+    return config_list[start:end]
 
 
 def run_exp_set(exp_set, num_sample, num_query,
@@ -164,7 +164,7 @@ def get_dataset_train_path(root):
     trailing = '_TRAIN.tsv'
     data_path_list = {}
     for name in os.listdir(root):
-        if name in eu_exclude:
+        if name in exclude_list:
             continue
         assert os.path.isdir(os.path.join(root, name))
         this_path = os.path.join(root, name, name + trailing)
@@ -332,7 +332,7 @@ def get_dataset_train_path(root):
 
 num_sample = 400
 root = '/home/apocalyvec/data/UCRArchive_2018'
-notes_ucr_0 = 'UCR0_numSample400'
+notes_ucr_0 = 'UCR0_numSample400_0-to-42'
 ex_config_ucr_0 = {
     'num_sample': num_sample,
     'num_query': 100,
@@ -341,9 +341,14 @@ ex_config_ucr_0 = {
     'use_spark': True,
     'loi_range': 0.1
 }
-es_eu_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
-es_ma_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
-es_ch_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
+exp_set_args = {
+    'notes': notes_ucr_0,
+    'start': 0,
+    'end': 42
+}
+es_eu_ucr_0 = generate_exp_set_from_root(root, 'eu', **exp_set_args)
+es_ma_ucr_0 = generate_exp_set_from_root(root, 'ma', **exp_set_args)
+es_ch_ucr_0 = generate_exp_set_from_root(root, 'ch', **exp_set_args)
 
 run_exp_set(es_eu_ucr_0, **ex_config_ucr_0)
 run_exp_set(es_ma_ucr_0, **ex_config_ucr_0)
