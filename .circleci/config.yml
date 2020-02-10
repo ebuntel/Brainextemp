@@ -18,3 +18,7 @@ jobs:
           key: deps1-{{ .Branch }}-{{ checksum "setup.py" }}
           paths:
             - "env"
+      - run:
+          command: |
+            . env/bin/activate
+        
