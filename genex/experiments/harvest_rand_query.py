@@ -10,17 +10,23 @@ import pandas as pd
 # java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
 # os.environ['JAVA_HOME'] = java8_location
 # findspark.init(spark_home=spark_location)
-
-
-# create the spark context
 from genex.utils.gxe_utils import from_csv
+
+# TODO always exlude '/home/apocalyvec/data/UCRArchive_2018/Missing_value_and_variable_length_datasets_adjusted/'
 
 ########################################################################################################################
 mp_args = {'num_worker': 12,
            'driver_mem': 12,
            'max_result_mem': 12}
 
-
+eu_exclude = ['ChlorineConcentration',
+              'ElectricDevices',
+              'Haptics',
+              'InsectEPGRegularTrain',
+              'Lightning2',
+              'Meat',
+              'Trace',
+              ]
 ########################################################################################################################
 
 def experiment_genex(data, output, feature_num, num_sample, num_query,
@@ -90,6 +96,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query,
             result_df = result_df.append({'diff': diff,
                                           'gx_dist': gx_r[0], 'gx_match': gx_r[1],
                                           'bf_dist': bf_r[0], 'bf_match': bf_r[1]}, ignore_index=True)
+        print('Overall error for query ' + str(q) + ' is ' + str(np.mean(diff_list)))
         result_df = result_df.append({'diff': np.mean(diff_list)}, ignore_index=True)
         result_df.to_csv(output)
 
@@ -157,6 +164,8 @@ def get_dataset_train_path(root):
     trailing = '_TRAIN.tsv'
     data_path_list = {}
     for name in os.listdir(root):
+        if name in eu_exclude:
+            continue
         assert os.path.isdir(os.path.join(root, name))
         this_path = os.path.join(root, name, name + trailing)
         print('Adding ' + this_path)
@@ -321,12 +330,12 @@ def get_dataset_train_path(root):
 # print(datetime.now())
 # print('The experiment took ' + str(duration5 / 3600) + ' hrs')
 
-num_sample = 100
+num_sample = 400
 root = '/home/apocalyvec/data/UCRArchive_2018'
 notes_ucr_0 = 'UCR0_numSample400'
 ex_config_ucr_0 = {
     'num_sample': num_sample,
-    'num_query': 50,
+    'num_query': 100,
     '_lb_opt': False,
     'radius': 1,
     'use_spark': True,

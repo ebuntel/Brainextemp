@@ -9,17 +9,16 @@ from genex.utils.gxe_utils import from_csv, from_db
 # findspark.init(spark_home=spark_location)
 
 # create gxdb from a csv file
-data = '/home/apocalyvec/data/UCRArchive_2018/Haptics/Haptics_TRAIN.tsv'
-# data = 'data/ItalyPower.csv'
+data = 'data_original/SART2018_HbO.csv'
 db_path = 'results/test_db'
 
-mygxe = from_csv(data, feature_num=0, num_worker=10, use_spark=True, driver_mem=10, max_result_mem=10, _rows_to_consider=100)
+mygxe = from_csv(data, feature_num=5, num_worker=12, use_spark=True, driver_mem=10, max_result_mem=10)
 
 # Save reloading unbuilt Genex database
-mygxe.save(path=db_path)
-mygxe.stop()
-del mygxe
-mygxe = from_db(path=db_path, num_worker=12, driver_mem=10, max_result_mem=10)
+# mygxe.save(path=db_path)
+# mygxe.stop()
+# del mygxe
+# mygxe = from_db(path=db_path, num_worker=12, driver_mem=10, max_result_mem=10)
 
 start = time.time()
 mygxe.build(st=0.1, loi=(int(0.9 * mygxe.get_max_seq_len()), mygxe.get_max_seq_len()))

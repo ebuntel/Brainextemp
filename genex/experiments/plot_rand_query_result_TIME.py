@@ -3,26 +3,32 @@ import matplotlib
 
 import pandas as pd
 import numpy as np
+import os
 
 from genex.experiments.plot_rand_query_result_RMSE import autolabel
 
 
-date = 'Jan-30-2020-15-N-UseSpark-R1-LBOptNormalDTW_numSample400'
-notes = 'UseSpark-R1-LBOptNormalDTW_numSample400'
+date = 'merged-Feb-04-2020-22-Feb-06-2020-11-N-UCR0_numSample400'
+notes = 'UCR0_numSample400_euclidean_incomplete'
 
 font = {'family': 'DejaVu Sans',
         'weight': 'bold',
         'size': 12}
 matplotlib.rc('font', **font)
 
-file_list = [
-    'results/' + date + '/Gun_Point_TRAIN',
-    'results/' + date + '/ECGFiveDays',
-    'results/' + date + '/ItalyPower',
-    'results/' + date + '/synthetic_control_TRAIN'
-]
+# file_list = [
+#     'results/' + date + '/Gun_Point_TRAIN',
+#     'results/' + date + '/ECGFiveDays',
+#     'results/' + date + '/ItalyPower',
+#     'results/' + date + '/synthetic_control_TRAIN'
+# ]
+root = 'results/' + date
+file_list = os.listdir(root)
+file_list = [os.path.join(root, x) for x in file_list]
 
-dist_types = ['eu', 'ma', 'ch']
+dist_types = ['eu']
+# dist_types = ['eu', 'ma', 'ch']
+
 # eu distance ##############################################################################
 # result_list = [x + '_dist_' + 'eu' + '.csv' for x in file_list]
 # ma distance ##############################################################################
@@ -31,7 +37,7 @@ dist_types = ['eu', 'ma', 'ch']
 # result_list = [x + '_dist_' + 'ch' + '.csv' for x in file_list]
 
 algorithm_dict = {'Naive': [], 'BrainEx Query': [], 'BrainEx Cluster': []}
-num_sample = 40
+num_sample = 100
 num_most_k = 15
 gx_time_col_num = 3
 bf_time_col_num = 4
@@ -48,7 +54,8 @@ for i, alg in enumerate(algorithm_dict.keys()):
 
     dt_timing_dict = dict()
     for dist_type in dist_types:
-        result_list = [x + '_' + dist_type + '.csv' for x in file_list]
+        # result_list = [x + '_' + dist_type + '.csv' for x in file_list]
+        result_list = file_list  # should test if file end with eu.csv.
         bf_time_list = []
         gx_time_list = []
         cluster_time_list = []

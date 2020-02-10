@@ -6,6 +6,7 @@ import pickle
 import random
 import statistics
 from statistics import mode
+from logging import warning
 
 import numpy as np
 import shutil
@@ -246,16 +247,22 @@ class GenexEngine:
 
     def get_random_seq_of_len(self, sequence_len, seed):
         random.seed(seed)
-
         target = random.choice(self.data_normalized)
         try:
-            start = random.randint(0, len(target[1]) - sequence_len)
-            seq = Sequence(target[0], start, start + sequence_len - 1)
+            if sequence_len > len(target[1]):
+                warning('get_random_seq_of_len: given sequence len is greater than randomly picked target, '
+                        'setting sequence len to target len. If you are '
+                        'using the maximum seq len, your data may be consisted of sequences with varying length.')
+                sequence_len = len(target[1])
+                seq = Sequence(target[0], 0, len(target[1]) - 1)
+            else:
+                start = random.randint(0, len(target[1]) - sequence_len)
+                seq = Sequence(target[0], start, start + sequence_len - 1)
         except ValueError:
             raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
                             'an implementation error, please report to the Repository as an issue.')
         try:
-            assert len(seq.fetch_data(self.data_original)) == sequence_len
+            assert len(seq.fetch_data(self.data_normalized)) == sequence_len
         except AssertionError:
             raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
                             'an implementation error, please report to the Repository as an issue.')
