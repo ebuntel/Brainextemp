@@ -1,3 +1,4 @@
+import math
 import os
 import time
 from datetime import datetime
@@ -34,18 +35,23 @@ def experiment_genex(data, output, feature_num, num_sample, num_query,
 
     # set up where to save the results
     result_headers = np.array(
-        [['cluster_time', 'query', 'gx_time', 'bf_time', 'diff', 'gx_dist', 'gx_match', 'bf_dist', 'bf_match']])
+        [['cluster_time', 'query', 'gx_time', 'bf_time', 'diff', 'gx_dist', 'gx_match', 'bf_dist', 'bf_match', 'num_rows', 'num_cols_max']])
     result_df = pd.DataFrame(columns=result_headers[0, :])
 
-    print('Performing clustering ...')
     gxe = from_csv(data, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
                    max_result_mem=mp_args['max_result_mem'],
-                   feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample)
+                   feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
+                   header=None)
+    num_rows = len(gxe.data_raw)
+    query_len = gxe.get_max_seq_len()
+    print('Number of rows is  ' + str(num_rows))
+    print('Max seq len is ' + str(query_len))
+    result_df = result_df.append({'num_rows': num_rows}, ignore_index=True)
+    result_df = result_df.append({'num_cols_max': query_len}, ignore_index=True)
 
     print('Generating query of max seq len ...')
     # generate the query sets
     query_set = list()
-    query_len = gxe.get_max_seq_len()
     loi = (int(query_len * (1 - loi_range)), int(query_len * (1 + loi_range)))
     # get the number of subsequences
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
@@ -53,10 +59,11 @@ def experiment_genex(data, output, feature_num, num_sample, num_query,
     for i in range(num_query):
         query_set.append(gxe.get_random_seq_of_len(query_len, seed=i))
 
-    cluster_start_time = time.time()
+    print('Performing clustering ...')
     print('Using dist_type = ' + str(dist_type) + ', Length of query is ' + str(query_len))
     print('Using loi offset of ' + str(loi_range))
     print('Building length of interest is ' + str(loi))
+    cluster_start_time = time.time()
     gxe.build(st=0.1, dist_type=dist_type, loi=loi)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
@@ -330,12 +337,12 @@ def get_dataset_train_path(root):
 # print(datetime.now())
 # print('The experiment took ' + str(duration5 / 3600) + ' hrs')
 
-num_sample = 400
+num_sample = math.inf
 root = '/home/apocalyvec/data/UCRArchive_2018'
-notes_ucr_0 = 'UCR0_numSample400_0-to-42'
+notes_ucr_0 = 'UCR0_numSampleAll_0-to-42'
 ex_config_ucr_0 = {
     'num_sample': num_sample,
-    'num_query': 100,
+    'num_query': 10,
     '_lb_opt': False,
     'radius': 1,
     'use_spark': True,

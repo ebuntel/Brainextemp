@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import pickle
 import uuid
@@ -79,6 +80,8 @@ def from_csv(file_name, feature_num: int,
             data_list = data_list[_rows_to_consider[0]:_rows_to_consider[1]]
         elif type(_rows_to_consider) == int:
             data_list = data_list[:_rows_to_consider]
+        elif _rows_to_consider == math.inf:
+            pass
         else:
             raise Exception('_rows_to_consider must be either a list or an integer')
 
