@@ -337,7 +337,7 @@ def get_dataset_train_path(root):
 # print(datetime.now())
 # print('The experiment took ' + str(duration5 / 3600) + ' hrs')
 
-num_sample = math.inf
+num_sample = 500
 root = '/home/apocalyvec/data/UCRArchive_2018'
 notes_ucr_0 = 'UCR0_numSampleAll_0-to-42'
 ex_config_ucr_0 = {
