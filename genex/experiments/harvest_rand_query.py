@@ -1,3 +1,4 @@
+import math
 import os
 import time
 from datetime import datetime
@@ -10,17 +11,22 @@ import pandas as pd
 # java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
 # os.environ['JAVA_HOME'] = java8_location
 # findspark.init(spark_home=spark_location)
-
-
-# create the spark context
 from genex.utils.gxe_utils import from_csv
+
 
 ########################################################################################################################
 mp_args = {'num_worker': 12,
            'driver_mem': 12,
            'max_result_mem': 12}
-
-
+exclude_list = ['Missing_value_and_variable_length_datasets_adjusted']
+# eu_exclude = ['ChlorineConcentration',
+#               'ElectricDevices',
+#               'Haptics',
+#               'InsectEPGRegularTrain',
+#               'Lightning2',
+#               'Meat',
+#               'Trace',
+#               ]
 ########################################################################################################################
 
 def experiment_genex(data, output, feature_num, num_sample, num_query,
@@ -29,18 +35,23 @@ def experiment_genex(data, output, feature_num, num_sample, num_query,
 
     # set up where to save the results
     result_headers = np.array(
-        [['cluster_time', 'query', 'gx_time', 'bf_time', 'diff', 'gx_dist', 'gx_match', 'bf_dist', 'bf_match']])
+        [['cluster_time', 'query', 'gx_time', 'bf_time', 'diff', 'gx_dist', 'gx_match', 'bf_dist', 'bf_match', 'num_rows', 'num_cols_max']])
     result_df = pd.DataFrame(columns=result_headers[0, :])
 
-    print('Performing clustering ...')
     gxe = from_csv(data, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
                    max_result_mem=mp_args['max_result_mem'],
-                   feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample)
+                   feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
+                   header=None)
+    num_rows = len(gxe.data_raw)
+    query_len = gxe.get_max_seq_len()
+    print('Number of rows is  ' + str(num_rows))
+    print('Max seq len is ' + str(query_len))
+    result_df = result_df.append({'num_rows': num_rows}, ignore_index=True)
+    result_df = result_df.append({'num_cols_max': query_len}, ignore_index=True)
 
     print('Generating query of max seq len ...')
     # generate the query sets
     query_set = list()
-    query_len = gxe.get_max_seq_len()
     loi = (int(query_len * (1 - loi_range)), int(query_len * (1 + loi_range)))
     # get the number of subsequences
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
@@ -48,10 +59,11 @@ def experiment_genex(data, output, feature_num, num_sample, num_query,
     for i in range(num_query):
         query_set.append(gxe.get_random_seq_of_len(query_len, seed=i))
 
-    cluster_start_time = time.time()
+    print('Performing clustering ...')
     print('Using dist_type = ' + str(dist_type) + ', Length of query is ' + str(query_len))
     print('Using loi offset of ' + str(loi_range))
     print('Building length of interest is ' + str(loi))
+    cluster_start_time = time.time()
     gxe.build(st=0.1, dist_type=dist_type, loi=loi)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
@@ -90,6 +102,7 @@ def experiment_genex(data, output, feature_num, num_sample, num_query,
             result_df = result_df.append({'diff': diff,
                                           'gx_dist': gx_r[0], 'gx_match': gx_r[1],
                                           'bf_dist': bf_r[0], 'bf_match': bf_r[1]}, ignore_index=True)
+        print('Overall error for query ' + str(q) + ' is ' + str(np.mean(diff_list)))
         result_df = result_df.append({'diff': np.mean(diff_list)}, ignore_index=True)
         result_df.to_csv(output)
 
@@ -128,7 +141,7 @@ def generate_exp_set_inplace(dataset_list, dist_type, notes: str):
     return config_list
 
 
-def generate_exp_set_from_root(root, dist_type, notes: str):
+def generate_exp_set_from_root(root, dist_type, notes: str, start:int, end:int):
     today = datetime.now()
     dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
     if not os.path.exists(dir_name):
@@ -136,6 +149,7 @@ def generate_exp_set_from_root(root, dist_type, notes: str):
 
     config_list = []
     dataset_list = get_dataset_train_path(root)
+    dataset_list = dataset_list
     for d_name, d_path in dataset_list.items():
         config_list.append({
             'data': d_path,
@@ -143,7 +157,7 @@ def generate_exp_set_from_root(root, dist_type, notes: str):
             'feature_num': 0,
             'dist_type': dist_type
         })
-    return config_list
+    return config_list[start:end]
 
 
 def run_exp_set(exp_set, num_sample, num_query,
@@ -157,6 +171,8 @@ def get_dataset_train_path(root):
     trailing = '_TRAIN.tsv'
     data_path_list = {}
     for name in os.listdir(root):
+        if name in exclude_list:
+            continue
         assert os.path.isdir(os.path.join(root, name))
         this_path = os.path.join(root, name, name + trailing)
         print('Adding ' + this_path)
@@ -321,20 +337,25 @@ def get_dataset_train_path(root):
 # print(datetime.now())
 # print('The experiment took ' + str(duration5 / 3600) + ' hrs')
 
-num_sample = 100
+num_sample = math.inf
 root = '/home/apocalyvec/data/UCRArchive_2018'
-notes_ucr_0 = 'UCR0_numSample400'
+notes_ucr_0 = 'UCR0_numSampleAll_0-to-42'
 ex_config_ucr_0 = {
     'num_sample': num_sample,
-    'num_query': 50,
+    'num_query': 10,
     '_lb_opt': False,
     'radius': 1,
     'use_spark': True,
     'loi_range': 0.1
 }
-es_eu_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
-es_ma_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
-es_ch_ucr_0 = generate_exp_set_from_root(root, 'eu', notes=notes_ucr_0)
+exp_set_args = {
+    'notes': notes_ucr_0,
+    'start': 0,
+    'end': 42
+}
+es_eu_ucr_0 = generate_exp_set_from_root(root, 'eu', **exp_set_args)
+es_ma_ucr_0 = generate_exp_set_from_root(root, 'ma', **exp_set_args)
+es_ch_ucr_0 = generate_exp_set_from_root(root, 'ch', **exp_set_args)
 
 run_exp_set(es_eu_ucr_0, **ex_config_ucr_0)
 run_exp_set(es_ma_ucr_0, **ex_config_ucr_0)

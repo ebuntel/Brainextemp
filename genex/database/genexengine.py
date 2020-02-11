@@ -6,6 +6,7 @@ import pickle
 import random
 import statistics
 from statistics import mode
+from logging import warning
 
 import numpy as np
 import shutil
@@ -21,7 +22,7 @@ from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broad
 from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxe_query_arguments
 from genex.utils.context_utils import _multiprocess_backend
 
-from genex.utils.mutiproces_utils import _cluster_multi_process, _query_bf_mp, _query_mp
+from genex.utils.mutiprocess_utils import _cluster_multi_process, _query_bf_mp, _query_mp
 
 
 def eu_norm(x, y):
@@ -198,7 +199,6 @@ class GenexEngine:
         dist_type = self.build_conf.get('dist_type')
         dt_index = dt_pnorm_dict[dist_type]
         start, end = self.build_conf.get('loi')
-
         query.fetch_and_set_data(self.data_normalized)
 
         candidate_list = self.qbf(query, dt_index, best_k, _use_cache)
@@ -206,12 +206,14 @@ class GenexEngine:
         return candidate_list[:best_k]
 
     def qbf(self, query, dt_index, best_k, use_cache):
+        dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
         candidate_list = self.check_bf_query_cache(query, best_k=best_k) if use_cache else None
+
         if not candidate_list:  # there is no cached brute force result
             if self.is_using_spark():
-                candidate_list = _query_bf_spark(query, self.mp_context, self.subsequences, dt_index)
+                candidate_list = _query_bf_spark(query, self.mp_context, self.subsequences, dt_index, data_list=dn)
             else:
-                candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index)
+                candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, data_list=dn)
         else:
             print('bf_query: using buffered bf results')
         if use_cache:
@@ -245,16 +247,22 @@ class GenexEngine:
 
     def get_random_seq_of_len(self, sequence_len, seed):
         random.seed(seed)
-
         target = random.choice(self.data_normalized)
         try:
-            start = random.randint(0, len(target[1]) - sequence_len)
-            seq = Sequence(target[0], start, start + sequence_len - 1)
+            if sequence_len > len(target[1]):
+                warning('get_random_seq_of_len: given sequence len is greater than randomly picked target, '
+                        'setting sequence len to target len. If you are '
+                        'using the maximum seq len, your data may be consisted of sequences with varying length.')
+                sequence_len = len(target[1])
+                seq = Sequence(target[0], 0, len(target[1]) - 1)
+            else:
+                start = random.randint(0, len(target[1]) - sequence_len)
+                seq = Sequence(target[0], start, start + sequence_len - 1)
         except ValueError:
             raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
                             'an implementation error, please report to the Repository as an issue.')
         try:
-            assert len(seq.fetch_data(self.data_original)) == sequence_len
+            assert len(seq.fetch_data(self.data_normalized)) == sequence_len
         except AssertionError:
             raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
                             'an implementation error, please report to the Repository as an issue.')
@@ -433,7 +441,7 @@ class GenexEngine:
         :param label_index: which label in the time series id to predict
         """
         try:
-            assert label_index <= self.feature_num - 1
+            assert label_index < self.feature_num - 1
         except AssertionError as e:
             raise Exception('Given label index is out of bound of the number of features in the dataset')
         label_index = label_index + 1 if self.conf['has_uuid'] else label_index
