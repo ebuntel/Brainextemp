@@ -13,6 +13,7 @@ jobs:
           command: |
             python3 -m venv env
             . env/bin/activate
+            pip install -r genex/requirements.txt
             pip install .
       - save_cache:
           key: deps1-{{ .Branch }}-{{ checksum "setup.py" }}
