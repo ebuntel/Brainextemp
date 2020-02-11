@@ -63,7 +63,6 @@ class Sequence:
             raise Exception('Query Sequence ID (feature/label) list not found in the the original dataset')
 
     def fetch_data(self, input_list):
-        # TODO not tested
         try:
             input_dict = dict(input_list)  # validate by converting input_list into a dict
         except (TypeError, ValueError):

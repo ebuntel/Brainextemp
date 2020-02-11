@@ -42,7 +42,7 @@ def _get_sublist_as_sequences(single_time_series, data_id, length):
     for i in range(0, len(single_time_series) - length):
         # if the second number in range() is less than 1, the iteration will not run
         # data_list[i:i+length]  # for debug purposes
-        rtn.append(Sequence(start=i, end=i + length, seq_id=data_id, data=np.array(single_time_series[i:i + length + 1])))
+        rtn.append(Sequence(start=i, end=i + length, seq_id=data_id))
     return rtn
 
 

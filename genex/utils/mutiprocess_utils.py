@@ -2,7 +2,7 @@ import math
 import multiprocessing
 
 from genex.op.cluster_op import _cluster_groups, _cluster_to_meta, _cluster_reduce_func
-from genex.op.query_op import get_dist_query, _query_partition
+from genex.op.query_op import _get_dist_query, _query_partition
 from genex.utils.utils import flatten
 from genex.utils.process_utils import _grouper, _group_time_series, reduce_by_key, get_second
 
@@ -28,7 +28,7 @@ def __partition_and_group(data, slice_num, start, end, p: multiprocessing.pool, 
 def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end, st, dist_func, verbose):
     # if len(data_normalized) < p._processe:  # group the time series first if # time series < # worker
     group_partition = __partition_and_group(data_normalized, p._processes, start, end, p)
-    cluster_arg_partition = [(x, st, dist_func, verbose) for x in group_partition]
+    cluster_arg_partition = [(x, st, dist_func, data_normalized, verbose) for x in group_partition]
     """
     Linear Cluster for debug purposes
     # cluster_partition = []
@@ -49,9 +49,9 @@ def _cluster_to_meta_mp(cluster_partition: list, p: multiprocessing.pool):
     return tuple(reduce_by_key(_cluster_reduce_func, temp))
 
 
-def _query_bf_mp(query, p: multiprocessing.pool, subsequences: list,  dt_index):
-    dist_subsequences_arg = [(query, x, dt_index) for x in subsequences]
-    dist_subsequences = p.starmap(get_dist_query, dist_subsequences_arg)
+def _query_bf_mp(query, p: multiprocessing.pool, subsequences: list, dt_index, data_list):
+    dist_subsequences_arg = [(query, x, dt_index, data_list) for x in subsequences]
+    dist_subsequences = p.starmap(_get_dist_query, dist_subsequences_arg)
     return dist_subsequences
 
 

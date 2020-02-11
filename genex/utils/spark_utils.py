@@ -1,6 +1,6 @@
 from pyspark import SparkContext, SparkConf
 
-from genex.op.query_op import get_dist_query
+from genex.op.query_op import _get_dist_query
 from genex.op.cluster_op import _cluster_groups, _cluster_to_meta, _cluster_reduce_func
 from genex.misc import pr_red
 from genex.utils.process_utils import _group_time_series
@@ -38,7 +38,7 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, start, end, st, dist_
     # cluster = _cluster_groups(groups=group_rdd.glom().collect()[0], st=similarity_threshold,
     #                           dist_func=dist_func, verbose=1)  # for debug purposes
     cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(
-        groups=x, st=st, dist_func=dist_func, log_level=verbose)).cache()
+        groups=x, st=st, dist_func=dist_func, data_list=data_normalized, log_level=verbose)).cache()
     # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
     cluster_rdd.count()
 
@@ -54,11 +54,10 @@ def _cluster_to_meta_spark(cluster_rdd):
                 reduceByKey(_cluster_reduce_func).collect())
 
 
-def _query_bf_spark(query, sc: SparkContext, subsequence_rdd, dt_index):
-    pp_rdd = subsequence_rdd.map(lambda x: get_dist_query(query, x, dt_index=dt_index))
+def _query_bf_spark(query, sc: SparkContext, subsequence_rdd, dt_index, data_list):
+    pp_rdd = subsequence_rdd.map(lambda x: _get_dist_query(query, x, dt_index=dt_index, data_list=data_list.value))
     candidate_list = pp_rdd.collect()
     # clear data stored in the candidate list
-    [c.del_data() for dist, c in candidate_list]
 
     return candidate_list
 
