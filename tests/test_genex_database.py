@@ -14,7 +14,7 @@ class TestGenex_database:
 
     def test_load(self):
         # related path vs absolute path
-        data_file = '../genex/experiments/data_original/Gun_Point_TRAIN.csv'
+        data_file = '../genex/experiments/data_original/ItalyPower.csv'
         # Missing a default parameter while loading a data file
         with pt.raises(Exception) as e:
             gutils.load(data_file, num_worker=self.num_cores)
@@ -32,10 +32,10 @@ class TestGenex_database:
             seen = set()
             return not any(i in seen or seen.add(i) for i in x)
 
-        data_file = '../genex/experiments/data/Gun_Point_TRAIN.csv'
+        data_file = '../genex/experiments/data_original/ItalyPower.csv'
         feature_num = 1
 
-        df = pd.read_csv(data_file, header=None, skiprows=1, usecols=[0])
+        df = pd.read_csv(data_file)
 
         test_db = gutils.from_csv(file_name=data_file, feature_num=feature_num, num_worker=self.num_cores, use_spark=True)
         test_db_id_ls = [x[0] for x in test_db.data_original]
@@ -56,6 +56,8 @@ class TestGenex_database:
 
         assert _check_unique(test_db_id_ls)
         assert len(df) == len(test_db_id_ls)
+        test_db.stop()
+        del test_db
 
     def test_from_db(self):
         data_file = '../genex/experiments/data_original/ItalyPower.csv'
@@ -90,6 +92,7 @@ class TestGenex_database:
         assert db_attributes == db_after_save.conf
         assert db_data_original == db_after_save.data_original
         db_after_save.stop()
+        del db_after_save
 
     def test_build(self):
         data_file = '../genex/experiments/data_original/ItalyPower.csv'
@@ -110,6 +113,8 @@ class TestGenex_database:
                 count += num
 
         assert seq_num_group == count
+        test_db.stop()
+        del test_db
 
     def test_query(self):
         pass
