@@ -350,8 +350,8 @@ ex_config_ucr_0 = {
 }
 exp_set_args = {
     'notes': notes_ucr_0,
-    'start': 0,
-    'end': 42
+    'start': 31,
+    'end': 100
 }
 es_eu_ucr_0 = generate_exp_set_from_root(root, 'eu', **exp_set_args)
 es_ma_ucr_0 = generate_exp_set_from_root(root, 'ma', **exp_set_args)
