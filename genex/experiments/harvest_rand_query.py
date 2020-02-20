@@ -337,7 +337,7 @@ def get_dataset_train_path(root):
 # print(datetime.now())
 # print('The experiment took ' + str(duration5 / 3600) + ' hrs')
 
-num_sample = math.inf
+num_sample = 500
 root = '/home/apocalyvec/data/UCRArchive_2018'
 notes_ucr_0 = 'UCR0_numSampleAll_0-to-42'
 ex_config_ucr_0 = {
@@ -350,8 +350,8 @@ ex_config_ucr_0 = {
 }
 exp_set_args = {
     'notes': notes_ucr_0,
-    'start': 0,
-    'end': 42
+    'start': 31,
+    'end': 100
 }
 es_eu_ucr_0 = generate_exp_set_from_root(root, 'eu', **exp_set_args)
 es_ma_ucr_0 = generate_exp_set_from_root(root, 'ma', **exp_set_args)
