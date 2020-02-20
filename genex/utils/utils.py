@@ -158,8 +158,28 @@ def _process_loi(loi, max_len):
     :return: start and end index
     """
     if loi is not None:
+        try:
+            loi[0] < max_len
+        except AssertionError:
+            raise Exception('Error: the start of the Length of interest must be smaller than the longest sequence in '
+                            'the original dataset. Given ' + str(loi[0]) + '; Max len is ' + str(max_len))
+        try:
+            loi[0] >= 1
+        except AssertionError:
+            raise Exception('The start of Length of interest must be an integer greater than 0.')
+
         start = max(1, loi[0])
         if len(loi) == 2:
+            try:
+                loi[1] >= 1
+            except AssertionError:
+                raise Exception('The end of Length of interest must be an integer greater than 0.')
+
+            try:
+                loi[1] >= loi[0]
+            except AssertionError:
+                raise Exception('The start of Length of interest must be less than or equal to the end')
+
             end = min(max_len, loi[1])
             if loi[1] > max_len:
                 warning(
