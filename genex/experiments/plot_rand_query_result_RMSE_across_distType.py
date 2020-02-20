@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.pyplot as plt
 import matplotlib
 import pandas as pd
@@ -40,20 +42,20 @@ if __name__ == '__main__':
 
     # date = 'Jan-30-2020-12-N-UseSpark-R1-noOptFastDTW_numSample400'
     # notes = 'UseSpark-R1-noOptFastDTW_numSample400'
-    date = 'Jan-30-2020-15-N-UseSpark-R1-LBOptNormalDTW_numSample400'
-    notes = 'UseSpark-R1-LBOptNormalDTW_numSample400'
+    date = 'merged-Feb-04-2020-22-Feb-06-2020-11-N-UCR0_numSample400'
+    notes = 'UCR0_numSample400_euclidean_incomplete'
+    root = 'results/' + date
+    file_list = os.listdir(root)
+    file_list = [os.path.join(root, x) for x in file_list]
 
-    dt_dict = {'eu': 'Euclidean', 'ma': 'Manhattan', 'ch': 'Chebyshev'}
+    # dt_dict = {'eu': 'Euclidean', 'ma': 'Manhattan', 'ch': 'Chebyshev'}
+    dt_dict = {'eu': 'Euclidean'}
+
     title = 'Query Accuracy across Distance Types \n'
     k_to_look = [1, 3, 5, 9, 15]
     num_sample = 40
     num_most_k = 15
-    datasets = [
-        'ItalyPower',
-        'ECGFiveDays',
-        'Gun_Point_TRAIN',
-        'synthetic_control_TRAIN'
-    ]
+
     width = 0.20  # the width of the bars
     fig, ax = plt.subplots()
     fig.set_size_inches(15, 8)
@@ -66,7 +68,7 @@ if __name__ == '__main__':
     x = np.arange(len(k_to_look))  # the label locations
 
     for i, dt in enumerate(dt_list):
-        fd = {x: 'results/' + date + '/' + x + '_' + dt + '.csv' for x in datasets}
+        fd = {x: x for x in file_list}
         overrall_error_list = []
 
         for k in k_to_look:

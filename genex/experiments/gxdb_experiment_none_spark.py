@@ -12,10 +12,10 @@ from genex.utils.gxe_utils import from_csv, from_db
 
 # create gxdb from a csv file
 # data_file = 'data_original/ECGFiveDays_altered.csv'
-data_file = 'data_original/ItalyPower.csv'
+data = 'data/ItalyPower.csv'
 db_path = 'results/test_db'
 
-mygxe = from_csv(data_file, feature_num=1, num_worker=12, use_spark=False, _rows_to_consider=24)
+mygxe = from_csv(data, feature_num=0, num_worker=12, use_spark=False, _rows_to_consider=24)
 
 # Save reloading unbuilt Genex Engine
 mygxe.save(path=db_path)
@@ -42,6 +42,7 @@ duration_bf = time.time() - start
 start = time.time()
 query_result = mygxe.query(query=q, best_k=5)
 duration_genex = time.time() - start
+query_result = mygxe.query(query=q, best_k=5, _lb_opt=True)
 
 # # TODO memory optimization:  memory optimization, encode features (ids), length batches
 plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
