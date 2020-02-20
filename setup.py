@@ -1,9 +1,4 @@
-import cython
-import numpy
-import pandas
-import scipy
 import setuptools
-import tslearn
 
 from genex.misc import pr_red, fd_workaround
 
