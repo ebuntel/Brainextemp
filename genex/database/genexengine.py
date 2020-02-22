@@ -147,7 +147,7 @@ class GenexEngine:
         # determine the distance calculation function
         try:
             dist_func = dt_func_dict[dist_type]
-        except ValueError:
+        except KeyError:
             raise Exception('Unknown distance type: ' + str(dist_type))
 
         if self.is_using_spark():  # If using Spark backend
