@@ -46,7 +46,7 @@ def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end,
 def _cluster_to_meta_mp(cluster_partition: list, p: multiprocessing.pool):
     clusters = flatten(cluster_partition)
     temp = p.map(_cluster_to_meta, clusters)
-    return tuple(reduce_by_key(_cluster_reduce_func, temp))
+    return dict(reduce_by_key(_cluster_reduce_func, temp))
 
 
 def _query_bf_mp(query, p: multiprocessing.pool, subsequences: list, dt_index, data_list):
