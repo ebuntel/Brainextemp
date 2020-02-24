@@ -9,7 +9,7 @@ import numpy as np
 
 def get_mse(file_name: str, best_k: int, num_sample: int, num_most_k: int) -> float:
     assert best_k <= 15
-    offset_start = 2
+    offset_start = 4
     diff_col_num = 5
     offset_between_sample = 2
     mse_list = []
@@ -42,18 +42,18 @@ if __name__ == '__main__':
 
     # date = 'Jan-30-2020-12-N-UseSpark-R1-noOptFastDTW_numSample400'
     # notes = 'UseSpark-R1-noOptFastDTW_numSample400'
-    date = 'merged-Feb-04-2020-22-Feb-06-2020-11-N-UCR0_numSample400'
-    notes = 'UCR0_numSample400_euclidean_incomplete'
+    date = '/ucr_experiment/merged'
+    notes = 'UCR0_numSample400'
     root = 'results/' + date
     file_list = os.listdir(root)
     file_list = [os.path.join(root, x) for x in file_list]
 
-    # dt_dict = {'eu': 'Euclidean', 'ma': 'Manhattan', 'ch': 'Chebyshev'}
-    dt_dict = {'eu': 'Euclidean'}
+    dt_dict = {'eu': 'Euclidean', 'ma': 'Manhattan', 'ch': 'Chebyshev'}
+    # dt_dict = {'eu': 'Euclidean'}
 
     title = 'Query Accuracy across Distance Types \n'
     k_to_look = [1, 3, 5, 9, 15]
-    num_sample = 40
+    num_sample = 10
     num_most_k = 15
 
     width = 0.20  # the width of the bars
@@ -68,7 +68,8 @@ if __name__ == '__main__':
     x = np.arange(len(k_to_look))  # the label locations
 
     for i, dt in enumerate(dt_list):
-        fd = {x: x for x in file_list}
+        fd = {x: x for x in file_list if '_' + dt + '.csv' in x}
+
         overrall_error_list = []
 
         for k in k_to_look:
