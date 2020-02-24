@@ -141,7 +141,7 @@ def generate_exp_set_inplace(dataset_list, dist_type, notes: str):
     return config_list
 
 
-def generate_exp_set_from_root(root, dist_type, notes: str, start:int, end:int):
+def generate_exp_set_from_root(root, dist_type:str, notes: str, start:int, end:int):
     today = datetime.now()
     dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
     if not os.path.exists(dir_name):
@@ -339,7 +339,8 @@ def get_dataset_train_path(root):
 
 num_sample = 500
 root = '/home/apocalyvec/data/UCRArchive_2018'
-notes_ucr_0 = 'UCR0_numSampleAll_0-to-42'
+
+
 ex_config_ucr_0 = {
     'num_sample': num_sample,
     'num_query': 10,
@@ -348,15 +349,45 @@ ex_config_ucr_0 = {
     'use_spark': True,
     'loi_range': 0.1
 }
-exp_set_args = {
-    'notes': notes_ucr_0,
-    'start': 31,
-    'end': 100
-}
-es_eu_ucr_0 = generate_exp_set_from_root(root, 'eu', **exp_set_args)
-es_ma_ucr_0 = generate_exp_set_from_root(root, 'ma', **exp_set_args)
-es_ch_ucr_0 = generate_exp_set_from_root(root, 'ch', **exp_set_args)
 
-run_exp_set(es_eu_ucr_0, **ex_config_ucr_0)
-run_exp_set(es_ma_ucr_0, **ex_config_ucr_0)
-run_exp_set(es_ch_ucr_0, **ex_config_ucr_0)
+# exp_set_args_eu = {
+#     'dist_type': 'eu',
+#     'notes': 'UCR0_numSampleAll_eu_101-to-128',
+#     'start': 101,
+#     'end': 128
+# }
+# exp_set_args_ma_1 = {
+#     'dist_type': 'ma',
+#     'notes': 'UCR0_numSampleAll_ma_0-to-30',
+#     'start': 0,
+#     'end': 30
+# }
+# exp_set_args_ma_2 = {
+#     'dist_type': 'ma',
+#     'notes': 'UCR0_numSampleAll_ma_101-to-128',
+#     'start': 101,
+#     'end': 128
+# }
+exp_set_args_ch_1 = {
+    'dist_type': 'ch',
+    'notes': 'UCR0_numSampleAll_ch_28-to-30',
+    'start': 28,
+    'end': 30
+}
+exp_set_args_ch_2 = {
+    'dist_type': 'ch',
+    'notes': 'UCR0_numSampleAll_ch_62-to-128',
+    'start': 62,
+    'end': 128
+}
+# es_eu_ucr = generate_exp_set_from_root(root, **exp_set_args_eu)
+# es_ma_ucr_1 = generate_exp_set_from_root(root, **exp_set_args_ma_1)
+# es_ma_ucr_2 = generate_exp_set_from_root(root, **exp_set_args_ma_2)
+es_ch_ucr_1 = generate_exp_set_from_root(root, **exp_set_args_ch_1)
+es_ch_ucr_2 = generate_exp_set_from_root(root, **exp_set_args_ch_2)
+
+# run_exp_set(es_eu_ucr, **ex_config_ucr_0)
+# run_exp_set(es_ma_ucr_1, **ex_config_ucr_0)
+# run_exp_set(es_ma_ucr_2, **ex_config_ucr_0)
+run_exp_set(es_ch_ucr_1, **ex_config_ucr_0)
+run_exp_set(es_ch_ucr_2, **ex_config_ucr_0)
