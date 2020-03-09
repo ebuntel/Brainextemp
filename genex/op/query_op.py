@@ -6,7 +6,7 @@ from pyspark.broadcast import Broadcast
 
 from genex.classes.Sequence import Sequence
 from genex.misc import merge_dict, fd_workaround
-from genex.utils.ts_utils import lb_kim_sequence, lb_keogh_sequence
+from genex.utils.ts_utils import lb_kim_sequence, lb_keogh_sequence, paa_compress
 from genex.utils.utils import get_trgt_len_within_r, get_sequences_represented, _isOverlap, reduce_by_key
 
 try:
@@ -40,8 +40,48 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, use_fast=True)
     else:
         raise Exception('Unsupported dist type in array, this should never happen!')
 
-def _get_dist_query(query: Sequence, target: Sequence, dt_index, data_list):
-    return sim_between_array(query.get_data(), target.fetch_data(data_list), pnorm=dt_index), target
+
+def sim_between_array_paa(a1: np.ndarray, a2: np.ndarray, pnorm: int, paa, use_fast=True):
+    """
+    calculate the similarity between sequence 1 and sequence 2 using DTW
+
+    :param paa:
+    :param a1:
+    :param a2:
+    :param pnorm: the distance type that can be: 0, 1, or 2
+    :return float: return the Normalized DTW distance between sequence 1 (seq1) and sequence 2 (seq2)
+    """
+    # dt_pnorm_dict = {'eu': 0,
+    #                    'ma': 1,
+    #                    'ch': 2,
+    #                    'min': 2}
+
+    paa_a1 = paa_compress(a1, paa)
+    paa_a2 = paa_compress(a2, paa)
+
+    dist = fastdtw(paa_a1, paa_a2, dist=pnorm)[0] if use_fast else dtw(paa_a1, paa_a2, dist=pnorm)[0]
+    if pnorm == 2:
+        return np.sqrt(dist / (len(paa_a1) + len(paa_a2)))
+    elif pnorm == 1:
+        return dist / (len(paa_a1) + len(paa_a2))
+    elif pnorm == math.inf:
+        return dist
+    else:
+        raise Exception('Unsupported dist type in array, this should never happen!')
+
+
+def _get_dist_query(query: Sequence, target: Sequence, dt_index, paa, data_list):
+    """
+    the use of paa
+    :param query:
+    :param target:
+    :param dt_index:
+    :param paa:
+    :param data_list:
+    :return:
+    """
+    return (sim_between_array_paa(query.get_data(), target.fetch_data(data_list), pnorm=dt_index, paa=paa), target) if paa \
+        else (sim_between_array(query.get_data(), target.fetch_data(data_list), pnorm=dt_index), target)
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,

@@ -13,19 +13,27 @@ from genex.utils.utils import _create_f_uuid_map, _df_to_list, genex_normalize
 from genex.utils.context_utils import _multiprocess_backend
 
 
-def load(file_or_path: str, num_worker: int, use_spark: bool = True, feature_num: int = None
-         ):
+def load(file_or_path: str, num_worker: int, feature_num: int = None, use_spark: bool = True):
     db = None
+
     if os.path.isfile(file_or_path):
-        if feature_num is None:
-            raise Exception('Please provide a valid feature number for the dataset.')
+        if not isinstance(feature_num, int):
+            raise TypeError('Please provide a valid feature number for the dataset.')
+        elif not isinstance(num_worker, int):
+            raise TypeError('Please provide a valid worker number.')
         else:
             db = from_csv(file_name=file_or_path, feature_num=feature_num,
                           num_worker=num_worker, use_spark=use_spark)
+
     elif os.path.isdir(file_or_path):
-        db = from_db(path=file_or_path, num_worker=num_worker)
+        if not isinstance(num_worker, int):
+            raise TypeError('Please provide a valid worker number.')
+        else:
+            db = from_db(path=file_or_path, num_worker=num_worker)
+
     else:
         raise ValueError('Not a valid file name or directory path, please check it again.')
+
     return db
 
 

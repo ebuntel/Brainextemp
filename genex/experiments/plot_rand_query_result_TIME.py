@@ -7,9 +7,8 @@ import os
 
 from genex.experiments.plot_rand_query_result_RMSE import autolabel
 
-
-date = 'merged-Feb-04-2020-22-Feb-06-2020-11-N-UCR0_numSample400'
-notes = 'UCR0_numSample400_euclidean_incomplete'
+date = '/ucr_experiment/merged'
+notes = 'UCR0_numSample400'
 
 font = {'family': 'DejaVu Sans',
         'weight': 'bold',
@@ -26,8 +25,8 @@ root = 'results/' + date
 file_list = os.listdir(root)
 file_list = [os.path.join(root, x) for x in file_list]
 
-dist_types = ['eu']
-# dist_types = ['eu', 'ma', 'ch']
+# dist_types = ['eu']
+dist_types = ['eu', 'ma', 'ch']
 
 # eu distance ##############################################################################
 # result_list = [x + '_dist_' + 'eu' + '.csv' for x in file_list]
@@ -37,13 +36,13 @@ dist_types = ['eu']
 # result_list = [x + '_dist_' + 'ch' + '.csv' for x in file_list]
 
 algorithm_dict = {'Naive': [], 'BrainEx Query': [], 'BrainEx Cluster': []}
-num_sample = 100
+num_sample = 10
 num_most_k = 15
 gx_time_col_num = 3
 bf_time_col_num = 4
-offset_start = 1
+offset_start = 3
 offset_between_sample = 2
-cluster_loc = (0, 1)
+cluster_loc = (2, 1)
 
 x = np.arange(len(dist_types))  # the label locations
 width = 0.20  # the width of the bars
@@ -55,7 +54,8 @@ for i, alg in enumerate(algorithm_dict.keys()):
     dt_timing_dict = dict()
     for dist_type in dist_types:
         # result_list = [x + '_' + dist_type + '.csv' for x in file_list]
-        result_list = file_list  # should test if file end with eu.csv.
+        result_list = [x for x in file_list if  '_' + dist_type + '.csv' in x]  # should test if file end with eu.csv.
+
         bf_time_list = []
         gx_time_list = []
         cluster_time_list = []

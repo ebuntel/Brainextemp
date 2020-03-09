@@ -54,8 +54,8 @@ def _cluster_to_meta_spark(cluster_rdd):
                 reduceByKey(_cluster_reduce_func).collect())
 
 
-def _query_bf_spark(query, sc: SparkContext, subsequence_rdd, dt_index, data_list):
-    pp_rdd = subsequence_rdd.map(lambda x: _get_dist_query(query, x, dt_index=dt_index, data_list=data_list.value))
+def _query_bf_spark(query, sc: SparkContext, subsequence_rdd, dt_index, paa, data_list):
+    pp_rdd = subsequence_rdd.map(lambda x: _get_dist_query(query, x, dt_index=dt_index, paa=paa, data_list=data_list.value))
     candidate_list = pp_rdd.collect()
     # clear data stored in the candidate list
 

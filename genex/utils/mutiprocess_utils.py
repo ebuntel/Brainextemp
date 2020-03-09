@@ -49,8 +49,8 @@ def _cluster_to_meta_mp(cluster_partition: list, p: multiprocessing.pool):
     return dict(reduce_by_key(_cluster_reduce_func, temp))
 
 
-def _query_bf_mp(query, p: multiprocessing.pool, subsequences: list, dt_index, data_list):
-    dist_subsequences_arg = [(query, x, dt_index, data_list) for x in subsequences]
+def _query_bf_mp(query, p: multiprocessing.pool, subsequences: list, dt_index, paa, data_list):
+    dist_subsequences_arg = [(query, x, dt_index, paa, data_list) for x in subsequences]
     dist_subsequences = p.starmap(_get_dist_query, dist_subsequences_arg)
     return dist_subsequences
 

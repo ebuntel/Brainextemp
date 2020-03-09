@@ -102,7 +102,7 @@ def _validate_gxdb_build_arguments(args: dict):
             iter(loi)
             assert len(loi) == 1 or len(loi) == 2
         except (AssertionError, TypeError) as ae:
-            raise Exception('Build check argument failed: the Length of Interest (loi) must be an iterable of length'
+            raise Exception('Build check argument failed: the Length of Interest (loi) must be an iterable of length '
                             '1 or 2')
     try:
         assert 0. < args['st'] < 1.
