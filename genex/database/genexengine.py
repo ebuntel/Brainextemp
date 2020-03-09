@@ -185,10 +185,11 @@ class GenexEngine:
             raise Exception('get_num_subsequences: the database must be build before calling this function')
         return self.subsequences.count() if self.is_using_spark() else len(self.subsequences)
 
-    def query_brute_force(self, query: Sequence, best_k: int, _use_cache: bool = True):
+    def query_brute_force(self, query: Sequence, best_k: int, _use_cache: bool = True, _paa: int=None):
         """
         Retrieve best k matches for query sequence using Brute force method
 
+        :param _paa:
         :param _use_cache:
         :param query: Sequence being queried
         :param best_k: Number of best matches to retrieve for the given query
@@ -201,19 +202,19 @@ class GenexEngine:
         start, end = self.build_conf.get('loi')
         query.fetch_and_set_data(self.data_normalized)
 
-        candidate_list = self.qbf(query, dt_index, best_k, _use_cache)
+        candidate_list = self.qbf(query, dt_index, best_k, _use_cache, _paa)
 
         return candidate_list[:best_k]
 
-    def qbf(self, query, dt_index, best_k, use_cache):
+    def qbf(self, query, dt_index, best_k, use_cache, paa: int):
         dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
         candidate_list = self.check_bf_query_cache(query, best_k=best_k) if use_cache else None
 
         if not candidate_list:  # there is no cached brute force result
             if self.is_using_spark():
-                candidate_list = _query_bf_spark(query, self.mp_context, self.subsequences, dt_index, data_list=dn)
+                candidate_list = _query_bf_spark(query, self.mp_context, self.subsequences, dt_index, paa, data_list=dn)
             else:
-                candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, data_list=dn)
+                candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, paa, data_list=dn)
         else:
             print('bf_query: using buffered bf results')
         if use_cache:

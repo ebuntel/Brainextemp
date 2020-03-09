@@ -82,15 +82,21 @@ def experiment_genex(data, output, feature_num, num_sample, num_query,
         # print('...Not Actually running... Simulating results!')
         # query_result_gx = [(0.0, [1, 2, 3])] * 15
         gx_time = time.time() - start
+        print('Genex  query took ' + str(gx_time) + ' sec')
 
         start = time.time()
-        print('Genex  query took ' + str(gx_time) + ' sec')
         print('Running Brute Force Query ...')
         query_result_bf = gxe.query_brute_force(query=q, best_k=15, _use_cache=False)
         # print('...Not Actually running... Simulating results!')
         # query_result_bf = [(0.0, [1, 2, 3])] * 15
         bf_time = time.time() - start
         print('Brute force query took ' + str(bf_time) + ' sec')
+
+        start = time.time()
+        print('Running Pure PAA Query ...')
+        query_result_PAA = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=True)
+        PAA_time = time.time() - start
+
         # save the results
         print('Saving results for query #' + str(i) + ' of ' + str(len(query_set)))
         result_df = result_df.append({'query': str(q), 'gx_time': gx_time, 'bf_time': bf_time}, ignore_index=True)
