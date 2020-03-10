@@ -275,6 +275,16 @@ class GenexEngine:
     def get_norm_ts_list(self):
         return [Sequence(seq_id=x[0], start=0, end=len(x[1]) - 1, data=x[1]) for x in self.data_normalized]
 
+    def get_seq_length_list(self):
+        return [len(ts[1]) for ts in self.data_normalized]
+
+    def get_data_size(self):
+        """
+        get the number of data points in the given dataset
+        :return: the number of floating-point data points in the original dataset, excluding the features.
+        """
+        return np.sum(self.get_seq_length_list())
+
     def save(self, path: str):
         """
         The save method saves the database onto the disk.
