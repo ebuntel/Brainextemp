@@ -1,0 +1,56 @@
+import math
+import os
+import numpy as np
+
+from genex.experiments.harvest_rand_query import generate_exp_set_from_root, run_exp_set
+
+
+def run_ucr_test(dataset_path, dist_types, start, end, ex_config):
+    """
+    The start and end parameter together make an interval that contains the datasets to be included in this experiment
+    :param dataset_path:
+    :param dist_types: a list of strings, must contain at least one item. Items must be ones of the following: eu,ch,ma
+    :param start: int specifying the index of the dataset to start with, , works together with parameter end
+    :param end: int specifying the index of the dataset to end with, works together with parameter start
+    :param ex_config: a dict contains hyper-parameters for the experiment. They are
+        'num_sample': int, number of samples to consider in each dataset, set this to math.inf for complete experiment
+        'query_split': float, a fraction of the dataset to be taken as queries, use 0.2 for the time being
+        '_lb_opt': bool, whether to turn of lower-bounding optimization for DTW, leave it False in not otherwise specified
+        'radius': int, the length radius for Genex Query, leave it being 1 if not otherwise specified
+        'use_spark': bool, whether to use the Spark backend, leave it being True if not otherwise specified
+        'st': float, hyper-parameters that determines the cluster boundary in genex.build, leave it being True if not otherwise specified
+        'loi_range': float, only consider sequences within a percentage length of the longest sequence, use 0.1 for the time being
+    """
+    valid_dt = ['eu', 'ch', 'ma']
+    try:
+        assert os.path.isdir(dataset_path)
+        assert start >= 0
+        assert end < os.listdir(dataset_path)
+        assert 0 < len(dist_types) <= 3
+        assert np.all([x in valid_dt for x in dist_types])
+    except AssertionError:
+        raise Exception('Assertion failed in checking parameters')
+
+    exp_arg_list = [{
+        'dist_type': dt,
+        'notes': 'UCR0_numSampleAll_' + dt + '_' + str(start) + '-to-' + str(end),
+        'start': start,
+        'end': end
+    } for dt in dist_types]
+
+    exp_set_list = [generate_exp_set_from_root(dataset_path, **ea) for ea in exp_arg_list]
+    return [run_exp_set(es, **ex_config) for es in exp_set_list]
+
+
+ex_config_test = {
+    'num_sample': math.inf,
+    'query_split': 0.2,
+    '_lb_opt': False,
+    'radius': 1,
+    'use_spark': True,
+    'loi_range': 0.1,
+    'st': 0.1
+}
+
+root = '/home/apocalyvec/data/UCRArchive_2018'
+run_ucr_test(root, dist_types=['eu'], start=0, end=5, ex_config=ex_config_test) # TODO test the test for UCR dataset

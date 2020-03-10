@@ -1,5 +1,6 @@
 import math
 import os
+import random
 import time
 from datetime import datetime
 from logging import warning
@@ -29,13 +30,17 @@ exclude_list = ['Missing_value_and_variable_length_datasets_adjusted']
 #               ]
 ########################################################################################################################
 
-def experiment_genex(data, output, feature_num, num_sample, num_query,
-                     dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float):
+def experiment_genex(data, output, feature_num, num_sample, query_split,
+                     dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float):
     # create gxdb from a csv file
 
     # set up where to save the results
     result_headers = np.array(
-        [['cluster_time', 'query', 'gx_time', 'bf_time', 'diff', 'gx_dist', 'gx_match', 'bf_dist', 'bf_match', 'num_rows', 'num_cols_max']])
+        [['cluster_time', 'query',
+          'bf_time', 'paa_time', 'gx_time'
+          'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf', 'bf_dist', 'bf_match', 'paa_dist', 'paa_match', 'gx_dist', 'gx_match',
+          'num_rows', 'num_cols_max', 'num_cols_median', 'data_size', 'num_query']])
+
     result_df = pd.DataFrame(columns=result_headers[0, :])
 
     gxe = from_csv(data, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
@@ -43,34 +48,46 @@ def experiment_genex(data, output, feature_num, num_sample, num_query,
                    feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
                    header=None)
     num_rows = len(gxe.data_raw)
-    query_len = gxe.get_max_seq_len()
+    num_query = int(query_split * num_rows)
+    loi = (int(gxe.get_max_seq_len() * (1 - loi_range)), int(gxe.get_max_seq_len() * (1 + loi_range)))
+
     print('Number of rows is  ' + str(num_rows))
-    print('Max seq len is ' + str(query_len))
+    print('Max seq len is ' + str(gxe.get_max_seq_len()))
+
     result_df = result_df.append({'num_rows': num_rows}, ignore_index=True)
-    result_df = result_df.append({'num_cols_max': query_len}, ignore_index=True)
+    result_df = result_df.append({'num_cols_max': gxe.get_max_seq_len()}, ignore_index=True)
+    result_df = result_df.append({'num_cols_median': np.median(gxe.get_seq_length_list())}, ignore_index=True)
+    result_df = result_df.append({'data_size': gxe.get_data_size()}, ignore_index=True)
+    result_df = result_df.append({'num_query': num_query}, ignore_index=True)
 
     print('Generating query of max seq len ...')
     # generate the query sets
     query_set = list()
-    loi = (int(query_len * (1 - loi_range)), int(query_len * (1 + loi_range)))
     # get the number of subsequences
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
     for i in range(num_query):
-        query_set.append(gxe.get_random_seq_of_len(query_len, seed=i))
+        random.seed(i)
+        query_len = random.choice(list(range(loi[0], loi[1])))
+        this_query = gxe.get_random_seq_of_len(query_len, seed=i)
+        query_set.append(this_query)
+        print('Adding to query set: ' + str(this_query))
 
     print('Performing clustering ...')
     print('Using dist_type = ' + str(dist_type) + ', Length of query is ' + str(query_len))
     print('Using loi offset of ' + str(loi_range))
     print('Building length of interest is ' + str(loi))
+    print('Building Similarity Threshold is ' + str(st))
+
     cluster_start_time = time.time()
-    gxe.build(st=0.1, dist_type=dist_type, loi=loi)
+    gxe.build(st=st, dist_type=dist_type, loi=loi)
     cluster_time = time.time() - cluster_start_time
     result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
     print('Clustering took ' + str(cluster_time) + ' sec')
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
-    overall_diff_list = []
+    overall_diff_gxbf_list = []
+    overall_diff_paabf_list = []
 
     print('Evaluating ...')
     for i, q in enumerate(query_set):
@@ -92,24 +109,40 @@ def experiment_genex(data, output, feature_num, num_sample, num_query,
         bf_time = time.time() - start
         print('Brute force query took ' + str(bf_time) + ' sec')
 
+        # Pure PAA Query
         start = time.time()
         print('Running Pure PAA Query ...')
-        query_result_PAA = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=True)
-        PAA_time = time.time() - start
+        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=10)
+        paa_time = time.time() - start
+        print('Pure PAA query took ' + str(paa_time) + ' sec')
 
         # save the results
         print('Saving results for query #' + str(i) + ' of ' + str(len(query_set)))
-        result_df = result_df.append({'query': str(q), 'gx_time': gx_time, 'bf_time': bf_time}, ignore_index=True)
-        diff_list = []
-        for gx_r, bf_r in zip(query_result_gx, query_result_bf):
-            diff = abs(gx_r[0] - bf_r[0])
-            diff_list.append(diff)
-            overall_diff_list.append(diff)
-            result_df = result_df.append({'diff': diff,
+        result_df = result_df.append({'query': str(q), 'bf_time': bf_time, 'paa_time': paa_time, 'gx_time': gx_time}, ignore_index=True)
+        diff_gxbf_list = []
+        diff_paabf_list = []
+
+        for bf_r, paa_r, gx_r in zip(query_result_bf, query_result_paa, query_result_gx):
+            diff_gxbf = abs(gx_r[0] - bf_r[0])
+            diff_paabf = abs(paa_r[0] - bf_r[0])
+
+            diff_gxbf_list.append(diff_gxbf)
+            diff_paabf_list.append(diff_paabf)
+
+            overall_diff_gxbf_list.append(diff_gxbf)
+            overall_diff_paabf_list.append(diff_paabf)
+
+            result_df = result_df.append({'dist_diff_btw_paa_bf': diff_paabf,
+                                          'dist_diff_btw_gx_bf': diff_gxbf,
+                                          'bf_dist': bf_r[0], 'bf_match': bf_r[1],
+                                          'paa_dist': paa_r[0], 'paa_match': paa_r[1],
                                           'gx_dist': gx_r[0], 'gx_match': gx_r[1],
-                                          'bf_dist': bf_r[0], 'bf_match': bf_r[1]}, ignore_index=True)
-        print('Overall error for query ' + str(q) + ' is ' + str(np.mean(diff_list)))
-        result_df = result_df.append({'diff': np.mean(diff_list)}, ignore_index=True)
+                                          }, ignore_index=True)
+        print('GX error for query ' + str(q) + ' is ' + str(np.mean(diff_gxbf_list)))
+        print('PAA error for query ' + str(q) + ' is ' + str(np.mean(diff_paabf_list)))
+        result_df = result_df.append({'dist_diff_btw_paa_bf': np.mean(diff_gxbf_list)}, ignore_index=True)
+        result_df = result_df.append({'dist_diff_btw_gx_bf': np.mean(diff_paabf_list)}, ignore_index=True)
+
         result_df.to_csv(output)
 
         # evict the mp context every 3 queries
@@ -119,7 +152,8 @@ def experiment_genex(data, output, feature_num, num_sample, num_query,
         #     print('     Evicting Multiprocess Context')
 
     # save the overall difference
-    result_df = result_df.append({'diff': np.mean(overall_diff_list)}, ignore_index=True)
+    result_df = result_df.append({'dist_diff_btw_paa_bf': np.mean(overall_diff_paabf_list)}, ignore_index=True)
+    result_df = result_df.append({'dist_diff_btw_gx_bf': np.mean(overall_diff_gxbf_list)}, ignore_index=True)
     result_df.to_csv(output)
     # terminate the spark session
     gxe.stop()
@@ -167,10 +201,10 @@ def generate_exp_set_from_root(root, dist_type:str, notes: str, start:int, end:i
 
 
 def run_exp_set(exp_set, num_sample, num_query,
-                _lb_opt, radius, use_spark, loi_range):
+                _lb_opt, radius, use_spark, loi_range, st):
     for es in exp_set:
         experiment_genex(**es, num_sample=num_sample, num_query=num_query,
-                         _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range)
+                         _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st)
 
 
 def get_dataset_train_path(root):
@@ -353,7 +387,8 @@ ex_config_ucr_0 = {
     '_lb_opt': False,
     'radius': 1,
     'use_spark': True,
-    'loi_range': 0.1
+    'loi_range': 0.1,
+    'st': 0.1
 }
 
 # exp_set_args_eu = {
