@@ -224,6 +224,7 @@ def get_dataset_train_path(root):
     return data_path_list
 
 
+
 # datasets = [
 #     'ItalyPower',
 #     'ECGFiveDays',
@@ -377,19 +378,19 @@ def get_dataset_train_path(root):
 # print(datetime.now())
 # print('The experiment took ' + str(duration5 / 3600) + ' hrs')
 
-num_sample = 500
-root = '/home/apocalyvec/data/UCRArchive_2018'
-
-
-ex_config_ucr_0 = {
-    'num_sample': num_sample,
-    'num_query': 10,
-    '_lb_opt': False,
-    'radius': 1,
-    'use_spark': True,
-    'loi_range': 0.1,
-    'st': 0.1
-}
+# num_sample = 500
+# root = '/home/apocalyvec/data/UCRArchive_2018'
+#
+#
+# ex_config_ucr_0 = {
+#     'num_sample': num_sample,
+#     'num_query': 10,
+#     '_lb_opt': False,
+#     'radius': 1,
+#     'use_spark': True,
+#     'loi_range': 0.1,
+#     'st': 0.1
+# }
 
 # exp_set_args_eu = {
 #     'dist_type': 'eu',
@@ -409,26 +410,26 @@ ex_config_ucr_0 = {
 #     'start': 101,
 #     'end': 128
 # }
-exp_set_args_ch_1 = {
-    'dist_type': 'ch',
-    'notes': 'UCR0_numSampleAll_ch_28-to-30',
-    'start': 28,
-    'end': 30
-}
-exp_set_args_ch_2 = {
-    'dist_type': 'ch',
-    'notes': 'UCR0_numSampleAll_ch_62-to-128',
-    'start': 62,
-    'end': 128
-}
-# es_eu_ucr = generate_exp_set_from_root(root, **exp_set_args_eu)
-# es_ma_ucr_1 = generate_exp_set_from_root(root, **exp_set_args_ma_1)
-# es_ma_ucr_2 = generate_exp_set_from_root(root, **exp_set_args_ma_2)
-es_ch_ucr_1 = generate_exp_set_from_root(root, **exp_set_args_ch_1)
-es_ch_ucr_2 = generate_exp_set_from_root(root, **exp_set_args_ch_2)
-
-# run_exp_set(es_eu_ucr, **ex_config_ucr_0)
-# run_exp_set(es_ma_ucr_1, **ex_config_ucr_0)
-# run_exp_set(es_ma_ucr_2, **ex_config_ucr_0)
-run_exp_set(es_ch_ucr_1, **ex_config_ucr_0)
-run_exp_set(es_ch_ucr_2, **ex_config_ucr_0)
+# exp_set_args_ch_1 = {
+#     'dist_type': 'ch',
+#     'notes': 'UCR0_numSampleAll_ch_28-to-30',
+#     'start': 28,
+#     'end': 30
+# }
+# exp_set_args_ch_2 = {
+#     'dist_type': 'ch',
+#     'notes': 'UCR0_numSampleAll_ch_62-to-128',
+#     'start': 62,
+#     'end': 128
+# }
+# # es_eu_ucr = generate_exp_set_from_root(root, **exp_set_args_eu)
+# # es_ma_ucr_1 = generate_exp_set_from_root(root, **exp_set_args_ma_1)
+# # es_ma_ucr_2 = generate_exp_set_from_root(root, **exp_set_args_ma_2)
+# es_ch_ucr_1 = generate_exp_set_from_root(root, **exp_set_args_ch_1)
+# es_ch_ucr_2 = generate_exp_set_from_root(root, **exp_set_args_ch_2)
+#
+# # run_exp_set(es_eu_ucr, **ex_config_ucr_0)
+# # run_exp_set(es_ma_ucr_1, **ex_config_ucr_0)
+# # run_exp_set(es_ma_ucr_2, **ex_config_ucr_0)
+# run_exp_set(es_ch_ucr_1, **ex_config_ucr_0)
+# run_exp_set(es_ch_ucr_2, **ex_config_ucr_0)
