@@ -185,14 +185,14 @@ class GenexEngine:
             raise Exception('get_num_subsequences: the database must be build before calling this function')
         return self.subsequences.count() if self.is_using_spark() else len(self.subsequences)
 
-    def query_brute_force(self, query: Sequence, best_k: int, _use_cache: bool = True, _paa: int=None):
+    def query_brute_force(self, query: Sequence, best_k: int, _use_cache: bool = True, _paa: int = None):
         """
         Retrieve best k matches for query sequence using Brute force method
 
-        :param _paa:
         :param _use_cache:
         :param query: Sequence being queried
         :param best_k: Number of best matches to retrieve for the given query
+        :param _paa: number of segments of time series reduction while applying piecewise aggregation approximation representative
 
         :return: a list containing best k matches for given query sequence
         """
@@ -208,7 +208,7 @@ class GenexEngine:
 
     def qbf(self, query, dt_index, best_k, use_cache, paa: int):
         dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
-        candidate_list = self.check_bf_query_cache(query, best_k=best_k) if use_cache else None
+        candidate_list = self.check_bf_query_cache(query, best_k=best_k) if use_cache else None  # TODO paa cache check
 
         if not candidate_list:  # there is no cached brute force result
             if self.is_using_spark():
