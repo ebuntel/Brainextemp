@@ -42,15 +42,24 @@ def run_ucr_test(dataset_path, dist_types, start, end, ex_config):
     return [run_exp_set(es, **ex_config) for es in exp_set_list]
 
 
-ex_config_test = {
-    'num_sample': math.inf,
-    'query_split': 0.2,
-    '_lb_opt': False,
-    'radius': 1,
-    'use_spark': True,
-    'loi_range': 0.1,
-    'st': 0.1
-}
+'''
+Start of the experiment script
+'''
+if __name__ == "__main__":
+    dataset_dir = '/home/apocalyvec/data/UCRArchive_2018'
+    dist_types_to_test = ['eu']
+    starting_dataset_index = 0
+    ending_dataset_index = 2
 
-root = '/home/apocalyvec/data/UCRArchive_2018'
-run_ucr_test(root, dist_types=['eu'], start=0, end=5, ex_config=ex_config_test) # TODO test the test for UCR dataset
+    ex_config_test = {
+        'num_sample': 500,
+        'query_split': 0.2,
+        '_lb_opt': False,
+        'radius': 1,
+        'use_spark': True,
+        'loi_range': 0.1,
+        'st': 0.1
+    }
+
+    run_ucr_test(dataset_dir, dist_types=dist_types_to_test, start=starting_dataset_index, end=ending_dataset_index,
+                 ex_config=ex_config_test)  # TODO test the test for UCR dataset
