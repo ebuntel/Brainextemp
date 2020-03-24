@@ -38,10 +38,7 @@ def lb_kim_sequence(candidate_seq, query_sequence):
 
 
 def paa_compress(a: np.ndarray, c: float):
-    print(len(a))
-    print(c)
     n_segment = max(int(len(a) * c), 1)  # clamp at 1
-    print('segment is ' + str(n_segment))
     paa_n = PiecewiseAggregateApproximation(n_segment)
     a = paa_n.fit_transform(a)
 
