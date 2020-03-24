@@ -20,8 +20,9 @@ def run_ucr_test(dataset_path, output_dir, exclude_list, dist_types, start, end,
         '_lb_opt': bool, whether to turn of lower-bounding optimization for DTW, leave it False in not otherwise specified
         'radius': int, the length radius for Genex Query, leave it being 1 if not otherwise specified
         'use_spark': bool, whether to use the Spark backend, leave it being True if not otherwise specified
-        'st': float, hyper-parameters that determines the cluster boundary in genex.build, leave it being True if not otherwise specified
         'loi_range': float, only consider sequences within a percentage length of the longest sequence, use 0.1 for the time being
+        'st': float, hyper-parameters that determines the cluster boundary in genex.build, leave it being True if not otherwise specified
+        'paa_c': the compression ratio of PAA method, use 0.1 for now
     """
     valid_dt = ['eu', 'ch', 'ma']
     try:
@@ -69,7 +70,8 @@ if __name__ == "__main__":
         'radius': 1,
         'use_spark': True,
         'loi_range': 0.1,
-        'st': 0.1
+        'st': 0.1,
+        'paa_c': 0.1
     }
     # End of Config Parameters #########################
 
