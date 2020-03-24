@@ -34,8 +34,8 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, paa: int = Non
 
     if paa:
         if isinstance(paa, int):
-            a1 = paa_compress(a1, paa)
-            a2 = paa_compress(a2, paa)
+            a1 = paa_compress(a1, paa).flatten()
+            a2 = paa_compress(a2, paa).flatten()
         else:
             raise ValueError('The value of paa should be an integer')
 
