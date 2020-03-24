@@ -32,7 +32,7 @@ mp_args = {'num_worker': 12,
 ########################################################################################################################
 
 def experiment_genex(data, output, feature_num, num_sample, query_split,
-                     dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float):
+                     dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
     # create gxdb from a csv file
 
     # set up where to save the results
@@ -120,7 +120,7 @@ def experiment_genex(data, output, feature_num, num_sample, query_split,
         # Pure PAA Query
         start = time.time()
         print('Running Pure PAA Query ...')
-        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=10)
+        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=paa_c)
         paa_time = time.time() - start
         print('Pure PAA query took ' + str(paa_time) + ' sec')
 
@@ -220,10 +220,10 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
 
 
 def run_exp_set(exp_set, num_sample, query_split,
-                _lb_opt, radius, use_spark, loi_range, st):
+                _lb_opt, radius, use_spark, loi_range, st, paa_c):
     for es in exp_set:
         experiment_genex(**es, num_sample=num_sample, query_split=query_split,
-                         _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st)
+                         _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st, paa_c=paa_c)
 
 
 def get_dataset_train_path(root, exclude_list):
