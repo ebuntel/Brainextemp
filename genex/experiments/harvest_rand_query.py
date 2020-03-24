@@ -1,6 +1,7 @@
 import math
 import os
 import random
+import shutil
 import time
 from datetime import datetime
 from logging import warning
@@ -14,12 +15,12 @@ import pandas as pd
 # findspark.init(spark_home=spark_location)
 from genex.utils.gxe_utils import from_csv
 
-
 ########################################################################################################################
 mp_args = {'num_worker': 12,
            'driver_mem': 12,
            'max_result_mem': 12}
-exclude_list = ['Missing_value_and_variable_length_datasets_adjusted']
+
+
 # eu_exclude = ['ChlorineConcentration',
 #               'ElectricDevices',
 #               'Haptics',
@@ -37,8 +38,11 @@ def experiment_genex(data, output, feature_num, num_sample, query_split,
     # set up where to save the results
     result_headers = np.array(
         [['cluster_time', 'query',
-          'bf_time', 'paa_time', 'gx_time'
-          'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf', 'bf_dist', 'bf_match', 'paa_dist', 'paa_match', 'gx_dist', 'gx_match',
+          'bf_time', 'paa_time', 'gx_time',
+          'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf',
+          'bf_dist', 'bf_match',
+          'paa_dist', 'paa_match',
+          'gx_dist', 'gx_match',
           'num_rows', 'num_cols_max', 'num_cols_median', 'data_size', 'num_query']])
 
     result_df = pd.DataFrame(columns=result_headers[0, :])
@@ -49,16 +53,20 @@ def experiment_genex(data, output, feature_num, num_sample, query_split,
                    header=None)
     num_rows = len(gxe.data_raw)
     num_query = int(query_split * num_rows)
+    try:
+        assert num_query > 0
+    except AssertionError:
+        raise Exception('Number of query with given query_split yields zero query sequence, try increase query_split')
     loi = (int(gxe.get_max_seq_len() * (1 - loi_range)), int(gxe.get_max_seq_len() * (1 + loi_range)))
 
     print('Number of rows is  ' + str(num_rows))
     print('Max seq len is ' + str(gxe.get_max_seq_len()))
 
-    result_df = result_df.append({'num_rows': num_rows}, ignore_index=True)
-    result_df = result_df.append({'num_cols_max': gxe.get_max_seq_len()}, ignore_index=True)
-    result_df = result_df.append({'num_cols_median': np.median(gxe.get_seq_length_list())}, ignore_index=True)
-    result_df = result_df.append({'data_size': gxe.get_data_size()}, ignore_index=True)
-    result_df = result_df.append({'num_query': num_query}, ignore_index=True)
+    result_df = result_df.append({'num_rows': num_rows}, ignore_index=True)  # use append to create the first row
+    result_df['num_cols_max'] = gxe.get_max_seq_len()
+    result_df['num_cols_median'] = np.median(gxe.get_seq_length_list())
+    result_df['data_size'] = gxe.get_data_size()
+    result_df['num_query'] = num_query
 
     print('Generating query of max seq len ...')
     # generate the query sets
@@ -118,7 +126,8 @@ def experiment_genex(data, output, feature_num, num_sample, query_split,
 
         # save the results
         print('Saving results for query #' + str(i) + ' of ' + str(len(query_set)))
-        result_df = result_df.append({'query': str(q), 'bf_time': bf_time, 'paa_time': paa_time, 'gx_time': gx_time}, ignore_index=True)
+        result_df = result_df.append({'query': str(q), 'bf_time': bf_time, 'paa_time': paa_time, 'gx_time': gx_time},
+                                     ignore_index=True)
         diff_gxbf_list = []
         diff_paabf_list = []
 
@@ -132,6 +141,11 @@ def experiment_genex(data, output, feature_num, num_sample, query_split,
             overall_diff_gxbf_list.append(diff_gxbf)
             overall_diff_paabf_list.append(diff_paabf)
 
+            # 'bf_time', 'paa_time', 'gx_time',
+            # 'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf',
+            # 'bf_dist', 'bf_match',
+            # 'paa_dist', 'paa_match',
+            # 'gx_dist', 'gx_match',
             result_df = result_df.append({'dist_diff_btw_paa_bf': diff_paabf,
                                           'dist_diff_btw_gx_bf': diff_gxbf,
                                           'bf_dist': bf_r[0], 'bf_match': bf_r[1],
@@ -140,8 +154,8 @@ def experiment_genex(data, output, feature_num, num_sample, query_split,
                                           }, ignore_index=True)
         print('GX error for query ' + str(q) + ' is ' + str(np.mean(diff_gxbf_list)))
         print('PAA error for query ' + str(q) + ' is ' + str(np.mean(diff_paabf_list)))
-        result_df = result_df.append({'dist_diff_btw_paa_bf': np.mean(diff_gxbf_list)}, ignore_index=True)
-        result_df = result_df.append({'dist_diff_btw_gx_bf': np.mean(diff_paabf_list)}, ignore_index=True)
+        result_df = result_df.append({'dist_diff_btw_paa_bf': np.mean(diff_gxbf_list),
+                                      'dist_diff_btw_gx_bf': np.mean(diff_paabf_list)}, ignore_index=True)
 
         result_df.to_csv(output)
 
@@ -152,8 +166,8 @@ def experiment_genex(data, output, feature_num, num_sample, query_split,
         #     print('     Evicting Multiprocess Context')
 
     # save the overall difference
-    result_df = result_df.append({'dist_diff_btw_paa_bf': np.mean(overall_diff_paabf_list)}, ignore_index=True)
-    result_df = result_df.append({'dist_diff_btw_gx_bf': np.mean(overall_diff_gxbf_list)}, ignore_index=True)
+    result_df = result_df.append({'dist_diff_btw_paa_bf': np.mean(overall_diff_paabf_list),
+                                  'dist_diff_btw_gx_bf': np.mean(overall_diff_gxbf_list)}, ignore_index=True)
     result_df.to_csv(output)
     # terminate the spark session
     gxe.stop()
@@ -161,53 +175,58 @@ def experiment_genex(data, output, feature_num, num_sample, query_split,
     return gxe
 
 
-def generate_exp_set_inplace(dataset_list, dist_type, notes: str):
+# def generate_exp_set_inplace(dataset_list, dist_type, notes: str):
+#     today = datetime.now()
+#     dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
+#     if not os.path.exists(dir_name):
+#         os.mkdir(dir_name)
+#
+#     config_list = []
+#     for d in dataset_list:
+#         d_path = os.path.join('data', d + '.csv')
+#         assert os.path.exists(d_path)
+#
+#         config_list.append({
+#             'data': d_path,
+#             'output': os.path.join(dir_name, d + '_' + dist_type + '.csv'),
+#             'feature_num': 0,
+#             'dist_type': dist_type
+#         })
+#     return config_list
+
+
+def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes: str, start: int, end: int):
     today = datetime.now()
-    dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
+    output_dir_path = os.path.join(output, today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
+    if not os.path.exists(output_dir_path):
+        print('Creating output path: ' + output_dir_path)
+        os.mkdir(output_dir_path)
+    else:
+        print('Output folder already exist, overwriting')
+        shutil.rmtree(output_dir_path, ignore_errors=False, onerror=None)
+        os.mkdir(output_dir_path)
 
     config_list = []
-    for d in dataset_list:
-        d_path = os.path.join('data', d + '.csv')
-        assert os.path.exists(d_path)
-
-        config_list.append({
-            'data': d_path,
-            'output': os.path.join(dir_name, d + '_' + dist_type + '.csv'),
-            'feature_num': 0,
-            'dist_type': dist_type
-        })
-    return config_list
-
-
-def generate_exp_set_from_root(root, dist_type:str, notes: str, start:int, end:int):
-    today = datetime.now()
-    dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
-
-    config_list = []
-    dataset_list = get_dataset_train_path(root)
+    dataset_list = get_dataset_train_path(root, exclude_list)
     dataset_list = dataset_list
     for d_name, d_path in dataset_list.items():
         config_list.append({
             'data': d_path,
-            'output': os.path.join(dir_name, d_name + '_' + dist_type + '.csv'),
+            'output': os.path.join(output_dir_path, d_name + '_' + dist_type + '.csv'),
             'feature_num': 0,
             'dist_type': dist_type
         })
     return config_list[start:end]
 
 
-def run_exp_set(exp_set, num_sample, num_query,
+def run_exp_set(exp_set, num_sample, query_split,
                 _lb_opt, radius, use_spark, loi_range, st):
     for es in exp_set:
-        experiment_genex(**es, num_sample=num_sample, num_query=num_query,
+        experiment_genex(**es, num_sample=num_sample, query_split=query_split,
                          _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st)
 
 
-def get_dataset_train_path(root):
+def get_dataset_train_path(root, exclude_list):
     trailing = '_TRAIN.tsv'
     data_path_list = {}
     for name in os.listdir(root):
@@ -222,8 +241,6 @@ def get_dataset_train_path(root):
             warning('File not exist: ' + this_path)
         data_path_list[name] = this_path
     return data_path_list
-
-
 
 # datasets = [
 #     'ItalyPower',

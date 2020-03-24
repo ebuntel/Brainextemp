@@ -1,4 +1,5 @@
 from pyspark import SparkContext, SparkConf
+from tslearn.piecewise import PiecewiseAggregateApproximation
 
 from genex.op.query_op import _get_dist_query
 from genex.op.cluster_op import _cluster_groups, _cluster_to_meta, _cluster_reduce_func

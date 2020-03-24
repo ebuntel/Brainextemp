@@ -1,6 +1,8 @@
 import math
 
+import numpy as np
 from tslearn import metrics
+from tslearn.piecewise import PiecewiseAggregateApproximation
 
 from genex.classes.Sequence import Sequence
 
@@ -35,5 +37,8 @@ def lb_kim_sequence(candidate_seq, query_sequence):
     return lb_kim_sim / 2.0  # normalize
 
 
-def paa_compress(a, n_segment):
+def paa_compress(a: np.ndarray, n_segment: int):
+    paa_n = PiecewiseAggregateApproximation(n_segment)
+    a = paa_n.fit_transform(a)
+
     return a
