@@ -342,6 +342,11 @@ class GenexEngine:
     def is_using_spark(self):
         return self.conf['backend'] == 'spark'
 
+    def get_seq_data(self, seq: Sequence, normalize=False):
+        if not self.is_id_exists(seq):
+            raise Exception('Give sequence is not in the dataset')
+        return seq.fetch_data(self.data_original) if not normalize else seq.fetch_data(self.data_normalized)
+
     def query(self, query, best_k: int,
               exclude_same_id: bool = False, overlap: float = 1.0,
               _lb_opt: bool = False, _ke=None, _radius: int = 1, _ke_factor: int = 1):
@@ -443,6 +448,36 @@ class GenexEngine:
         else:
             self.mp_context.terminate()
             self.mp_context.close()
+
+    def motif_all_length(self, absolute):
+        """
+        :return dict:
+            sequence_len -> [common pattern/most represented representative (Sequence), number of represented sequence (int)]
+        """
+        pattern = dict()  # seq_len (int) -> [most represented representative (sequence), number of represented sequences]
+        for seq_len, clusters in self.cluster_meta_dict.items():
+            subseq_num_of_len = np.sum(list(clusters.values()))
+            cluster_list = list(clusters.items())  # repr (sequence) -> number of represented sequences (int)
+            cluster_list.sort(key=lambda x: x[1], reverse=True)
+
+            # change the 'number of represented sequences' to representativeness
+            cluster_list = [(x[0], x[1] / subseq_num_of_len) for x in cluster_list] if not absolute else cluster_list
+            pattern[seq_len] = cluster_list[0]
+        return pattern
+
+    def motif(self, k, absolute=True):
+        """
+        :param k:
+        :param absolute: use the absolute or the relative representativeness
+        :return list of tuples:
+            [common pattern/most represented representative (Sequence),
+            number of represented sequence (int) if absolute is True /
+            relative representativeness (float) if absolute is False]
+        """
+        pattern = self.motif_all_length(absolute)
+        pattern_list = list(pattern.values())
+        pattern_list.sort(key=lambda x: x[1], reverse=True)
+        return pattern_list[:k]
 
     def predice_label_knn(self, query, k, label_index, verbose=0):
         """

@@ -38,7 +38,7 @@ class TestGenex_database:
 
         df = pd.read_csv(data_file)
 
-        test_db = gutils.from_csv(file_name=data_file, feature_num=feature_num, num_worker=self.num_cores,
+        test_db = gutils.from_csv(data=data_file, feature_num=feature_num, num_worker=self.num_cores,
                                   use_spark=False)
         test_db_id_ls = [x[0] for x in test_db.data_original]
 
@@ -51,7 +51,7 @@ class TestGenex_database:
         feature_num = 5
         df = pd.read_csv(data_file, header=0)  # header is only used to avoid duplicate code
 
-        test_db = gutils.from_csv(file_name=data_file, feature_num=feature_num, num_worker=self.num_cores,
+        test_db = gutils.from_csv(data=data_file, feature_num=feature_num, num_worker=self.num_cores,
                                   use_spark=False)
         test_db_id_ls = [x[0] for x in test_db.data_original]
 
@@ -66,7 +66,7 @@ class TestGenex_database:
         feature_num = 2
         df = pd.read_csv(data_file)
 
-        test_db = gutils.from_csv(file_name=data_file, feature_num=feature_num, num_worker=self.num_cores,
+        test_db = gutils.from_csv(data=data_file, feature_num=feature_num, num_worker=self.num_cores,
                                   use_spark=False)
         tb_id_ls = [x[0] for x in test_db.data_original]
 

@@ -62,11 +62,9 @@ def from_csv(data, feature_num: int,
     :param data:
     :param feature_num:
     :param sc: spark context on which the database will run
-
     :param _rows_to_consider: experiment parameter that takes a iterable of two integers.
             Only rows in between the given interval will be take into the database.
     :param _is_use_uuid: experiment parameter. If set to true, the feature (id) of the time series will be
-
     :return: a genex_database object that holds the original time series
     """
     if type(data) is str:
