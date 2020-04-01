@@ -250,9 +250,9 @@ def _min_max_normalize(input_list, global_max, global_min):
 
 def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
     if seq1.seq_id != seq2.seq_id:  # overlap does NOT matter if two seq have different id
-        return True
+        return False
     else:
-        of =  _calculate_overlap(seq1, seq2)
+        of = _calculate_overlap(seq1, seq2)
         return _calculate_overlap(seq1, seq2) >= overlap
 
 
@@ -281,5 +281,3 @@ def _calculate_overlap(seq1, seq2) -> float:
         print(seq1)
         print(seq2)
         raise Exception('FATAL: sequence 100% overlap, please report the bug')
-
-

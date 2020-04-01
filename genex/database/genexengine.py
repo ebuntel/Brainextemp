@@ -19,7 +19,8 @@ from scipy.spatial.distance import chebyshev
 from genex.classes.Sequence import Sequence
 from genex.op.query_op import _query_partition
 from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broadcast_kwargs, _destory_kwarg_bc
-from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxe_query_arguments
+from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxe_query_arguments, _isOverlap, \
+    flatten
 from genex.utils.context_utils import _multiprocess_backend
 
 from genex.utils.mutiprocess_utils import _cluster_multi_process, _query_bf_mp, _query_mp
@@ -452,7 +453,9 @@ class GenexEngine:
     def motif_all_length(self, absolute):
         """
         :return dict:
-            sequence_len -> [common pattern/most represented representative (Sequence), number of represented sequence (int)]
+            sequence_len -> list of [representatives,
+                                    number of represented sequence (int) if absolute is True /
+                                    relative representativeness (float) if absolute is False]
         """
         pattern = dict()  # seq_len (int) -> [most represented representative (sequence), number of represented sequences]
         for seq_len, clusters in self.cluster_meta_dict.items():
@@ -462,10 +465,10 @@ class GenexEngine:
 
             # change the 'number of represented sequences' to representativeness
             cluster_list = [(x[0], x[1] / subseq_num_of_len) for x in cluster_list] if not absolute else cluster_list
-            pattern[seq_len] = cluster_list[0]
+            pattern[seq_len] = cluster_list
         return pattern
 
-    def motif(self, k, absolute=True):
+    def motif(self, k, overlap: float = 1.0, absolute=True):
         """
         :param k:
         :param absolute: use the absolute or the relative representativeness
@@ -474,10 +477,20 @@ class GenexEngine:
             number of represented sequence (int) if absolute is True /
             relative representativeness (float) if absolute is False]
         """
-        pattern = self.motif_all_length(absolute)
-        pattern_list = list(pattern.values())
+        pattern_list = flatten(list(self.motif_all_length(absolute).values()))
         pattern_list.sort(key=lambda x: x[1], reverse=True)
-        return pattern_list[:k]
+
+        if overlap == 1.0:
+            return pattern_list[:k]
+        else:
+            rtn = []
+            while len(pattern_list) > 0 and len(rtn) < k:
+                cur = pattern_list.pop(0)
+                truth = [_isOverlap(cur[0], x[0], overlap) for x in rtn]
+                if not any(_isOverlap(cur[0], x[0], overlap) for x in
+                           rtn):  # check for overlap against all the matches so far
+                    rtn.append(cur)
+            return rtn
 
     def predice_label_knn(self, query, k, label_index, verbose=0):
         """
