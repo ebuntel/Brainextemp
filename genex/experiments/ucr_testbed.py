@@ -71,7 +71,7 @@ if __name__ == "__main__":
         'use_spark': True,
         'loi_range': 0.1,
         'st': 0.1,
-        'paa_c': 0.1
+        'paa_c': 0.6
     }
     # End of Config Parameters #########################
 

@@ -22,7 +22,7 @@ def load(file_or_path: str, num_worker: int, feature_num: int = None, use_spark:
         elif not isinstance(num_worker, int):
             raise TypeError('Please provide a valid worker number.')
         else:
-            db = from_csv(file_name=file_or_path, feature_num=feature_num,
+            db = from_csv(data=file_or_path, feature_num=feature_num,
                           num_worker=num_worker, use_spark=use_spark)
 
     elif os.path.isdir(file_or_path):
@@ -37,7 +37,7 @@ def load(file_or_path: str, num_worker: int, feature_num: int = None, use_spark:
     return db
 
 
-def from_csv(file_name, feature_num: int,
+def from_csv(data, feature_num: int,
              num_worker: int,
              use_spark: bool,
              header=0,
@@ -59,29 +59,29 @@ def from_csv(file_name, feature_num: int,
     :param max_result_mem:
     :param use_spark:
     :param num_worker:
-    :param file_name:
+    :param data:
     :param feature_num:
     :param sc: spark context on which the database will run
-
     :param _rows_to_consider: experiment parameter that takes a iterable of two integers.
             Only rows in between the given interval will be take into the database.
     :param _is_use_uuid: experiment parameter. If set to true, the feature (id) of the time series will be
-
     :return: a genex_database object that holds the original time series
     """
-    if file_name.endswith('.csv'):
-        df = pd.read_csv(file_name, header=header)
-    elif file_name.endswith('.tsv'):
-        df = pd.read_csv(file_name, sep='\t', header=header)
-    else:
-        raise Exception('Unrecognized file type, make sure that the data file extension is either csv or tsv.')
+    if type(data) is str:
+        if data.endswith('.csv'):
+            df = pd.read_csv(data, header=header)
+        elif data.endswith('.tsv'):
+            df = pd.read_csv(data, sep='\t', header=header)
+        else:
+            raise Exception('Unrecognized file type, make sure that the data file extension is either csv or tsv.')
+    elif type(data) is pd.DataFrame:
+        df = data
 
     add_uuid = need_uuid(df, feature_num)
     if add_uuid:
         print('msg: from_csv, feature num is 0, auto-generating uuid')
         feature_num = feature_num + 1
         df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
-
     # if _memory_opt == 'uuid':
     #     df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
     #     feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
