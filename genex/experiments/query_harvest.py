@@ -168,6 +168,7 @@ def experiment_genex(data, output, feature_num, num_sample, query_split,
     # save the overall difference
     result_df = result_df.append({'dist_diff_btw_paa_bf': np.mean(overall_diff_paabf_list),
                                   'dist_diff_btw_gx_bf': np.mean(overall_diff_gxbf_list)}, ignore_index=True)
+    print('Result saved to ' + output)
     result_df.to_csv(output)
     # terminate the spark session
     gxe.stop()
@@ -195,7 +196,7 @@ def experiment_genex(data, output, feature_num, num_sample, query_split,
 #     return config_list
 
 
-def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes: str, start: int, end: int):
+def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes: str, soi):
     today = datetime.now()
     output_dir_path = os.path.join(output, today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
     if not os.path.exists(output_dir_path):
@@ -209,14 +210,23 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
     config_list = []
     dataset_list = get_dataset_train_path(root, exclude_list)
     dataset_list = dataset_list
-    for d_name, d_path in dataset_list.items():
+    for d_name, dataset_path in dataset_list.items():
+
+        # check dataset size
+        df = pd.read_csv(dataset_path, sep='\t', header=None)
+        if df.size < soi[0] or df.size > soi[1]:
+            continue
+        print('Adding ' + dataset_path)
         config_list.append({
-            'data': d_path,
+            'data': dataset_path,
             'output': os.path.join(output_dir_path, d_name + '_' + dist_type + '.csv'),
             'feature_num': 0,
             'dist_type': dist_type
         })
-    return config_list[start:end]
+    if len(config_list) < 1:
+        raise Exception('No dataset satisfied the given soi')
+    print('Added ' + str(len(config_list)) + ' datasets with the given soi')
+    return config_list
 
 
 def run_exp_set(exp_set, num_sample, query_split,
@@ -234,7 +244,6 @@ def get_dataset_train_path(root, exclude_list):
             continue
         assert os.path.isdir(os.path.join(root, name))
         this_path = os.path.join(root, name, name + trailing)
-        print('Adding ' + this_path)
         try:
             assert os.path.isfile(this_path)
         except AssertionError:
