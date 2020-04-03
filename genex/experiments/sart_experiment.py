@@ -100,20 +100,22 @@ loi_offset = 0.8
 motif_k = 5
 motif_overlap = 0.6
 
-across_ch = ' Channel Name'
-across_subj = 'Subject Name'
-event_inc = 'target incorrect'
+across_cols = ['Subject Name', ' Channel Name']
+events = ['target incorrect', 'target correct']
+
 motif_root = '/home/apocalyvec/data/SART/motif/'
 
 
 def event_motif_across(across, event, root):
     root = os.path.join(root, event)
+    if not os.path.exists(root):
+        os.mkdir(root)
+
+    root = os.path.join(root, 'across ' + across)
     if os.path.exists(root):
         print('Overwriting results')
         shutil.rmtree(root)
     os.mkdir(root)
-    root = os.path.join(root, 'across ' + across)
-    os.mkdir(os.path.join(root))
 
     for acr_label in data[across].unique():  # iterate through the channels
         # filter by subject name, channel and event
@@ -142,7 +144,10 @@ def event_motif_across(across, event, root):
             fig.savefig(os.path.join(root, title + '.png'))
         gxe.stop()
 
-event_motif_across(across_ch, event_inc, motif_root)
+
+for ac in across_cols:
+    for ev in events:
+        event_motif_across(ac, ev, motif_root)
 
 # for specific subject across all channels
 # for subj in data['Subject Name'].unique():  # iterate through the channels
