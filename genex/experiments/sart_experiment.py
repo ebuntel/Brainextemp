@@ -1,3 +1,6 @@
+import os
+import shutil
+
 from genex.utils.gxe_utils import from_csv, from_db
 import pandas as pd
 import numpy as np
@@ -44,10 +47,7 @@ data = pd.read_csv('/home/apocalyvec/PycharmProjects/Genex/genex/experiments/dat
 # ax.legend()
 # plt.show()
 
-cluster_st = 0.2
-loi_offset = 0.8
-motif_k = 5
-motif_overlap = 0.6
+
 
 # for subj in data['Subject Name'].unique():  # iterate through the subjects
 #     for chan in data[' Channel Name'].unique():  # iterate through the channels
@@ -95,92 +95,96 @@ motif_overlap = 0.6
 #         break
 #     break
 
-# For specific channels across all subjects
-for chan in data[' Channel Name'].unique():  # iterate through the channels
-    # filter by subject name, channel and event
-    data_chanCor = data[(data[' Channel Name'] == chan) &
-                        (data[' Event Name'] == 'target correct')]
+cluster_st = 0.2
+loi_offset = 0.8
+motif_k = 5
+motif_overlap = 0.6
 
-    gxe = from_csv(data_chanCor, feature_num=5, num_worker=32, use_spark=True, driver_mem=24, max_result_mem=24)
-    start = time.time()
-    gxe.build(st=cluster_st, loi=[int(gxe.get_max_seq_len() * loi_offset)])  # cluster only the longer sequences
-    print('Building took ' + str(time.time() - start) + ' sec')
+across_ch = ' Channel Name'
+across_subj = 'Subject Name'
+event_inc = 'target incorrect'
+motif_root = '/home/apocalyvec/data/SART/motif/'
 
-    # Plot the absolute motif ################################################################################
-    pattern_abs = gxe.motif(k=motif_k, overlap=motif_overlap, absolute=True)
-    fig, ax = plt.subplots()
-    fig.set_size_inches(15, 8)
-    for seq, representativeness in pattern_abs:
-        ax.plot(gxe.get_seq_data(seq, normalize=True),
-                label=str(seq) + '; Absolute' + ' Representativeness: ' + str(representativeness))
-    title = '5 Most Common Patterns for: Target Correct; All Subjects' + '; Channel Name: ' + chan + '; (Absolute Representativeness)'
-    ax.set_ylim(.2, .8)
-    ax.set_ylabel('Normalized Signal Level')
-    ax.set_xlabel('Samples in Time')
-    ax.set_title(title)
-    ax.legend()
-    fig.savefig('/home/apocalyvec/data/SART/motif/channels/' + title + '.png')
-    plt.show()
 
-    # Plot the relative motif ################################################################################
-    pattern_rel = gxe.motif(k=motif_k, overlap=motif_overlap, absolute=False)
-    fig, ax = plt.subplots()
-    fig.set_size_inches(15, 8)
-    for seq, representativeness in pattern_rel:
-        ax.plot(gxe.get_seq_data(seq, normalize=True),
-                label=str(seq) + '; Relative' + ' Representativeness: ' + str(representativeness))
-    title = '5 Most Common Patterns for: Target Correct; All Subjects' + '; Channel Name: ' + chan + '; (Relative Representativeness)'
-    ax.set_ylim(.2, .8)
-    ax.set_ylabel('Normalized Signal Level')
-    ax.set_xlabel('Samples in Time')
-    ax.set_title(title)
-    ax.legend()
-    fig.savefig('/home/apocalyvec/data/SART/motif/channels/' + title + '.png')
-    plt.show()
+def event_motif_across(across, event, root):
+    root = os.path.join(root, event)
+    if os.path.exists(root):
+        print('Overwriting results')
+        shutil.rmtree(root)
+    os.mkdir(root)
+    root = os.path.join(root, 'across ' + across)
+    os.mkdir(os.path.join(root))
 
-    gxe.stop()
+    for acr_label in data[across].unique():  # iterate through the channels
+        # filter by subject name, channel and event
+        data_across = data[(data[across] == acr_label) &
+                            (data[' Event Name'] == event)]
+
+        gxe = from_csv(data_across, feature_num=5, num_worker=32, use_spark=True, driver_mem=24, max_result_mem=24)
+        start = time.time()
+        gxe.build(st=cluster_st, loi=[int(gxe.get_max_seq_len() * loi_offset)])  # cluster only the longer sequences
+        print('Building took ' + str(time.time() - start) + ' sec')
+
+        for t in (True, False):  # plot both the absolute and relative representativeness
+            pattern_abs = gxe.motif(k=motif_k, overlap=motif_overlap, absolute=t)
+            fig, ax = plt.subplots()
+            fig.set_size_inches(15, 8)
+            for seq, representativeness in pattern_abs:
+                ax.plot(gxe.get_seq_data(seq, normalize=True),
+                        label=str(seq) + '; Absolute' + ' Representativeness: ' + str(representativeness))
+            title = '5 Most Common Patterns for: Target Correct' + '; ' + across + ': ' \
+                    + acr_label + ('; (Absolute Representativeness)' if t else '; (Relative Representativeness)')
+            ax.set_ylim(.2, .8)
+            ax.set_ylabel('Normalized Signal Level')
+            ax.set_xlabel('Samples in Time')
+            ax.set_title(title)
+            ax.legend()
+            fig.savefig(os.path.join(root, title + '.png'))
+        gxe.stop()
+
+event_motif_across(across_ch, event_inc, motif_root)
 
 # for specific subject across all channels
-for subj in data['Subject Name'].unique():  # iterate through the channels
-    # filter by subject name, channel and event
-    data_chanCor = data[(data['Subject Name'] == subj) &
-                        (data[' Event Name'] == 'target correct')]
-
-    gxe = from_csv(data_chanCor, feature_num=5, num_worker=32, use_spark=True, driver_mem=24, max_result_mem=24)
-    start = time.time()
-    gxe.build(st=cluster_st, loi=[int(gxe.get_max_seq_len() * loi_offset)])  # cluster only the longer sequences
-    print('Building took ' + str(time.time() - start) + ' sec')
-
-    # Plot the absolute motif ################################################################################
-    pattern_abs = gxe.motif(k=motif_k, overlap=motif_overlap, absolute=True)
-    fig, ax = plt.subplots()
-    fig.set_size_inches(15, 8)
-    for seq, representativeness in pattern_abs:
-        ax.plot(gxe.get_seq_data(seq, normalize=True),
-                label=str(seq) + '; Absolute' + ' Representativeness: ' + str(representativeness))
-    title = '5 Most Common Patterns for: Target Correct; Subject Name: ' + subj + '; All Channels' + '; (Absolute Representativeness)'
-    ax.set_ylim(.2, .8)
-    ax.set_ylabel('Normalized Signal Level')
-    ax.set_xlabel('Samples in Time')
-    ax.set_title(title)
-    ax.legend()
-    fig.savefig('/home/apocalyvec/data/SART/motif/subjects/' + title + '.png')
-    plt.show()
-
-    # Plot the relative motif ################################################################################
-    pattern_rel = gxe.motif(k=motif_k, overlap=motif_overlap, absolute=False)
-    fig, ax = plt.subplots()
-    fig.set_size_inches(15, 8)
-    for seq, representativeness in pattern_rel:
-        ax.plot(gxe.get_seq_data(seq, normalize=True),
-                label=str(seq) + '; Relative' + ' Representativeness: ' + str(representativeness))
-    title = '5 Most Common Patterns for: Target Correct; Subject Name: ' + subj + '; All Channels' + '; (Relative Representativeness)'
-    ax.set_ylim(.2, .8)
-    ax.set_ylabel('Normalized Signal Level')
-    ax.set_xlabel('Samples in Time')
-    ax.set_title(title)
-    ax.legend()
-    fig.savefig('/home/apocalyvec/data/SART/motif/subjects/' + title + '.png')
-    plt.show()
-
-    gxe.stop()
+# for subj in data['Subject Name'].unique():  # iterate through the channels
+#     # filter by subject name, channel and event
+#     data_chanCor = data[(data['Subject Name'] == subj) &
+#                         (data[' Event Name'] == 'target correct')]
+#
+#     gxe = from_csv(data_chanCor, feature_num=5, num_worker=32, use_spark=True, driver_mem=24, max_result_mem=24)
+#     start = time.time()
+#     gxe.build(st=cluster_st, loi=[int(gxe.get_max_seq_len() * loi_offset)])  # cluster only the longer sequences
+#     print('Building took ' + str(time.time() - start) + ' sec')
+#
+#     # Plot the absolute motif ################################################################################
+#     pattern_abs = gxe.motif(k=motif_k, overlap=motif_overlap, absolute=True)
+#     fig, ax = plt.subplots()
+#     fig.set_size_inches(15, 8)
+#     for seq, representativeness in pattern_abs:
+#         ax.plot(gxe.get_seq_data(seq, normalize=True),
+#                 label=str(seq) + '; Absolute' + ' Representativeness: ' + str(representativeness))
+#     title = '5 Most Common Patterns for: Target Correct; Subject Name: ' + subj + '; All Channels' + '; (Absolute Representativeness)'
+#     ax.set_ylim(.2, .8)
+#     ax.set_ylabel('Normalized Signal Level')
+#     ax.set_xlabel('Samples in Time')
+#     ax.set_title(title)
+#     ax.legend()
+#     fig.savefig('/home/apocalyvec/data/SART/motif/subjects/' + title + '.png')
+#     plt.show()
+#
+#     # Plot the relative motif ################################################################################
+#     pattern_rel = gxe.motif(k=motif_k, overlap=motif_overlap, absolute=False)
+#     fig, ax = plt.subplots()
+#     fig.set_size_inches(15, 8)
+#     for seq, representativeness in pattern_rel:
+#         ax.plot(gxe.get_seq_data(seq, normalize=True),
+#                 label=str(seq) + '; Relative' + ' Representativeness: ' + str(representativeness))
+#     title = '5 Most Common Patterns for: Target Correct; Subject Name: ' + subj + '; All Channels' + '; (Relative Representativeness)'
+#     ax.set_ylim(.2, .8)
+#     ax.set_ylabel('Normalized Signal Level')
+#     ax.set_xlabel('Samples in Time')
+#     ax.set_title(title)
+#     ax.legend()
+#     fig.savefig('/home/apocalyvec/data/SART/motif/subjects/' + title + '.png')
+#     plt.show()
+#
+#     gxe.stop()
