@@ -271,7 +271,12 @@ class GenexEngine:
         return seq
 
     def get_seqs_of_len(self, seq_len):
-        pass
+        if self.is_using_spark():
+            rtn = self.subsequences.filter(lambda x: len(x) == seq_len).collect()
+        else:
+            rtn = None
+            print('Warning: this feature is not yet implemented for none-spark version')
+        return rtn
 
     def get_norm_ts_list(self):
         return [Sequence(seq_id=x[0], start=0, end=len(x[1]) - 1, data=x[1]) for x in self.data_normalized]
