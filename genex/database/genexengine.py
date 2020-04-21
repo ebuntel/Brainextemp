@@ -129,6 +129,8 @@ class GenexEngine:
         """
         Groups and clusters the time series set
 
+        if the number of time series is less than the number of works, the spark version will repartition the
+        subsequences after grouping
         :param st: The upper bound of the similarity value between two time series (Value must be
                                       between 0 and 1)
         :param dist_type: Distance type used for similarity calculation between sequences

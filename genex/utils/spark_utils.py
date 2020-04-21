@@ -27,14 +27,14 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, start, end, st, dist_
     # validate and save the loi to gxdb class fields
     # distribute the data_original
     input_rdd = sc.parallelize(data_normalized, numSlices=sc.defaultParallelism)
-    # partition_input = input_rdd.glom().collect() #  for debug purposes
+    partition_input = input_rdd.glom().collect() #  for debug purposes
     # Grouping the data_original
-    # group = _group_time_series(input_rdd.glom().collect()[0], start, end) # for debug purposes
+    group = _group_time_series(input_rdd.glom().collect()[0], start, end) # for debug purposes
     group_rdd = input_rdd.mapPartitions(
         lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True).cache()
     subsequence_rdd = group_rdd.flatMap(lambda x: x[1]).cache()
-    # group_partition = group_rdd.glom().collect()  # for debug purposes
-    # group = group_rdd.collect()  # for debug purposes
+    group_partition = group_rdd.glom().collect()  # for debug purposes
+    group = group_rdd.collect()  # for debug purposes
     # Cluster the data_original with Gcluster
     # cluster = _cluster_groups(groups=group_rdd.glom().collect()[0], st=similarity_threshold,
     #                           dist_func=dist_func, verbose=1)  # for debug purposes
