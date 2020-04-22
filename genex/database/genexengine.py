@@ -125,13 +125,13 @@ class GenexEngine:
             raise Exception(
                 'Error checking dimension, expected: (' + str(self.conf['seq_dim']) + ',n), got ' + str(seq_shape))
 
-    def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1, _group_only=False, _dsg=True):
+    def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1, _group_only=False, _use_dss=True):
         """
         Groups and clusters the time series set
 
         if the number of time series is less than the number of works, the spark version will use sdg to speed up
         grouping
-        :param _dsg:
+        :param _use_dss:
         :param _group_only:
         :param st: The upper bound of the similarity value between two time series (Value must be
                                       between 0 and 1)
@@ -162,7 +162,7 @@ class GenexEngine:
                                                                                            self.data_normalized,
                                                                                            dn,
                                                                                            start, end, st, dist_func,
-                                                                                           verbose, _group_only, _dsg)
+                                                                                           verbose, _group_only, _use_dss)
         else:
             self.subsequences, self.clusters, self.cluster_meta_dict = _cluster_multi_process(self.mp_context,
                                                                                               self.data_normalized,

@@ -15,6 +15,7 @@ import pandas as pd
 # findspark.init(spark_home=spark_location)
 from genex.utils.gxe_utils import from_csv
 
+
 ########################################################################################################################
 
 # eu_exclude = ['ChlorineConcentration',
@@ -78,7 +79,7 @@ def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split
         print('Adding to query set: ' + str(this_query))
 
     print('Performing clustering ...')
-    print('Using dist_type = ' + str(dist_type) + ', Length of query is ' + str(query_len))
+    print('Using dist_type = ' + str(dist_type))
     print('Using loi offset of ' + str(loi_range))
     print('Building length of interest is ' + str(loi))
     print('Building Similarity Threshold is ' + str(st))
@@ -216,7 +217,7 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
         config_list.append({
             'data': dataset_path,
             'output': os.path.join(output_dir_path, d_name + '_' + dist_type + '.csv'),
-            'feature_num': 0,
+            'feature_num': 1,  # IMPORTANT this should be 1 for the UCR archive
             'dist_type': dist_type
         })
     if len(config_list) < 1:
@@ -226,10 +227,16 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
 
 
 def run_exp_set(exp_set, mp_args, num_sample, query_split,
-                _lb_opt, radius, use_spark, loi_range, st, paa_c):
+                _lb_opt, radius, use_spark, loi_range, st, paa_c, _test_dss=False):
     for es in exp_set:
-        experiment_genex(mp_args, **es, num_sample=num_sample, query_split=query_split,
-                         _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st, paa_c=paa_c)
+        if _test_dss:
+            experiment_genex_grouping(mp_args, **es, num_sample=num_sample, query_split=query_split,
+                                      _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
+                                      paa_c=paa_c)
+        else:
+            experiment_genex(mp_args, **es, num_sample=num_sample, query_split=query_split,
+                             _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
+                             paa_c=paa_c)
 
 
 def get_dataset_train_path(root, exclude_list):
@@ -246,6 +253,7 @@ def get_dataset_train_path(root, exclude_list):
             warning('File not exist: ' + this_path)
         data_path_list[name] = this_path
     return data_path_list
+
 
 # datasets = [
 #     'ItalyPower',
@@ -457,146 +465,151 @@ def get_dataset_train_path(root, exclude_list):
 # run_exp_set(es_ch_ucr_2, **ex_config_ucr_0)
 
 
-def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split,
-                     dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
-    # create gxdb from a csv file
-
+def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, query_split,
+                              dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
     # set up where to save the results
     result_headers = np.array(
-        [['cluster_time', 'query',
-          'bf_time', 'paa_time', 'gx_time',
-          'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf',
+        [['data_size', 'num_query', 'gx_cluster_time', 'dssGx_cluster_time', 'query',
+          'bf_time', 'paa_time', 'gx_time', 'dssGx_time',
+          'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf', 'dist_diff_btw_dssGx_bf',
           'bf_dist', 'bf_match',
           'paa_dist', 'paa_match',
           'gx_dist', 'gx_match',
-          'num_rows', 'num_cols_max', 'num_cols_median', 'data_size', 'num_query']])
+          'dssGx_dist', 'gx_match']])
 
     result_df = pd.DataFrame(columns=result_headers[0, :])
 
-    gxe = from_csv(data, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
-                   max_result_mem=mp_args['max_result_mem'],
-                   feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
-                   header=None)
-    num_rows = len(gxe.data_raw)
-    num_query = int(query_split * num_rows)
-    try:
-        assert num_query > 0
-    except AssertionError:
-        raise Exception('Number of query with given query_split yields zero query sequence, try increase query_split')
-    loi = (int(gxe.get_max_seq_len() * (1 - loi_range)), int(gxe.get_max_seq_len() * (1 + loi_range)))
+    # only take one time series at a time
+    data_df = pd.read_csv(data, sep='\t', header=None)
+    cases = int(data_df.shape[0] * query_split)
+    sample_indices = random.sample(range(0, data_df.shape[0] - 1), cases)
 
-    print('Number of rows is  ' + str(num_rows))
-    print('Max seq len is ' + str(gxe.get_max_seq_len()))
-
-    result_df = result_df.append({'num_rows': num_rows}, ignore_index=True)  # use append to create the first row
-    result_df['num_cols_max'] = gxe.get_max_seq_len()
-    result_df['num_cols_median'] = np.median(gxe.get_seq_length_list())
-    result_df['data_size'] = gxe.get_data_size()
-    result_df['num_query'] = num_query
-
-    print('Generating query of max seq len ...')
-    # generate the query sets
-    query_set = list()
-    # get the number of subsequences
-    # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
-    # this query'id must exist in the database
-    for i in range(num_query):
-        random.seed(i)
-        query_len = random.choice(list(range(loi[0], loi[1])))
-        this_query = gxe.get_random_seq_of_len(query_len, seed=i)
-        query_set.append(this_query)
-        print('Adding to query set: ' + str(this_query))
-
-    print('Performing clustering ...')
-    print('Using dist_type = ' + str(dist_type) + ', Length of query is ' + str(query_len))
-    print('Using loi offset of ' + str(loi_range))
-    print('Building length of interest is ' + str(loi))
-    print('Building Similarity Threshold is ' + str(st))
-
-    cluster_start_time = time.time()
-    gxe.build(st=st, dist_type=dist_type, loi=loi)
-    cluster_time = time.time() - cluster_start_time
-    result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
-    print('Clustering took ' + str(cluster_time) + ' sec')
-    # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
-    # this query'id must exist in the database
-    overall_diff_gxbf_list = []
+    overall_diff_dssGxbf_list = []
     overall_diff_paabf_list = []
+    overall_diff_gxbf_list = []
 
-    print('Evaluating ...')
-    for i, q in enumerate(query_set):
-        print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
-            len(query_set)) + '; query = ' + str(q))
-        start = time.time()
-        print('Running Genex Query ...')
-        query_result_gx = gxe.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
-        # print('...Not Actually running... Simulating results!')
-        # query_result_gx = [(0.0, [1, 2, 3])] * 15
-        gx_time = time.time() - start
-        print('Genex  query took ' + str(gx_time) + ' sec')
+    q_records = {}
 
-        start = time.time()
-        print('Running Brute Force Query ...')
-        query_result_bf = gxe.query_brute_force(query=q, best_k=15, _use_cache=False)
-        # print('...Not Actually running... Simulating results!')
-        # query_result_bf = [(0.0, [1, 2, 3])] * 15
-        bf_time = time.time() - start
-        print('Brute force query took ' + str(bf_time) + ' sec')
+    for ci in range(cases):
+        print('Taking ' + str(ci) + ' of ' + str(cases) + ' as dataset')
+        data_single_ts = data_df.iloc[sample_indices[ci]:sample_indices[ci] + 1, :]  # randomly take a row
+        gxe = from_csv(data_single_ts, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
+                       max_result_mem=mp_args['max_result_mem'],
+                       feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
+                       header=None)
+        num_query = int((query_split * gxe.get_data_size()))
+        try:
+            assert num_query > 0
+        except AssertionError:
+            raise Exception(
+                'Number of query with given query_split yields zero query sequence, try increase query_split')
+        loi = (int(gxe.get_max_seq_len() * (1 - loi_range)), int(gxe.get_max_seq_len() * (1 + loi_range)))
+        print('Max seq len is ' + str(gxe.get_max_seq_len()))
 
-        # Pure PAA Query
-        start = time.time()
-        print('Running Pure PAA Query ...')
-        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=paa_c)
-        paa_time = time.time() - start
-        print('Pure PAA query took ' + str(paa_time) + ' sec')
+        result_df = result_df.append({'data_size': gxe.get_data_size(), 'num_query': num_query}, ignore_index=True)
 
-        # save the results
-        print('Saving results for query #' + str(i) + ' of ' + str(len(query_set)))
-        result_df = result_df.append({'query': str(q), 'bf_time': bf_time, 'paa_time': paa_time, 'gx_time': gx_time},
-                                     ignore_index=True)
-        diff_gxbf_list = []
-        diff_paabf_list = []
+        print('Generating query of max seq len ...')
+        # generate the query sets
+        query_set = list()
+        # get the number of subsequences randomly pick a sequence as the query from the query sequence, make sure the
+        # picked sequence is in the input list this query'id must exist in the database
+        for i in range(num_query):
+            random.seed(i)
+            query_len = random.choice(list(range(loi[0], loi[1])))
+            this_query = gxe.get_random_seq_of_len(query_len, seed=i)
+            query_set.append(this_query)
+            print('Adding to query set: ' + str(this_query))
 
-        for bf_r, paa_r, gx_r in zip(query_result_bf, query_result_paa, query_result_gx):
-            diff_gxbf = abs(gx_r[0] - bf_r[0])
-            diff_paabf = abs(paa_r[0] - bf_r[0])
+        print('Using dist_type = ' + str(dist_type))
+        print('Using loi offset of ' + str(loi_range))
+        print('Building length of interest is ' + str(loi))
+        print('Building Similarity Threshold is ' + str(st))
 
-            diff_gxbf_list.append(diff_gxbf)
-            diff_paabf_list.append(diff_paabf)
+        print('Performing Regular clustering ...')
+        cluster_start_time = time.time()
+        gxe.build(st=st, dist_type=dist_type, loi=loi, _use_dss=False)
+        cluster_time_gx = time.time() - cluster_start_time
+        print('gx_cluster_time took ' + str(cluster_time_gx) + ' sec')
 
-            overall_diff_gxbf_list.append(diff_gxbf)
-            overall_diff_paabf_list.append(diff_paabf)
+        print('Evaluating Regular Genex, BF and PAA')
+        for i, q in enumerate(query_set):
+            print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
+                len(query_set)) + '; query = ' + str(q))
+            start = time.time()
+            print('Running Brute Force Query ...')
+            query_result_bf = gxe.query_brute_force(query=q, best_k=15, _use_cache=False)
+            bf_time = time.time() - start
+            print('Brute force query took ' + str(bf_time) + ' sec')
 
-            # 'bf_time', 'paa_time', 'gx_time',
-            # 'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf',
-            # 'bf_dist', 'bf_match',
-            # 'paa_dist', 'paa_match',
-            # 'gx_dist', 'gx_match',
-            result_df = result_df.append({'dist_diff_btw_paa_bf': diff_paabf,
-                                          'dist_diff_btw_gx_bf': diff_gxbf,
-                                          'bf_dist': bf_r[0], 'bf_match': bf_r[1],
-                                          'paa_dist': paa_r[0], 'paa_match': paa_r[1],
-                                          'gx_dist': gx_r[0], 'gx_match': gx_r[1],
-                                          }, ignore_index=True)
-        print('GX error for query ' + str(q) + ' is ' + str(np.mean(diff_gxbf_list)))
-        print('PAA error for query ' + str(q) + ' is ' + str(np.mean(diff_paabf_list)))
-        result_df = result_df.append({'dist_diff_btw_paa_bf': np.mean(diff_gxbf_list),
-                                      'dist_diff_btw_gx_bf': np.mean(diff_paabf_list)}, ignore_index=True)
+            start = time.time()
+            print('Running Pure PAA Query ...')
+            query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=paa_c)
+            paa_time = time.time() - start
+            print('Pure PAA query took ' + str(paa_time) + ' sec')
+
+            print('Evaluating Regular Gx')
+            start = time.time()
+            print('Running Genex Query ...')
+            query_result_gx = gxe.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
+            gx_time = time.time() - start
+            print('Genex  query took ' + str(gx_time) + ' sec')
+
+            q_records[str(q)] = {'bf_time': bf_time, 'paa_time': paa_time, 'gx_time': gx_time, 'dssGx_time': None,
+                                'bf_result': query_result_bf, 'paa_result': query_result_paa,
+                                'gx_result': query_result_gx, 'dssGx_result': None}
+
+        print('Performing clustering with DSS...')
+        gxe.stop()
+        gxe = from_csv(data_single_ts, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
+                       max_result_mem=mp_args['max_result_mem'],
+                       feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
+                       header=None)
+        cluster_start_time = time.time()
+        gxe.build(st=st, dist_type=dist_type, loi=loi, _use_dss=True)
+        cluster_time_dssGx = time.time() - cluster_start_time
+        print('gx_cluster_time took ' + str(cluster_time_dssGx) + ' sec')
+
+        print('Evaluating dssGx')
+        for i, q in enumerate(query_set):
+            print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
+                len(query_set)) + '; query = ' + str(q))
+            start = time.time()
+            print('Running DSS Query ...')
+            qr_dss = gxe.query_brute_force(query=q, best_k=15, _use_cache=False)
+            dss_time = time.time() - start
+            print('Brute force query took ' + str(bf_time) + ' sec')
+            q_records[str(q)]['dssGx_time'] = dss_time,
+            q_records[str(q)]['dssGx_result'] = qr_dss
+
+        # culminate the result in the result data frame
+        result_df = result_df.append({'gx_cluster_time': cluster_time_gx, 'dssGx_cluster_time': cluster_time_dssGx}, ignore_index=True)
+        for i, q in enumerate(query_set):
+            this_record = q_records[str(q)]
+            result_df = result_df.append({'bf_time': this_record['bf_time'],
+                                          'paa_time': this_record['paa_time'],
+                                          'gx_time': this_record['gx_time'],
+                                          'dssGx_time': this_record['dssGx_time']}, ignore_index=True)  # append the query times
+
+            for bf_r, paa_r, gx_r, dss_r in zip(this_record['bf_result'], this_record['paa_result'], this_record['gx_result'], this_record['dssGx_result']):  # resolve the query matches
+                diff_paabf = abs(paa_r[0] - bf_r[0])
+                diff_gxbf = abs(gx_r[0] - bf_r[0])
+                diff_dssGxbf = abs(dss_r[0] - bf_r[0])
+
+                overall_diff_paabf_list.append(diff_paabf)
+                overall_diff_gxbf_list.append(diff_gxbf)
+                overall_diff_dssGxbf_list.append(diff_dssGxbf)
+
+                result_df = result_df.append({'dist_diff_btw_paa_bf': diff_paabf,
+                                              'dist_diff_btw_gx_bf': diff_gxbf,
+                                              'dist_diff_btw_dssGx_bf': diff_dssGxbf,
+                                              'bf_dist': bf_r[0], 'bf_match': bf_r[1],
+                                              'paa_dist': paa_r[0], 'paa_match': paa_r[1],
+                                              'gx_dist': gx_r[0], 'gx_match': gx_r[1],
+                                              'dssGx_dist': dss_r[0], 'gx_match': dss_r[1]
+                                              }, ignore_index=True)
+            print('Current PAA error for query is ' + str(np.mean(overall_diff_paabf_list)))
+            print('Current GX error for query is ' + str(np.mean(overall_diff_gxbf_list)))
+            print('Current DSS error for query is ' + str(np.mean(overall_diff_dssGxbf_list)))
 
         result_df.to_csv(output)
-
-        # evict the mp context every 3 queries
         print('Done')
-        # if i % 3:
-        #     gxe.reset_mp(use_spark=use_spark, **mp_args)
-        #     print('     Evicting Multiprocess Context')
-
-    # save the overall difference
-    result_df = result_df.append({'dist_diff_btw_paa_bf': np.mean(overall_diff_paabf_list),
-                                  'dist_diff_btw_gx_bf': np.mean(overall_diff_gxbf_list)}, ignore_index=True)
-    print('Result saved to ' + output)
-    result_df.to_csv(output)
-    # terminate the spark session
-    gxe.stop()
-
-    return gxe

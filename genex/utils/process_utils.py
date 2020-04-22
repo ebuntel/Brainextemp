@@ -4,7 +4,7 @@ from itertools import groupby
 from genex.classes.Sequence import Sequence
 
 
-def dsg(begin_index, time_series, start, end, parallelism):
+def dss(begin_index, time_series, start, end, parallelism):
     """
     used when a single time series is given
     :param group:

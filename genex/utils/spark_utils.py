@@ -4,7 +4,7 @@ from tslearn.piecewise import PiecewiseAggregateApproximation
 from genex.op.query_op import _get_dist_query
 from genex.op.cluster_op import _cluster_groups, _cluster_to_meta, _cluster_reduce_func
 from genex.misc import pr_red
-from genex.utils.process_utils import _group_time_series, dsg
+from genex.utils.process_utils import _group_time_series, dss
 from genex.utils.utils import flatten
 
 
@@ -25,11 +25,12 @@ def _pr_spark_conf(sc: SparkContext):
 
 
 def _cluster_with_spark(sc: SparkContext, data_normalized, data_normalized_bc,
-                        start, end, st, dist_func, verbose, group_only, sdg):
+                        start, end, st, dist_func, verbose, group_only, use_dss):
     # validate and save the loi to gxdb class fields
     parallelism = sc.defaultParallelism
     # if False:
-    if len(data_normalized) == 1 and len(data_normalized[0][1]) > parallelism and sdg:
+    if len(data_normalized) == 1 and len(data_normalized[0][1]) > parallelism and use_dss:
+        print('_cluster_with_spark: Using DSS')
         # series, we use step-distribution-grouping
         groups = [i for i in range(parallelism)]
         group_rdd = sc.parallelize(groups, numSlices=parallelism)
@@ -40,7 +41,7 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, data_normalized_bc,
         #     g = _sdg(gp, data_normalized_bc, start, end, parallelism)  # for debug purposes
         #     ss = ss + (flatten([x[1] for x in g]))
         group_rdd = group_rdd.mapPartitions(
-            lambda x: dsg(x, data_normalized_bc, start, end, parallelism), preservesPartitioning=True).cache()
+            lambda x: dss(x, data_normalized_bc, start, end, parallelism), preservesPartitioning=True).cache()
     else:
         # distribute the data_original
         input_rdd = sc.parallelize(data_normalized, numSlices=parallelism)
