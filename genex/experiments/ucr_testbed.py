@@ -5,7 +5,7 @@ import numpy as np
 from genex.experiments.query_harvest import generate_exp_set_from_root, run_exp_set
 
 
-def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types,  ex_config):
+def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types, ex_config, mp_args):
     """
     The start and end parameter together make an interval that contains the datasets to be included in this experiment
     :param dataset_path: the path to the archive datasets
@@ -41,14 +41,13 @@ def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types
     } for dt in dist_types]
 
     exp_set_list = [generate_exp_set_from_root(dataset_path, output_dir, exclude_list, **ea) for ea in exp_arg_list]
-    return [run_exp_set(es, **ex_config) for es in exp_set_list]
+    return [run_exp_set(es, mp_args, **ex_config) for es in exp_set_list]
 
 
 '''
 Start of the experiment script
 '''
 if __name__ == "__main__":
-
     # Start of Config Parameters #########################
     '''
     check the docstring of the above function - run_ucr_test for details regarding the parameters
@@ -70,6 +69,10 @@ if __name__ == "__main__":
         'st': 0.1,
         'paa_c': 0.6
     }
+    mp_args = {'num_worker': 32,
+               'driver_mem': 24,
+               'max_result_mem': 24}
+
     # End of Config Parameters #########################
 
-    run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test)
+    run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
