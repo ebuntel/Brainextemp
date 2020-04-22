@@ -284,6 +284,9 @@ class GenexEngine:
             print('Warning: this feature is not yet implemented for none-spark version')
         return rtn
 
+    def get_subsequences(self):
+        return self.subsequences.collect() if self.is_using_spark() else self.subsequences
+
     def get_norm_ts_list(self):
         return [Sequence(seq_id=x[0], start=0, end=len(x[1]) - 1, data=x[1]) for x in self.data_normalized]
 

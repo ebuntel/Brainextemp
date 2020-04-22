@@ -60,7 +60,7 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, data_normalized_bc,
     # cluster = _cluster_groups(groups=group_rdd.glom().collect()[0], st=similarity_threshold,
     #                           dist_func=dist_func, verbose=1)  # for debug purposes
     if group_only:
-        return None, None, None
+        return subsequence_rdd, None, None
 
     cluster_rdd = group_rdd.mapPartitions(lambda x: _cluster_groups(
         groups=x, st=st, dist_func=dist_func, data_list=data_normalized, log_level=verbose)).cache()
