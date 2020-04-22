@@ -4,6 +4,33 @@ from itertools import groupby
 from genex.classes.Sequence import Sequence
 
 
+def dsg(begin_index, time_series, start, end, parallelism):
+    """
+    used when a single time series is given
+    :param group:
+    :param time_series:
+    :param start:
+    :param end:
+    :param step: the separation between grouping partitions
+    """
+
+    begin_index = list(begin_index)
+    assert len(begin_index) == 1
+    ts_id = time_series.value[0][0]
+    ts_data = time_series.value[0][1]
+
+    rtn = dict()
+
+    for ts_index in range(begin_index[0], len(ts_data), parallelism):  # step by distribution
+        max_len = min(end, len(ts_data) - ts_index)
+        for length in range(start - 1, min(end, len(ts_data) - ts_index)):  # get appropriate
+            seq_len = length + 1
+            if seq_len not in rtn.keys():
+                rtn[seq_len] = []
+            rtn[seq_len].append(Sequence(start=ts_index, end=ts_index + length, seq_id=ts_id))
+    return list(rtn.items())
+
+
 def _group_time_series(time_series, start, end):
     """
     This function groups the raw time series data_original into sub sequences of all possible length within the given grouping
@@ -93,5 +120,3 @@ def reduce_by_key(func, iterable):
         lambda l: (l[0], reduce(func, map(get_second, l[1]))),
         groupby(sorted(iterable, key=get_first), get_first)
     )
-
-

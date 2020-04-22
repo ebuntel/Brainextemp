@@ -125,12 +125,14 @@ class GenexEngine:
             raise Exception(
                 'Error checking dimension, expected: (' + str(self.conf['seq_dim']) + ',n), got ' + str(seq_shape))
 
-    def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1):
+    def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1, _group_only=False, _dsg=True):
         """
         Groups and clusters the time series set
 
-        if the number of time series is less than the number of works, the spark version will repartition the
-        subsequences after grouping
+        if the number of time series is less than the number of works, the spark version will use sdg to speed up
+        grouping
+        :param _dsg:
+        :param _group_only:
         :param st: The upper bound of the similarity value between two time series (Value must be
                                       between 0 and 1)
         :param dist_type: Distance type used for similarity calculation between sequences
@@ -154,11 +156,13 @@ class GenexEngine:
             raise Exception('Unknown distance type: ' + str(dist_type))
 
         if self.is_using_spark():  # If using Spark backend
+            self._data_normalized_bc = self.mp_context.broadcast(self.data_normalized)
+            dn = self._data_normalized_bc
             self.subsequences, self.clusters, self.cluster_meta_dict = _cluster_with_spark(self.mp_context,
                                                                                            self.data_normalized,
+                                                                                           dn,
                                                                                            start, end, st, dist_func,
-                                                                                           verbose)
-            self._data_normalized_bc = self.mp_context.broadcast(self.data_normalized)
+                                                                                           verbose, _group_only, _dsg)
         else:
             self.subsequences, self.clusters, self.cluster_meta_dict = _cluster_multi_process(self.mp_context,
                                                                                               self.data_normalized,
