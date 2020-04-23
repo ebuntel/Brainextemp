@@ -8,8 +8,8 @@ from genex.experiments.query_harvest import generate_exp_set_from_root, run_exp_
 def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types, ex_config, mp_args):
     """
     The start and end parameter together make an interval that contains the datasets to be included in this experiment
-    :param mp_args: the configuration of the multiprocess backend, you should set the number of workers to be the,
-            IMPORTANT: go to this site https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html for
+    :param mp_args: the configuration of the multiprocess backend,
+            go to this site https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html for
             the correct Spark configuration with AWS; you only need to worry the configs that are exposed to you ->
             that is: the number of workers, the max driver memory and the max result size
     :param dataset_path: the path to the archive datasets
@@ -80,7 +80,7 @@ if __name__ == "__main__":
                'max_result_mem': 24}
 
     # End of Config Parameters, Experiment starts here ################################################################
-    run_ucr_test(dataset, ds_soi, output_reg, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
+    # run_ucr_test(dataset, ds_soi, output_reg, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
 
     # for test grouping, keep this part commented for the pure UCR testing ############################################
     ex_config_test['_test_dss'] = True

@@ -535,8 +535,8 @@ def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, qu
             print('Genex  query took ' + str(gx_time) + ' sec')
 
             q_records[str(q)] = {'bf_time': bf_time, 'paa_time': paa_time, 'gx_time': gx_time, 'dssGx_time': None,
-                                'bf_result': query_result_bf, 'paa_result': query_result_paa,
-                                'gx_result': query_result_gx, 'dssGx_result': None}
+                                 'bf_result': query_result_bf, 'paa_result': query_result_paa,
+                                 'gx_result': query_result_gx, 'dssGx_result': None}
 
         print('Performing clustering with DSS...')
         gxe.stop()
@@ -554,24 +554,28 @@ def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, qu
             print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
                 len(query_set)) + '; query = ' + str(q))
             start = time.time()
-            print('Running DSS Query ...')
             qr_dss = gxe.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
             dss_time = time.time() - start
-            print('DSS query took ' + str(bf_time) + ' sec')
+            print('DSS query took ' + str(dss_time) + ' sec')
             q_records[str(q)]['dssGx_time'] = dss_time,
+            q_records[str(q)]['dssGx_time'] = q_records[str(q)]['dssGx_time'][0]  # TODO fix tupling issue,
             q_records[str(q)]['dssGx_result'] = qr_dss
 
         # culminate the result in the result data frame
-        result_df = result_df.append({'gx_cluster_time': cluster_time_gx, 'dssGx_cluster_time': cluster_time_dssGx}, ignore_index=True)
+        result_df = result_df.append({'gx_cluster_time': cluster_time_gx, 'dssGx_cluster_time': cluster_time_dssGx},
+                                     ignore_index=True)
         for i, q in enumerate(query_set):
             this_record = q_records[str(q)]
             result_df = result_df.append({'query': str(q),
-                                            'bf_time': this_record['bf_time'],
+                                          'bf_time': this_record['bf_time'],
                                           'paa_time': this_record['paa_time'],
                                           'gx_time': this_record['gx_time'],
-                                          'dssGx_time': this_record['dssGx_time']}, ignore_index=True)  # append the query times
+                                          'dssGx_time': this_record['dssGx_time']},
+                                         ignore_index=True)  # append the query times
 
-            for bf_r, paa_r, gx_r, dss_r in zip(this_record['bf_result'], this_record['paa_result'], this_record['gx_result'], this_record['dssGx_result']):  # resolve the query matches
+            for bf_r, paa_r, gx_r, dss_r in zip(this_record['bf_result'], this_record['paa_result'],
+                                                this_record['gx_result'],
+                                                this_record['dssGx_result']):  # resolve the query matches
                 diff_paabf = abs(paa_r[0] - bf_r[0])
                 diff_gxbf = abs(gx_r[0] - bf_r[0])
                 diff_dssGxbf = abs(dss_r[0] - bf_r[0])
@@ -592,6 +596,7 @@ def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, qu
             print('Current GX error for query is ' + str(np.mean(overall_diff_gxbf_list)))
             print('Current DSS error for query is ' + str(np.mean(overall_diff_dssGxbf_list)))
 
+        print('Result saved to ' + output)
         result_df.to_csv(output)
         gxe.stop()
     print('Done')
