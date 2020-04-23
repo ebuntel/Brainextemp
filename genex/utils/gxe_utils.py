@@ -4,6 +4,7 @@ import os
 import pickle
 import uuid
 import pandas as pd
+import numpy as np
 
 from sklearn.preprocessing import LabelEncoder
 
@@ -76,7 +77,8 @@ def from_csv(data, feature_num: int,
             raise Exception('Unrecognized file type, make sure that the data file extension is either csv or tsv.')
     elif type(data) is pd.DataFrame:
         df = data
-
+    elif type(data) is np.ndarray:
+        df = pd.DataFrame(data)
     add_uuid = need_uuid(df, feature_num)
     if add_uuid:
         print('msg: from_csv, feature num is 0, auto-generating uuid')

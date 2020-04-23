@@ -125,10 +125,14 @@ class GenexEngine:
             raise Exception(
                 'Error checking dimension, expected: (' + str(self.conf['seq_dim']) + ',n), got ' + str(seq_shape))
 
-    def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1):
+    def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1, _group_only=False, _use_dss=True):
         """
         Groups and clusters the time series set
 
+        if the number of time series is less than the number of works, the spark version will use sdg to speed up
+        grouping
+        :param _use_dss:
+        :param _group_only:
         :param st: The upper bound of the similarity value between two time series (Value must be
                                       between 0 and 1)
         :param dist_type: Distance type used for similarity calculation between sequences
@@ -152,11 +156,13 @@ class GenexEngine:
             raise Exception('Unknown distance type: ' + str(dist_type))
 
         if self.is_using_spark():  # If using Spark backend
+            self._data_normalized_bc = self.mp_context.broadcast(self.data_normalized)
+            dn = self._data_normalized_bc
             self.subsequences, self.clusters, self.cluster_meta_dict = _cluster_with_spark(self.mp_context,
                                                                                            self.data_normalized,
+                                                                                           dn,
                                                                                            start, end, st, dist_func,
-                                                                                           verbose)
-            self._data_normalized_bc = self.mp_context.broadcast(self.data_normalized)
+                                                                                           verbose, _group_only, _use_dss)
         else:
             self.subsequences, self.clusters, self.cluster_meta_dict = _cluster_multi_process(self.mp_context,
                                                                                               self.data_normalized,
@@ -254,7 +260,8 @@ class GenexEngine:
             if sequence_len > len(target[1]):
                 warning('get_random_seq_of_len: given sequence len is greater than randomly picked target, '
                         'setting sequence len to target len. If you are '
-                        'using the maximum seq len, your data may be consisted of sequences with varying length.')
+                        'using the maximum seq len, your data may be consisted of sequences with varying length. Then '
+                        'you can ignore this warning')
                 sequence_len = len(target[1])
                 seq = Sequence(target[0], 0, len(target[1]) - 1)
             else:
@@ -271,7 +278,15 @@ class GenexEngine:
         return seq
 
     def get_seqs_of_len(self, seq_len):
-        pass
+        if self.is_using_spark():
+            rtn = self.subsequences.filter(lambda x: len(x) == seq_len).collect()
+        else:
+            rtn = None
+            print('Warning: this feature is not yet implemented for none-spark version')
+        return rtn
+
+    def get_subsequences(self):
+        return self.subsequences.collect() if self.is_using_spark() else self.subsequences
 
     def get_norm_ts_list(self):
         return [Sequence(seq_id=x[0], start=0, end=len(x[1]) - 1, data=x[1]) for x in self.data_normalized]
