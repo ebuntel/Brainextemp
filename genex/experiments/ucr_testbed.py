@@ -75,7 +75,7 @@ if __name__ == "__main__":
         'st': 0.1,
         'paa_c': 0.6,
     }
-    mp_args = {'num_worker': 32,
+    mp_args = {'num_worker': 64,
                'driver_mem': 24,
                'max_result_mem': 24}
 
