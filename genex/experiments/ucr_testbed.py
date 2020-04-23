@@ -75,9 +75,9 @@ if __name__ == "__main__":
         'st': 0.1,
         'paa_c': 0.6,
     }
-    mp_args = {'num_worker': 72,
-               'driver_mem': 32,
-               'max_result_mem': 32}
+    mp_args = {'num_worker': 32,
+               'driver_mem': 24,
+               'max_result_mem': 24}
 
     # End of Config Parameters, Experiment starts here ################################################################
     run_ucr_test(dataset, ds_soi, output_reg, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
