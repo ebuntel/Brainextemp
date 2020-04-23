@@ -7,7 +7,7 @@ client = boto3.client('s3')
 
 # Create s3 bucket
 now = datetime.now()
-date_time = now.strftime("%m-%d-medium-datasets")
+date_time = now.strftime("%m-%d-small-datasets")
 
 response = client.create_bucket(
     Bucket=date_time
@@ -18,7 +18,7 @@ print(response)
 
 s3 = boto3.resource('s3')
 # Upload files to bucket
-mypath = '/Brainextemp/genex/data/results/'
+mypath = '/Genex/genex/data/results/'
 for (dirpath, dirname, filenames) in walk(mypath):
     for direc in dirname:
         for (dirpath2, _, filenames2) in walk(mypath + direc):

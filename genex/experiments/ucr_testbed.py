@@ -56,9 +56,9 @@ if __name__ == "__main__":
     '''
     check the docstring of the above function - run_ucr_test for details regarding the parameters
     '''
-    dataset = '/Brainextemp/genex/data/UCRArchive_2018'
+    dataset = '/Genex/genex/data/UCRArchive_2018'
     ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
-    output_reg = '/Brainextemp/genex/data/results'
+    output_reg = '/Genex/genex/data/results'
     #output_dss = '/home/apocalyvec/data/UCR_DSS_test'
 
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted']
