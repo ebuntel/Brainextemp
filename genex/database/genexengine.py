@@ -260,7 +260,8 @@ class GenexEngine:
             if sequence_len > len(target[1]):
                 warning('get_random_seq_of_len: given sequence len is greater than randomly picked target, '
                         'setting sequence len to target len. If you are '
-                        'using the maximum seq len, your data may be consisted of sequences with varying length.')
+                        'using the maximum seq len, your data may be consisted of sequences with varying length. Then '
+                        'you can ignore this warning')
                 sequence_len = len(target[1])
                 seq = Sequence(target[0], 0, len(target[1]) - 1)
             else:

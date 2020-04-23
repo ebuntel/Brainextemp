@@ -125,46 +125,26 @@ def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split
         print('Saving results for query #' + str(i) + ' of ' + str(len(query_set)))
         result_df = result_df.append({'query': str(q), 'bf_time': bf_time, 'paa_time': paa_time, 'gx_time': gx_time},
                                      ignore_index=True)
-        diff_gxbf_list = []
-        diff_paabf_list = []
 
         for bf_r, paa_r, gx_r in zip(query_result_bf, query_result_paa, query_result_gx):
             diff_gxbf = abs(gx_r[0] - bf_r[0])
             diff_paabf = abs(paa_r[0] - bf_r[0])
 
-            diff_gxbf_list.append(diff_gxbf)
-            diff_paabf_list.append(diff_paabf)
-
             overall_diff_gxbf_list.append(diff_gxbf)
             overall_diff_paabf_list.append(diff_paabf)
 
-            # 'bf_time', 'paa_time', 'gx_time',
-            # 'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf',
-            # 'bf_dist', 'bf_match',
-            # 'paa_dist', 'paa_match',
-            # 'gx_dist', 'gx_match',
             result_df = result_df.append({'dist_diff_btw_paa_bf': diff_paabf,
                                           'dist_diff_btw_gx_bf': diff_gxbf,
                                           'bf_dist': bf_r[0], 'bf_match': bf_r[1],
                                           'paa_dist': paa_r[0], 'paa_match': paa_r[1],
                                           'gx_dist': gx_r[0], 'gx_match': gx_r[1],
                                           }, ignore_index=True)
-        print('GX error for query ' + str(q) + ' is ' + str(np.mean(diff_gxbf_list)))
-        print('PAA error for query ' + str(q) + ' is ' + str(np.mean(diff_paabf_list)))
-        result_df = result_df.append({'dist_diff_btw_paa_bf': np.mean(diff_gxbf_list),
-                                      'dist_diff_btw_gx_bf': np.mean(diff_paabf_list)}, ignore_index=True)
+        print('Current GX error is ' + str(np.mean(overall_diff_gxbf_list)))
+        print('Current PAA error is ' + str(np.mean(overall_diff_paabf_list)))
 
         result_df.to_csv(output)
-
-        # evict the mp context every 3 queries
         print('Done')
-        # if i % 3:
-        #     gxe.reset_mp(use_spark=use_spark, **mp_args)
-        #     print('     Evicting Multiprocess Context')
 
-    # save the overall difference
-    result_df = result_df.append({'dist_diff_btw_paa_bf': np.mean(overall_diff_paabf_list),
-                                  'dist_diff_btw_gx_bf': np.mean(overall_diff_gxbf_list)}, ignore_index=True)
     print('Result saved to ' + output)
     result_df.to_csv(output)
     # terminate the spark session
@@ -475,7 +455,7 @@ def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, qu
           'bf_dist', 'bf_match',
           'paa_dist', 'paa_match',
           'gx_dist', 'gx_match',
-          'dssGx_dist', 'gx_match']])
+          'dssGx_dist', 'dssGx_match']])
 
     result_df = pd.DataFrame(columns=result_headers[0, :])
 
@@ -575,9 +555,9 @@ def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, qu
                 len(query_set)) + '; query = ' + str(q))
             start = time.time()
             print('Running DSS Query ...')
-            qr_dss = gxe.query_brute_force(query=q, best_k=15, _use_cache=False)
+            qr_dss = gxe.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
             dss_time = time.time() - start
-            print('Brute force query took ' + str(bf_time) + ' sec')
+            print('DSS query took ' + str(bf_time) + ' sec')
             q_records[str(q)]['dssGx_time'] = dss_time,
             q_records[str(q)]['dssGx_result'] = qr_dss
 
@@ -585,7 +565,8 @@ def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, qu
         result_df = result_df.append({'gx_cluster_time': cluster_time_gx, 'dssGx_cluster_time': cluster_time_dssGx}, ignore_index=True)
         for i, q in enumerate(query_set):
             this_record = q_records[str(q)]
-            result_df = result_df.append({'bf_time': this_record['bf_time'],
+            result_df = result_df.append({'query': str(q),
+                                            'bf_time': this_record['bf_time'],
                                           'paa_time': this_record['paa_time'],
                                           'gx_time': this_record['gx_time'],
                                           'dssGx_time': this_record['dssGx_time']}, ignore_index=True)  # append the query times
@@ -605,11 +586,12 @@ def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, qu
                                               'bf_dist': bf_r[0], 'bf_match': bf_r[1],
                                               'paa_dist': paa_r[0], 'paa_match': paa_r[1],
                                               'gx_dist': gx_r[0], 'gx_match': gx_r[1],
-                                              'dssGx_dist': dss_r[0], 'gx_match': dss_r[1]
+                                              'dssGx_dist': dss_r[0], 'dssGx_match': dss_r[1]
                                               }, ignore_index=True)
             print('Current PAA error for query is ' + str(np.mean(overall_diff_paabf_list)))
             print('Current GX error for query is ' + str(np.mean(overall_diff_gxbf_list)))
             print('Current DSS error for query is ' + str(np.mean(overall_diff_dssGxbf_list)))
 
         result_df.to_csv(output)
-        print('Done')
+        gxe.stop()
+    print('Done')

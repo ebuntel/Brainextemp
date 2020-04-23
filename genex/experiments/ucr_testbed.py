@@ -58,7 +58,7 @@ if __name__ == "__main__":
     '''
     dataset = '/home/apocalyvec/data/UCRArchive_2018'
     ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
-    output = '/home/apocalyvec/PycharmProjects/Genex/genex/experiments/results/ucrtest'
+    output = '/home/apocalyvec/data/UCR_DSS_test'
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted']
 
     dist_types_to_test = ['eu', 'ma', 'ch']
@@ -77,10 +77,10 @@ if __name__ == "__main__":
                'driver_mem': 24,
                'max_result_mem': 24}
 
-    # End of Config Parameters #########################
-    # run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
+    # End of Config Parameters, Experiment starts here ################################################################
+    run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
 
-    # for test grouping, keep this part commented for the UCR testing #################################################
+    # for test grouping, keep this part commented for the pure UCR testing ############################################
     ex_config_test['_test_dss'] = True
     ex_config_test['loi_range'] = 1.0  # set to cluster the full length
     run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
