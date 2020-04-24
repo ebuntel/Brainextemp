@@ -7,7 +7,7 @@ client = boto3.client('s3')
 
 # Create s3 bucket
 now = datetime.now()
-date_time = now.strftime("%m-%d-small-datasets")
+date_time = now.strftime("%m-%d-medium-datasets")
 
 response = client.create_bucket(
     Bucket=date_time

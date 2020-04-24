@@ -57,7 +57,10 @@ if __name__ == "__main__":
     check the docstring of the above function - run_ucr_test for details regarding the parameters
     '''
     dataset = '/Genex/genex/data/UCRArchive_2018'
-    ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
+    # Small     : 0, 50000
+    # Medium    : 50000, 1500000
+    # Large     : 1500000, 3000000
+    ds_soi = [50000, 1500000]  # dataset size of interest, see the docstring of run_ucr_test for details
     output_reg = '/Genex/genex/data/results'
     #output_dss = '/home/apocalyvec/data/UCR_DSS_test'
 
@@ -75,9 +78,9 @@ if __name__ == "__main__":
         'st': 0.1,
         'paa_c': 0.6,
     }
-    mp_args = {'num_worker': 64,
-               'driver_mem': 24,
-               'max_result_mem': 24}
+    mp_args = {'num_worker': 72,
+               'driver_mem': 48,
+               'max_result_mem': 48}
 
     # End of Config Parameters, Experiment starts here ################################################################
     run_ucr_test(dataset, ds_soi, output_reg, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
