@@ -477,7 +477,7 @@ def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, qu
                        max_result_mem=mp_args['max_result_mem'],
                        feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
                        header=None)
-        num_query = int((query_split * gxe.get_data_size()))
+        num_query = max(1, int((query_split * gxe.get_data_size())))
         try:
             assert num_query > 0
         except AssertionError:
