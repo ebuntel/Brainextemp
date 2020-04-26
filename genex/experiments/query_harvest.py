@@ -445,7 +445,7 @@ def get_dataset_train_path(root, exclude_list):
 # run_exp_set(es_ch_ucr_2, **ex_config_ucr_0)
 
 
-def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, query_split,
+def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, query_split, dataset_split,
                               dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
     # set up where to save the results
     result_headers = np.array(
@@ -461,7 +461,7 @@ def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, qu
 
     # only take one time series at a time
     data_df = pd.read_csv(data, sep='\t', header=None)
-    cases = int(data_df.shape[0] * query_split)
+    cases = max(int(data_df.shape[0] * dataset_split), 1)
     sample_indices = random.sample(range(0, data_df.shape[0] - 1), cases)
 
     overall_diff_dssGxbf_list = []
