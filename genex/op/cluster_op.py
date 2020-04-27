@@ -29,7 +29,7 @@ def _randomize(arr, seed=42):
     return arr
 
 
-def _build_clusters_dynamic(groups: list, st: float, dist_func, data_list, log_level: int, pnorm) -> list:
+def _build_clusters_dynamic(groups: list, st: float, dist_func, data_list, log_level: int) -> list:
     """
     the dynamic programming implementation of the clustering algorithm
     :param groups:
@@ -43,10 +43,11 @@ def _build_clusters_dynamic(groups: list, st: float, dist_func, data_list, log_l
     subseq_lengths.reverse()  # use reversed to start from longer
     clusters = {}  # seq_len -> center_seq -> list of represented seq
     for length in subseq_lengths:
+        preformed_c = dict()
         group_target = group_dict[length]
         if length + 1 not in clusters.keys():  # check if there is a cluster of current length + 1
-            cl, c = cluster_group_dist(group_target, st, length, dist_func=dist_func, data_list=data_list)
-            clusters[cl] = c
+            cl, preformed_c = cluster_group(group_target, st, length, dist_func=dist_func, data_list=data_list, preformed_c=preformed_c)
+            clusters[cl] = preformed_c
         else:  # if the cluster of length 1+n exists, we use it as heuristics
             reprs_up = np.array(list(clusters[length + 1].keys()), dtype=Sequence)
             reprs_head_off = np.array([x.S(slice(1, None, None)) for x in reprs_up], dtype=Sequence)
@@ -59,25 +60,45 @@ def _build_clusters_dynamic(groups: list, st: float, dist_func, data_list, log_l
                 if np.sum(stay_mask_head) > np.sum(stay_mask_tail) else (reprs_tail_off, stay_mask_tail)
             reprs_preformed = reprs_preformed[stay_mask]
             # add to the new cluster
-            c = {}
             # now onto validating the represented sequences
             # r is the centers from the masked (preformed) centers' list
+            # count = 0
+            # ori_len = len(group_target)
             for r_up, r in zip(reprs_up[stay_mask], reprs_preformed):  # repr_up is the representative from length+1 clusters
-                c[r] = []
-                for dist, seq_up in clusters[length + 1][r_up]:
+                preformed_c[r] = []
+                for seq_up in clusters[length + 1][r_up]:
+                    # seq_up_data = seq_up.fetch_data(data_list)
+                    # trimmed_head = seq_up_data[0]
+                    # trimmed_tail = seq_up_data[-1]
                     seq_head_off = seq_up.S(slice(1, None, None))
                     seq_tail_off = seq_up.S(slice(None, -1, None))
 
-                    if check_still_in(r, seq_head_off, st, pnorm):
-                        group_target.remove(seq_head_off)
-                    if check_still_in(r, seq_tail_off, st, pnorm):  # same deal for tailOff
-                        group_target.remove(seq_tail_off)
+                    if coalease_seq(r, seq_head_off, st, dist_func, data_list):
+                        if seq_head_off in group_target:
+                            # count += 1
+                            group_target.remove(seq_head_off)
+                            preformed_c[r].append(seq_head_off)
+                    if coalease_seq(r, seq_tail_off, st, dist_func, data_list):  # same deal for tailOff
+                        if seq_tail_off in group_target:
+                            # count += 1
+                            group_target.remove(seq_tail_off)
+                            preformed_c[r].append(seq_tail_off)
+            # print(str(count) + ' out of ' + str(ori_len) + ' subsequences pre-clustered')
+            cl, c = cluster_group(group_target, st, length, dist_func=dist_func, data_list=data_list, preformed_c=preformed_c)
+            clusters[cl] = c
 
-    pass
+    return list(clusters.items())
 
 
-def check_still_in():
-    return True
+def coalease_seq(r, s, st, dist_func, data_list):
+    # TODO update to use dynamical distances
+    dist = dist_func(r.fetch_data(data_list), s.fetch_data(data_list))
+    return dist < st / 2.0
+    # if pnorm == math.inf:  # if using chebyshev distance
+    #     dist = 1
+    # else:
+    #     pass
+    #     # dist = dist_up ** pnorm +
 
 def coalease_repr(seqs: list, diameter, dist_func, data_list):
     """
@@ -100,16 +121,19 @@ def coalease_repr(seqs: list, diameter, dist_func, data_list):
 def _build_clusters(groups: list, st: float, dist_func, data_list, log_level: int = 1) -> list:
     result = []
     for seq_len, grp in groups:
-        result.append(cluster_group(grp, st, seq_len, dist_func=dist_func, data_list=data_list))
+        result.append(cluster_group(grp, st, seq_len, dist_func=dist_func, data_list=data_list, preformed_c=dict()))
     return result
 
 
-def cluster_group(group: list, st: float, sequence_len: int, dist_func, data_list, log_level: int = 1):
+def cluster_group(group: list, st: float, sequence_len: int, dist_func, data_list, preformed_c: dict,
+                  log_level: int = 1):
     """
     all subsequence in 'group' must be of the same length
     For example:
     [[1,4,2],[6,1,4],[1,2,3],[3,2,1]] is a valid 'sub-sequences'
 
+    :param preformed_c:
+    :param cluster:
     :param data_list:
     :param del_data:
     :param log_level:
@@ -124,8 +148,7 @@ def cluster_group(group: list, st: float, sequence_len: int, dist_func, data_lis
 
     :return a dictionary of clusters
     """
-    cluster = {}
-
+    cluster = preformed_c
     # randomize the sequence in the group to remove clusters-related bias
     group = _randomize(group)
 
@@ -158,6 +181,7 @@ def cluster_group(group: list, st: float, sequence_len: int, dist_func, data_lis
                     cluster[s] = [s]
     # print('Cluster length: ' + str(sequence_len) + '   Done!----------------------------------------------')
     return sequence_len, cluster
+
 
 def cluster_group_dist(group: list, st: float, sequence_len: int, dist_func, data_list, log_level: int = 1):
     """

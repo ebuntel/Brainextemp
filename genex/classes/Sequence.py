@@ -61,9 +61,9 @@ class Sequence:
                 raise IndexError()
             return Sequence(seq_id=self.seq_id, start=new_start, end=new_end)
         elif type(s) == int:
-            new_index = self.start + s
+            new_index = self.start + s if s >= 0 else self.end + s + 1
             try:
-                assert new_index <= self.end
+                assert new_index <= self.end and new_index >= self.start
             except AssertionError:
                 raise IndexError()
             return Sequence(seq_id=self.seq_id, start=new_index, end=new_index)

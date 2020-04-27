@@ -30,6 +30,7 @@ def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end,
     group_partition = __partition_and_group(data_normalized, p._processes, start, end, p)
     cluster_arg_partition = [(x, st, dist_func, data_normalized, verbose) for x in group_partition]
     """
+    # cluster_arg_partition = [x + (pnorm,) for x in cluster_arg_partition]
     Linear Cluster for debug purposes
     # cluster_partition = []
     # for arg in cluster_arg_partition:
@@ -37,13 +38,15 @@ def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end,
 
     """
     if _use_dynamic:
-        cluster_arg_partition = [x + (pnorm,) for x in cluster_arg_partition]
-        cluster_partition = []
-        for arg in cluster_arg_partition:
-            cluster_partition.append(_build_clusters_dynamic(*arg))
+        # cluster_partition = []
+        # for arg in cluster_arg_partition:
+        #     cluster_partition.append(_build_clusters_dynamic(*arg))
 
-        # cluster_partition = p.starmap(_build_clusters_dynamic, cluster_arg_partition)
+        cluster_partition = p.starmap(_build_clusters_dynamic, cluster_arg_partition)
     else:
+        # cluster_partition = []
+        # for arg in cluster_arg_partition:
+        #     cluster_partition.append(_build_clusters(*arg))
         cluster_partition = p.starmap(_build_clusters, cluster_arg_partition)
     cluster_meta_dict = _cluster_to_meta_mp(cluster_partition, p)
 

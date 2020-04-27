@@ -2,7 +2,7 @@ from pyspark import SparkContext, SparkConf
 from tslearn.piecewise import PiecewiseAggregateApproximation
 
 from genex.op.query_op import _get_dist_query
-from genex.op.cluster_op import _build_clusters, _cluster_to_meta, _cluster_reduce_func
+from genex.op.cluster_op import _build_clusters, _cluster_to_meta, _cluster_reduce_func, _build_clusters_dynamic
 from genex.misc import pr_red
 from genex.utils.process_utils import _group_time_series, dss
 from genex.utils.utils import flatten
@@ -25,7 +25,7 @@ def _pr_spark_conf(sc: SparkContext):
 
 
 def _cluster_with_spark(sc: SparkContext, data_normalized, data_normalized_bc,
-                        start, end, st, dist_func, pnorm, verbose, group_only, use_dss):
+                        start, end, st, dist_func, pnorm, verbose, group_only, use_dss, _use_dynamic):
     # validate and save the loi to gxdb class fields
     parallelism = sc.defaultParallelism
     # if False:
@@ -62,10 +62,13 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, data_normalized_bc,
     #                           dist_func=dist_func, verbose=1)  # for debug purposes
     if group_only:
         return subsequence_rdd, None, None
-
-    cluster_rdd = group_rdd.mapPartitions(lambda x: _build_clusters(
-        groups=x, st=st, dist_func=dist_func, data_list=data_normalized, log_level=verbose)).cache()
-    # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
+    if _use_dynamic:
+        cluster_rdd = group_rdd.mapPartitions(lambda x: _build_clusters_dynamic(
+            groups=x, st=st, dist_func=dist_func, data_list=data_normalized, log_level=verbose)).cache()
+    else:
+        cluster_rdd = group_rdd.mapPartitions(lambda x: _build_clusters(
+            groups=x, st=st, dist_func=dist_func, data_list=data_normalized, log_level=verbose)).cache()
+        # cluster_partition = cluster_rdd.glom().collect()  # for debug purposes
     cluster_rdd.count()
 
     # Combining two dictionary using **kwargs concept
