@@ -337,6 +337,7 @@ def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_s
 
         print('Performing clustering with DSS...')
         gxe.stop()
+        del gxe
         gxe = from_csv(data_single_ts, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
                        max_result_mem=mp_args['max_result_mem'],
                        feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
@@ -404,7 +405,7 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
     # set up where to save the results
     result_headers = np.array(
         [['gx_cluster_time', 'DynamicGx_cluster_time', 'query',
-          'bf_time', 'paa_time', 'gx_time', 'DynamicsGx_time',
+          'bf_time', 'paa_time', 'gx_time', 'DynamicGx_time',
           'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf', 'dist_diff_btw_DynamicGx_bf',
           'bf_dist', 'bf_match',
           'paa_dist', 'paa_match',
@@ -414,7 +415,7 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
 
     result_df = pd.DataFrame(columns=result_headers[0, :])
 
-    overall_diff_dssGxbf_list = []
+    overall_diff_dynamicGxbf_list = []
     overall_diff_paabf_list = []
     overall_diff_gxbf_list = []
 
@@ -425,13 +426,7 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
                    feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
                    header=None)
     num_rows = len(gxe.data_raw)
-    num_query = int(query_split * num_rows)
-
-    try:
-        assert num_query > 0
-    except AssertionError:
-        raise Exception(
-            'Number of query with given query_split yields zero query sequence, try increase query_split')
+    num_query = max(1, int(query_split * num_rows))
 
     loi = (int(gxe.get_max_seq_len() * (1 - loi_range)), int(gxe.get_max_seq_len() * (1 + loi_range)))
     print('Max seq len is ' + str(gxe.get_max_seq_len()))
@@ -461,7 +456,7 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
 
     print('Performing Regular clustering ...')
     cluster_start_time = time.time()
-    gxe.build(st=st, dist_type=dist_type, loi=loi, _use_dss=False)
+    gxe.build(st=st, dist_type=dist_type, loi=loi, _use_dynamic=False)
     cluster_time_gx = time.time() - cluster_start_time
     print('gx_cluster_time took ' + str(cluster_time_gx) + ' sec')
 
@@ -488,35 +483,35 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
         gx_time = time.time() - start
         print('Genex  query took ' + str(gx_time) + ' sec')
 
-        q_records[str(q)] = {'bf_time': bf_time, 'paa_time': paa_time, 'gx_time': gx_time, 'dssGx_time': None,
+        q_records[str(q)] = {'bf_time': bf_time, 'paa_time': paa_time, 'gx_time': gx_time, 'DynamicGx_time': None,
                              'bf_result': query_result_bf, 'paa_result': query_result_paa,
-                             'gx_result': query_result_gx, 'dssGx_result': None}
+                             'gx_result': query_result_gx, 'DynamicGx_result': None}
 
-    print('Performing clustering with DSS...')
+    print('Performing clustering with Dynamic clustering...')
     gxe.stop()
-    gxe = from_csv(data_single_ts, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
+    gxe = from_csv(data, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
                    max_result_mem=mp_args['max_result_mem'],
                    feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
                    header=None)
     cluster_start_time = time.time()
-    gxe.build(st=st, dist_type=dist_type, loi=loi, _use_dss=True)
-    cluster_time_dssGx = time.time() - cluster_start_time
-    print('gx_cluster_time took ' + str(cluster_time_dssGx) + ' sec')
+    gxe.build(st=st, dist_type=dist_type, loi=loi, _use_dynamic=True)
+    cluster_time_dynamicGx = time.time() - cluster_start_time
+    print('gx_cluster_time Dynamic took ' + str(cluster_time_dynamicGx) + ' sec')
 
-    print('Evaluating dssGx')
+    print('Evaluating DynamicGx')
     for i, q in enumerate(query_set):
         print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
             len(query_set)) + '; query = ' + str(q))
         start = time.time()
-        qr_dss = gxe.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
-        dss_time = time.time() - start
-        print('DSS query took ' + str(dss_time) + ' sec')
-        q_records[str(q)]['dssGx_time'] = dss_time,
-        q_records[str(q)]['dssGx_time'] = q_records[str(q)]['dssGx_time'][0]  # TODO fix tupling issue,
-        q_records[str(q)]['dssGx_result'] = qr_dss
+        qr_dynamic = gxe.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
+        dynamic_time = time.time() - start
+        print('Dynamic query took ' + str(dynamic_time) + ' sec')
+        q_records[str(q)]['DynamicGx_time'] = dynamic_time,
+        q_records[str(q)]['DynamicGx_time'] = q_records[str(q)]['DynamicGx_time'][0]  # TODO fix tupling issue,
+        q_records[str(q)]['DynamicGx_result'] = qr_dynamic
 
     # culminate the result in the result data frame
-    result_df = result_df.append({'gx_cluster_time': cluster_time_gx, 'dssGx_cluster_time': cluster_time_dssGx},
+    result_df = result_df.append({'gx_cluster_time': cluster_time_gx, 'DynamicGx_cluster_time': cluster_time_dynamicGx},
                                  ignore_index=True)
     for i, q in enumerate(query_set):
         this_record = q_records[str(q)]
@@ -524,31 +519,31 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
                                       'bf_time': this_record['bf_time'],
                                       'paa_time': this_record['paa_time'],
                                       'gx_time': this_record['gx_time'],
-                                      'dssGx_time': this_record['dssGx_time']},
+                                      'DynamicGx_time': this_record['DynamicGx_time']},
                                      ignore_index=True)  # append the query times
 
-        for bf_r, paa_r, gx_r, dss_r in zip(this_record['bf_result'], this_record['paa_result'],
+        for bf_r, paa_r, gx_r, dynamic_r in zip(this_record['bf_result'], this_record['paa_result'],
                                             this_record['gx_result'],
-                                            this_record['dssGx_result']):  # resolve the query matches
+                                            this_record['DynamicGx_result']):  # resolve the query matches
             diff_paabf = abs(paa_r[0] - bf_r[0])
             diff_gxbf = abs(gx_r[0] - bf_r[0])
-            diff_dssGxbf = abs(dss_r[0] - bf_r[0])
+            diff_dynamicGxbf = abs(dynamic_r[0] - bf_r[0])
 
             overall_diff_paabf_list.append(diff_paabf)
             overall_diff_gxbf_list.append(diff_gxbf)
-            overall_diff_dssGxbf_list.append(diff_dssGxbf)
+            overall_diff_dynamicGxbf_list.append(diff_dynamicGxbf)
 
             result_df = result_df.append({'dist_diff_btw_paa_bf': diff_paabf,
                                           'dist_diff_btw_gx_bf': diff_gxbf,
-                                          'dist_diff_btw_dssGx_bf': diff_dssGxbf,
+                                          'dist_diff_btw_DynamicGx_bf': diff_dynamicGxbf,
                                           'bf_dist': bf_r[0], 'bf_match': bf_r[1],
                                           'paa_dist': paa_r[0], 'paa_match': paa_r[1],
                                           'gx_dist': gx_r[0], 'gx_match': gx_r[1],
-                                          'dssGx_dist': dss_r[0], 'dssGx_match': dss_r[1]
+                                          'DynamicGx_dist': dynamic_r[0], 'DynamicGx_match': dynamic_r[1]
                                           }, ignore_index=True)
         print('Current PAA error for query is ' + str(np.mean(overall_diff_paabf_list)))
         print('Current GX error for query is ' + str(np.mean(overall_diff_gxbf_list)))
-        print('Current DSS error for query is ' + str(np.mean(overall_diff_dssGxbf_list)))
+        print('Current Dynamic error for query is ' + str(np.mean(overall_diff_dynamicGxbf_list)))
 
     print('Result saved to ' + output)
     result_df.to_csv(output)
