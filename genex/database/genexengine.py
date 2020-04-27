@@ -125,7 +125,7 @@ class GenexEngine:
             raise Exception(
                 'Error checking dimension, expected: (' + str(self.conf['seq_dim']) + ',n), got ' + str(seq_shape))
 
-    def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1, _group_only=False, _use_dss=True):
+    def build(self, st: float, dist_type: str = 'eu', loi=None, verbose: int = 1, _group_only=False, _use_dss=True, _use_dynamic=False):
         """
         Groups and clusters the time series set
 
@@ -152,6 +152,7 @@ class GenexEngine:
         # determine the distance calculation function
         try:
             dist_func = dt_func_dict[dist_type]
+            pnorm = dt_pnorm_dict[dist_type]
         except KeyError:
             raise Exception('Unknown distance type: ' + str(dist_type))
 
@@ -161,13 +162,13 @@ class GenexEngine:
             self.subsequences, self.clusters, self.cluster_meta_dict = _cluster_with_spark(self.mp_context,
                                                                                            self.data_normalized,
                                                                                            dn,
-                                                                                           start, end, st, dist_func,
+                                                                                           start, end, st, dist_func, pnorm,
                                                                                            verbose, _group_only, _use_dss)
         else:
             self.subsequences, self.clusters, self.cluster_meta_dict = _cluster_multi_process(self.mp_context,
                                                                                               self.data_normalized,
-                                                                                              start, end, st, dist_func,
-                                                                                              verbose)
+                                                                                              start, end, st, dist_func, pnorm,
+                                                                                              verbose, _use_dynamic)
 
     def get_cluster(self, rprs: Sequence):
         length = None

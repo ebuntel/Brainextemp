@@ -1,7 +1,7 @@
 import math
 import multiprocessing
 
-from genex.op.cluster_op import _cluster_groups, _cluster_to_meta, _cluster_reduce_func
+from genex.op.cluster_op import _build_clusters, _cluster_to_meta, _cluster_reduce_func, _build_clusters_dynamic
 from genex.op.query_op import _get_dist_query, _query_partition
 from genex.utils.utils import flatten
 from genex.utils.process_utils import _grouper, _group_time_series, reduce_by_key, get_second
@@ -25,7 +25,7 @@ def __partition_and_group(data, slice_num, start, end, p: multiprocessing.pool, 
     return group_partition
 
 
-def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end, st, dist_func, verbose):
+def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end, st, dist_func, pnorm, verbose, _use_dynamic):
     # if len(data_normalized) < p._processe:  # group the time series first if # time series < # worker
     group_partition = __partition_and_group(data_normalized, p._processes, start, end, p)
     cluster_arg_partition = [(x, st, dist_func, data_normalized, verbose) for x in group_partition]
@@ -33,10 +33,18 @@ def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end,
     Linear Cluster for debug purposes
     # cluster_partition = []
     # for arg in cluster_arg_partition:
-    #     cluster_partition.append(_cluster_groups(*arg))
+    #     cluster_partition.append(_build_clusters(*arg))
 
     """
-    cluster_partition = p.starmap(_cluster_groups, cluster_arg_partition)
+    if _use_dynamic:
+        cluster_arg_partition = [x + (pnorm,) for x in cluster_arg_partition]
+        cluster_partition = []
+        for arg in cluster_arg_partition:
+            cluster_partition.append(_build_clusters_dynamic(*arg))
+
+        # cluster_partition = p.starmap(_build_clusters_dynamic, cluster_arg_partition)
+    else:
+        cluster_partition = p.starmap(_build_clusters, cluster_arg_partition)
     cluster_meta_dict = _cluster_to_meta_mp(cluster_partition, p)
 
     subsequences = flatten(p.map(get_second, flatten(group_partition)))
