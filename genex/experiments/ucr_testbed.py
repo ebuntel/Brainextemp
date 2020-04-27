@@ -74,17 +74,23 @@ if __name__ == "__main__":
         'loi_range': 0.1,
         'st': 0.1,
         'paa_c': 0.6,
+        'test_option': 'regular'
     }
     mp_args = {'num_worker': 32,
                'driver_mem': 24,
                'max_result_mem': 24}
 
     # End of Config Parameters, Experiment starts here ################################################################
+    # ATM, there are three different experiments
     # run_ucr_test(dataset, ds_soi, output_reg, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
 
-    # for test grouping, keep this part commented for the pure UCR testing ############################################
-    ex_config_test['_test_dss'] = True
-    ex_config_test['cases_split'] = 0.01
-    ex_config_test['query_split'] = 0.1
-    ex_config_test['loi_range'] = 1.0  # set to cluster the full length
+    # for testing  grouping, keep this part commented for the regular UCR testing ######################################
+    # ex_config_test['test_option'] = 'DSS'
+    # ex_config_test['cases_split'] = 0.01
+    # ex_config_test['query_split'] = 0.1
+    # ex_config_test['loi_range'] = 1.0  # set to cluster the full length
+    # run_ucr_test(dataset, ds_soi, output_dss, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
+
+    # for testing Dynamic Genex,  keep this part commented for the regular UCR testing  ################################
+    ex_config_test['test_option'] = 'dynamic'
     run_ucr_test(dataset, ds_soi, output_dss, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
