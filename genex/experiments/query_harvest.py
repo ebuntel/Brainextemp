@@ -206,11 +206,11 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
     return config_list
 
 
-def run_exp_set(exp_set, mp_args, num_sample, query_split,
+def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
                 _lb_opt, radius, use_spark, loi_range, st, paa_c, _test_dss=False):
     for es in exp_set:
         if _test_dss:
-            experiment_genex_grouping(mp_args, **es, num_sample=num_sample, query_split=query_split,
+            experiment_genex_dss(mp_args, **es, num_sample=num_sample, query_split=query_split, cases_split=cases_split,
                                       _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
                                       paa_c=paa_c)
         else:
@@ -445,8 +445,8 @@ def get_dataset_train_path(root, exclude_list):
 # run_exp_set(es_ch_ucr_2, **ex_config_ucr_0)
 
 
-def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, query_split,
-                              dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
+def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_split, cases_split,
+                         dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
     # set up where to save the results
     result_headers = np.array(
         [['data_size', 'num_query', 'gx_cluster_time', 'dssGx_cluster_time', 'query',
@@ -461,7 +461,7 @@ def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, qu
 
     # only take one time series at a time
     data_df = pd.read_csv(data, sep='\t', header=None)
-    cases = int(data_df.shape[0] * query_split)
+    cases = max(int(data_df.shape[0] * cases_split), 1)
     sample_indices = random.sample(range(0, data_df.shape[0] - 1), cases)
 
     overall_diff_dssGxbf_list = []
@@ -477,7 +477,7 @@ def experiment_genex_grouping(mp_args, data, output, feature_num, num_sample, qu
                        max_result_mem=mp_args['max_result_mem'],
                        feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
                        header=None)
-        num_query = int((query_split * gxe.get_data_size()))
+        num_query = max(1, int((query_split * gxe.get_data_size())))
         try:
             assert num_query > 0
         except AssertionError:

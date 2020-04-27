@@ -84,5 +84,7 @@ if __name__ == "__main__":
 
     # for test grouping, keep this part commented for the pure UCR testing ############################################
     ex_config_test['_test_dss'] = True
+    ex_config_test['cases_split'] = 0.01
+    ex_config_test['query_split'] = 0.1
     ex_config_test['loi_range'] = 1.0  # set to cluster the full length
     run_ucr_test(dataset, ds_soi, output_dss, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
