@@ -5,6 +5,7 @@ from genex.op.query_op import _get_dist_query
 from genex.op.cluster_op import _build_clusters, _cluster_to_meta, _cluster_reduce_func, _build_clusters_dynamic
 from genex.misc import pr_red
 from genex.utils.process_utils import _group_time_series, dss
+from genex.utils.ts_utils import paa_compress
 from genex.utils.utils import flatten
 
 
@@ -107,3 +108,10 @@ def _destory_kwarg_bc(kwargs_dict: dict):
     :param kwargs_dict:
     """
     [value.destroy() for key, value in kwargs_dict]
+
+
+def _build_paa_spark(subsequences_rdd, paa_c, data_list):
+    ss_paaKv_rdd = subsequences_rdd.map(
+        lambda x: (paa_compress(x.fetch_data(data_list.value), paa_c), x)).cache()
+    ss_paaKv_rdd.count()
+    return ss_paaKv_rdd

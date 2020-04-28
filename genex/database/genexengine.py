@@ -18,7 +18,8 @@ from scipy.spatial.distance import chebyshev
 
 from genex.classes.Sequence import Sequence
 from genex.op.query_op import _query_partition
-from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broadcast_kwargs, _destory_kwarg_bc
+from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broadcast_kwargs, _destory_kwarg_bc, \
+    _build_paa_spark
 from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxe_query_arguments, _isOverlap, \
     flatten
 from genex.utils.context_utils import _multiprocess_backend
@@ -74,6 +75,7 @@ class GenexEngine:
         self.mp_context = kwargs['mp_context']
         self.clusters = None
         self.subsequences = None
+        self.subsequences_paa = None
         self.cluster_meta_dict = None
         if 'conf' in kwargs.keys():
             self.conf = kwargs['conf']
@@ -244,6 +246,26 @@ class GenexEngine:
     def reset_mp(self, use_spark, **kwargs):
         self.stop()
         self.mp_context = _multiprocess_backend(use_spark, **kwargs)
+
+    def prepare_paa(self, paa_c):
+        """
+        preprocess function that must be run before calling PAA query
+        must be run after build, because the subsequences are otherwise empty
+        creates PAA compressed version of all the subsequences
+        :param resize_by:
+        """
+        if self.subsequences is None:  # must be run after building
+            raise Exception\
+                ('GenexEngine: engine not build, GenexEngine.build(...) must be called prior to this function')
+        if self.is_using_spark():
+            dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
+            ss_paaKv_rdd = _build_paa_spark(self.subsequences, paa_c, data_list=dn)  # ss_paaKv: subsequence PAA key-value pair
+        else:
+            # _build_paa(self.mp_context)
+            raise Exception('GenexEngine: prepare PAA is not implemented for non-spark version currently.')
+
+        self.subsequences_paa = ss_paaKv_rdd
+
 
     # def group_sequences(self):
     #     """

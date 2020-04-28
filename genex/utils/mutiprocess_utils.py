@@ -77,3 +77,5 @@ def _query_mp(p: multiprocessing.pool, clusters, **kwargs):
 
     candidates = flatten(p.starmap(_query_partition, query_arg_partition))
     return candidates
+
+# def _build_paa(p: multiprocessing.pool):
