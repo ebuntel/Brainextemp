@@ -9,7 +9,7 @@ sampling_rate = 6.6231
 
 events = 'true answer', 'bCurrent Item: nonTarget',
 
-results = ['target incorrect']
+results = ['paa_data incorrect']
 
 data_all = '/home/apocalyvec/data/sart/101-SART-June2018-AS_(all).csv'
 

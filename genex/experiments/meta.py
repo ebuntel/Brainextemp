@@ -17,4 +17,4 @@ date = 'Jan-30-2020-15-N-UseSpark-R1-LBOptNormalDTW_numSample400'
 notes = 'UseSpark-R1-LBOptNormalDTW_numSample400'
 
 
-# target folder is /home/apocalyvec/PycharmProjects/Genex/genex/experiments/results/
+# paa_data folder is /home/apocalyvec/PycharmProjects/Genex/genex/experiments/results/

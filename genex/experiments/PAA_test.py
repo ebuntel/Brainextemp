@@ -18,36 +18,48 @@ mygxe = from_csv(data, feature_num=0, num_worker=12, use_spark=True, driver_mem=
 # mygxe = from_csv(data, feature_num=0, num_worker=3, use_spark=False, _rows_to_consider=6)
 
 start = time.time()
-mygxe.build(st=0.2,)
+mygxe.build(st=0.1)
 print('Building took ' + str(time.time() - start) + ' sec')
 
-mygxe.prepare_paa(0.5)
+q = mygxe.get_random_seq_of_len(20, seed=1)
+mygxe.build_paa(0.5)
 
-# subsequence_num = mygxe.get_num_subsequences()
-# # generate the query sets
-# q = mygxe.get_random_seq_of_len(15, seed=1)
-#
-# start = time.time()
-# query_result_bf = mygxe.query_brute_force(query=q, best_k=5)
-# duration_bf = time.time() - start
-#
-# start = time.time()
-# query_result_0 = mygxe.query(query=q, best_k=5)
-# duration_withOpt = time.time() - start
-#
+start = time.time()
+qr_PAA = mygxe.query_brute_force(query=q, best_k=5, _paa=True)
+durationPAA = time.time() - start
+
+
+start = time.time()
+qr_bf = mygxe.query_brute_force(query=q, best_k=5, _use_cache=False)
+duration_bf = time.time() - start
+
+start = time.time()
+qr_gx = mygxe.query(query=q, best_k=5)
+duration_gx = time.time() - start
+
 # start = time.time()
 # query_result_1 = mygxe.query(query=q, best_k=5, _radius=1, _lb_opt=False)
 # duration_noOpt = time.time() - start
 # query_result = mygxe.query(query=q, best_k=5, _lb_opt=True)
 #
-# # plot the query result
-# plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
-# for qr in query_result_0:
-#     plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
-# plt.legend()
-# plt.show()
-#
-#
-# predicted_l0 = mygxe.predice_label_knn([1, 2, 3], 10, 0)
-# predicted_l1 = mygxe.predice_label_knn(q, 10, 0, verbose=1)
-#
+# plot the query result
+plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
+for qr in qr_PAA:
+    plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
+plt.legend()
+plt.title('PAA results')
+plt.show()
+
+plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
+for qr in qr_bf:
+    plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
+plt.legend()
+plt.title('BF results')
+plt.show()
+
+plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
+for qr in qr_gx:
+    plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
+plt.legend()
+plt.title('GX results')
+plt.show()

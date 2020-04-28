@@ -40,6 +40,12 @@ def lb_kim_sequence(candidate_seq, query_sequence):
 def paa_compress(a: np.ndarray, c: float):
     n_segment = max(int(len(a) * c), 1)  # clamp at 1
     paa_n = PiecewiseAggregateApproximation(n_segment)
-    a = paa_n.fit_transform(a)
+    compressed = paa_n.fit_transform(a)
 
-    return a
+    compressed = np.squeeze(compressed, axis=-1)
+    # TODO do not squeeze all the dimension if the ts is multi-dimensional
+    compressed = np.squeeze(compressed, axis=0)
+
+    return compressed
+
+    # return np.squeeze(compressed)
