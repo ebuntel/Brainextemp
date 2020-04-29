@@ -1,6 +1,5 @@
 import math
 import os
-
 import numpy as np
 
 from genex.experiments.query_harvest import generate_exp_set_from_root, run_exp_set
@@ -81,7 +80,7 @@ if __name__ == "__main__":
 
         'cases_split': 0.01
     }
-    mp_args = {'num_worker': 16,
+    mp_args = {'num_worker': 12,
                'driver_mem': 12,
                'max_result_mem': 12}
 
