@@ -97,4 +97,5 @@ if __name__ == "__main__":
     # for testing Dynamic Genex,  keep this part commented for the regular UCR testing  ################################
     ex_config_test['test_option'] = 'dynamic'
     ex_config_test['query_split'] = 0.1
+    ex_config_test['loi_range'] = 0.5
     run_ucr_test(dataset, ds_soi, output_dyn, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
