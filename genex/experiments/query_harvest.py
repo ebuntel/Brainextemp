@@ -34,7 +34,8 @@ def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split
 
     # set up where to save the results
     result_headers = np.array(
-        [['cluster_time', 'query',
+        [['cluster_time', 'paa_build_time',
+          'query',
           'bf_time', 'paa_time', 'gx_time',
           'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf',
           'bf_dist', 'bf_match',
@@ -49,7 +50,7 @@ def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split
                    feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
                    header=None)
     num_rows = len(gxe.data_raw)
-    num_query = int(query_split * num_rows)
+    num_query = max(int(query_split * num_rows), 1)
     try:
         assert num_query > 0
     except AssertionError:
@@ -87,10 +88,20 @@ def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split
     cluster_start_time = time.time()
     gxe.build(st=st, dist_type=dist_type, loi=loi)
     cluster_time = time.time() - cluster_start_time
-    result_df = result_df.append({'cluster_time': cluster_time}, ignore_index=True)
     print('Clustering took ' + str(cluster_time) + ' sec')
     # randomly pick a sequence as the query from the query sequence, make sure the picked sequence is in the input list
     # this query'id must exist in the database
+
+    print('Preparing PAA Subsequences')
+    start = time.time()
+    gxe.build_paa(paa_c, _dummy_slicing=True)
+    paa_build_time = time.time() - start
+    print('Prepare PAA subsequences took ' + str(paa_build_time))
+
+    result_df = result_df.append({'cluster_time': cluster_time,
+                                  'paa_build_time': paa_build_time
+                                  }, ignore_index=True)
+
     overall_diff_gxbf_list = []
     overall_diff_paabf_list = []
 
@@ -117,7 +128,7 @@ def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split
         # Pure PAA Query
         start = time.time()
         print('Running Pure PAA Query ...')
-        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=paa_c)
+        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=True)
         paa_time = time.time() - start
         print('Pure PAA query took ' + str(paa_time) + ' sec')
 
@@ -193,7 +204,7 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
         df = pd.read_csv(dataset_path, sep='\t', header=None)
         if df.size < soi[0] or df.size > soi[1]:
             continue
-        print('Adding ' + dataset_path)
+        print('Distance type - ' + dist_type + ', adding ' + dataset_path)
         config_list.append({
             'data': dataset_path,
             'output': os.path.join(output_dir_path, d_name + '_' + dist_type + '.csv'),
@@ -212,16 +223,16 @@ def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
     for es in exp_set:
         if test_option == 'DSS':
             experiment_genex_dss(mp_args, **es, num_sample=num_sample, query_split=query_split, cases_split=cases_split,
-                                      _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
-                                      paa_c=paa_c)
+                                 _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
+                                 paa_c=paa_c)
         elif test_option == 'regular':
             experiment_genex(mp_args, **es, num_sample=num_sample, query_split=query_split,
                              _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
                              paa_c=paa_c)
         elif test_option == 'dynamic':
             experiment_genex_dynamic(mp_args, **es, num_sample=num_sample, query_split=query_split,
-                             _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
-                             paa_c=paa_c)
+                                     _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
+                                     paa_c=paa_c)
         else:
             raise Exception('Unrecognized test option, it must be one of the following: ' + str(options))
 
@@ -246,13 +257,15 @@ def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_s
                          dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
     # set up where to save the results
     result_headers = np.array(
-        [['data_size', 'num_query', 'gx_cluster_time', 'dssGx_cluster_time', 'query',
+        [['gx_cluster_time', 'dssGx_cluster_time', 'paa_build_time',
+          'query',
           'bf_time', 'paa_time', 'gx_time', 'dssGx_time',
           'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf', 'dist_diff_btw_dssGx_bf',
           'bf_dist', 'bf_match',
           'paa_dist', 'paa_match',
           'gx_dist', 'gx_match',
-          'dssGx_dist', 'dssGx_match']])
+          'dssGx_dist', 'dssGx_match',
+          'data_size', 'num_query']])
 
     result_df = pd.DataFrame(columns=result_headers[0, :])
 
@@ -308,7 +321,13 @@ def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_s
         cluster_time_gx = time.time() - cluster_start_time
         print('gx_cluster_time took ' + str(cluster_time_gx) + ' sec')
 
-        print('Evaluating Regular Genex, BF and PAA')
+        print('Preparing PAA Subsequences')
+        start = time.time()
+        gxe.build_paa(paa_c, _dummy_slicing=True)
+        paa_build_time = time.time() - start
+        print('Prepare PAA subsequences took ' + str(paa_build_time))
+
+        print('Evaluating Query with Regular Genex, BF and PAA')
         for i, q in enumerate(query_set):
             print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
                 len(query_set)) + '; query = ' + str(q))
@@ -320,7 +339,7 @@ def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_s
 
             start = time.time()
             print('Running Pure PAA Query ...')
-            query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=paa_c)
+            query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=True)
             paa_time = time.time() - start
             print('Pure PAA query took ' + str(paa_time) + ' sec')
 
@@ -360,7 +379,9 @@ def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_s
             q_records[str(q)]['dssGx_result'] = qr_dss
 
         # culminate the result in the result data frame
-        result_df = result_df.append({'gx_cluster_time': cluster_time_gx, 'dssGx_cluster_time': cluster_time_dssGx},
+        result_df = result_df.append({'gx_cluster_time': cluster_time_gx,
+                                      'paa_build_time': paa_build_time,
+                                      'dssGx_cluster_time': cluster_time_dssGx},
                                      ignore_index=True)
         for i, q in enumerate(query_set):
             this_record = q_records[str(q)]
@@ -401,10 +422,11 @@ def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_s
 
 
 def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, query_split,
-                         dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
+                             dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
     # set up where to save the results
     result_headers = np.array(
-        [['gx_cluster_time', 'DynamicGx_cluster_time', 'query',
+        [['gx_cluster_time', 'DynamicGx_cluster_time',  'paa_build_time',
+          'query',
           'bf_time', 'paa_time', 'gx_time', 'DynamicGx_time',
           'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf', 'dist_diff_btw_DynamicGx_bf',
           'bf_dist', 'bf_match',
@@ -460,7 +482,13 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
     cluster_time_gx = time.time() - cluster_start_time
     print('gx_cluster_time took ' + str(cluster_time_gx) + ' sec')
 
-    print('Evaluating Regular Genex, BF and PAA')
+    print('Preparing PAA Subsequences')
+    start = time.time()
+    gxe.build_paa(paa_c, _dummy_slicing=True)
+    paa_build_time = time.time() - start
+    print('Prepare PAA subsequences took ' + str(paa_build_time))
+
+    print('Evaluating Query with Regular Genex, BF and PAA')
     for i, q in enumerate(query_set):
         print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
             len(query_set)) + '; query = ' + str(q))
@@ -472,7 +500,7 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
 
         start = time.time()
         print('Running Pure PAA Query ...')
-        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=paa_c)
+        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=True)
         paa_time = time.time() - start
         print('Pure PAA query took ' + str(paa_time) + ' sec')
 
@@ -511,7 +539,9 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
         q_records[str(q)]['DynamicGx_result'] = qr_dynamic
 
     # culminate the result in the result data frame
-    result_df = result_df.append({'gx_cluster_time': cluster_time_gx, 'DynamicGx_cluster_time': cluster_time_dynamicGx},
+    result_df = result_df.append({'gx_cluster_time': cluster_time_gx,
+                                  'DynamicGx_cluster_time': cluster_time_dynamicGx,
+                                  'paa_build_time': paa_build_time},
                                  ignore_index=True)
     for i, q in enumerate(query_set):
         this_record = q_records[str(q)]
@@ -523,8 +553,8 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
                                      ignore_index=True)  # append the query times
 
         for bf_r, paa_r, gx_r, dynamic_r in zip(this_record['bf_result'], this_record['paa_result'],
-                                            this_record['gx_result'],
-                                            this_record['DynamicGx_result']):  # resolve the query matches
+                                                this_record['gx_result'],
+                                                this_record['DynamicGx_result']):  # resolve the query matches
             diff_paabf = abs(paa_r[0] - bf_r[0])
             diff_gxbf = abs(gx_r[0] - bf_r[0])
             diff_dynamicGxbf = abs(dynamic_r[0] - bf_r[0])
