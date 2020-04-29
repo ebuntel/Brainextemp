@@ -1,10 +1,11 @@
 from pyspark import SparkContext, SparkConf
 from tslearn.piecewise import PiecewiseAggregateApproximation
 
-from genex.op.query_op import _get_dist_query
+from genex.op.query_op import _get_dist_query, _get_dist_paa
 from genex.op.cluster_op import _build_clusters, _cluster_to_meta, _cluster_reduce_func, _build_clusters_dynamic
 from genex.misc import pr_red
 from genex.utils.process_utils import _group_time_series, dss
+from genex.utils.ts_utils import paa_compress
 from genex.utils.utils import flatten
 
 
@@ -83,12 +84,19 @@ def _cluster_to_meta_spark(cluster_rdd):
                 reduceByKey(_cluster_reduce_func).collect())
 
 
-def _query_bf_spark(query, sc: SparkContext, subsequence_rdd, dt_index, paa, data_list):
+def _query_bf_spark(query, subsequence_rdd, dt_index, data_list):
     pp_rdd = subsequence_rdd.map(
-        lambda x: _get_dist_query(query, x, dt_index=dt_index, paa=paa, data_list=data_list.value))
+        lambda x: _get_dist_query(query, x, dt_index=dt_index,  data_list=data_list.value))
     candidate_list = pp_rdd.collect()
     # clear data stored in the candidate list
 
+    return candidate_list
+
+
+def _query_paa_spark(query, ss_paaKv_rdd, dt_index):
+    pp_rdd = ss_paaKv_rdd.map(
+        lambda x: (_get_dist_paa(query, x[1], dt_index=dt_index), x[0]))
+    candidate_list = pp_rdd.collect()
     return candidate_list
 
 
@@ -107,3 +115,12 @@ def _destory_kwarg_bc(kwargs_dict: dict):
     :param kwargs_dict:
     """
     [value.destroy() for key, value in kwargs_dict]
+
+
+def _build_paa_spark(subsequences_rdd, paa_c, data_list):
+    ss_paaKv_rdd = subsequences_rdd.map(
+        lambda x: (x, paa_compress(x.fetch_data(data_list.value), paa_c))).cache()
+
+    a = ss_paaKv_rdd.collect()
+    ss_paaKv_rdd.count()
+    return ss_paaKv_rdd

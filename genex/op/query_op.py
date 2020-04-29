@@ -47,7 +47,7 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, paa: float = N
         raise Exception('Unsupported dist type in array, this should never happen!')
 
 
-def _get_dist_query(query: Sequence, target: Sequence, dt_index, paa, data_list):
+def _get_dist_query(query: Sequence, target: Sequence, dt_index, data_list):
     """
     the use of paa
     :param query:
@@ -57,7 +57,15 @@ def _get_dist_query(query: Sequence, target: Sequence, dt_index, paa, data_list)
     :param data_list:
     :return:
     """
-    return sim_between_array(query.get_data(), target.fetch_data(data_list), pnorm=dt_index, paa=paa), target
+    return sim_between_array(query.get_data(), target.fetch_data(data_list), pnorm=dt_index), target
+
+
+def _get_dist_paa(query: Sequence, paa_data: np.ndarray, dt_index):
+    try:
+        assert len(paa_data) >= 1
+    except (AssertionError, TypeError):
+        raise Exception('Invalid paa_data: ' + str(paa_data))
+    return sim_between_array(query.get_data(), paa_data, pnorm=dt_index)
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,

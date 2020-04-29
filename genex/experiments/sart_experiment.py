@@ -54,7 +54,7 @@ data = pd.read_csv('/home/apocalyvec/PycharmProjects/Genex/genex/experiments/dat
 #         # filter by subject name, channel and event
 #         data_subjChanCor = data[(data['Subject Name'] == subj) &
 #                                 (data[' Channel Name'] == chan) &
-#                                 (data[' Event Name'] == 'target correct')]
+#                                 (data[' Event Name'] == 'paa_data correct')]
 #
 #         gxe = from_csv(data_subjChanCor, feature_num=5, num_worker=32, use_spark=True, driver_mem=24, max_result_mem=24)
 #         gxe.build(st=cluster_st, loi=[int(gxe.get_max_seq_len() * loi_offset)])  # cluster only the longer sequences
@@ -101,7 +101,7 @@ motif_k = 5
 motif_overlap = 0.6
 
 across_cols = ['Subject Name', ' Channel Name']
-events = ['target incorrect', 'target correct']
+events = ['paa_data incorrect', 'paa_data correct']
 
 motif_root = '/home/apocalyvec/data/SART/motif/'
 
@@ -153,7 +153,7 @@ for ac in across_cols:
 # for subj in data['Subject Name'].unique():  # iterate through the channels
 #     # filter by subject name, channel and event
 #     data_chanCor = data[(data['Subject Name'] == subj) &
-#                         (data[' Event Name'] == 'target correct')]
+#                         (data[' Event Name'] == 'paa_data correct')]
 #
 #     gxe = from_csv(data_chanCor, feature_num=5, num_worker=32, use_spark=True, driver_mem=24, max_result_mem=24)
 #     start = time.time()

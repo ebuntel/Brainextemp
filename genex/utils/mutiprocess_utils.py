@@ -61,6 +61,9 @@ def _cluster_to_meta_mp(cluster_partition: list, p: multiprocessing.pool):
 
 
 def _query_bf_mp(query, p: multiprocessing.pool, subsequences: list, dt_index, paa, data_list):
+    if paa:
+        raise Exception('multiprocess_utils: PAA algorithm is not currently supported for Pyhton native multiprocessing'
+                        ', please use the Spark implementation')
     dist_subsequences_arg = [(query, x, dt_index, paa, data_list) for x in subsequences]
     dist_subsequences = p.starmap(_get_dist_query, dist_subsequences_arg)
     return dist_subsequences
@@ -77,3 +80,5 @@ def _query_mp(p: multiprocessing.pool, clusters, **kwargs):
 
     candidates = flatten(p.starmap(_query_partition, query_arg_partition))
     return candidates
+
+# def _build_paa(p: multiprocessing.pool):
