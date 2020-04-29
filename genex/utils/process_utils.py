@@ -1,34 +1,46 @@
+from operator import itemgetter
+
 import numpy as np
 from functools import reduce
 from itertools import groupby
 from genex.classes.Sequence import Sequence
+from genex.utils.utils import flatten
+
+
+def dss_multiple(begin_index_iter, ts_list, start, end, parallelism):
+    begin_index_iter = list(begin_index_iter)
+    merged_g = []
+    for ts_index, ts in enumerate(ts_list):
+        g = dss((begin_index_iter[0] + ts_index) % parallelism, ts, start, end, parallelism)
+        merged_g.append(g)
+
+    merged_g = merge_dicts(merged_g, merge_func=lambda x, y: x + y)
+    return list(merged_g.items())
 
 
 def dss(begin_index, time_series, start, end, parallelism):
     """
     used when a single time series is given
-    :param group:
+    :param parallelism:
+    :param begin_index:
     :param time_series:
     :param start:
     :param end:
-    :param step: the separation between grouping partitions
     """
 
-    begin_index = list(begin_index)
-    assert len(begin_index) == 1
-    ts_id = time_series.value[0][0]
-    ts_data = time_series.value[0][1]
+    ts_id = time_series[0]
+    ts_data = time_series[1]
 
     rtn = dict()
 
-    for ts_index in range(begin_index[0], len(ts_data), parallelism):  # step by distribution
+    for ts_index in range(begin_index, len(ts_data), parallelism):  # step by distribution
         max_len = min(end, len(ts_data) - ts_index)
         for length in range(start - 1, min(end, len(ts_data) - ts_index)):  # get appropriate
             seq_len = length + 1
             if seq_len not in rtn.keys():
                 rtn[seq_len] = []
             rtn[seq_len].append(Sequence(start=ts_index, end=ts_index + length, seq_id=ts_id))
-    return list(rtn.items())
+    return rtn
 
 
 def _group_time_series(time_series, start, end):
@@ -120,3 +132,26 @@ def reduce_by_key(func, iterable):
         lambda l: (l[0], reduce(func, map(get_second, l[1]))),
         groupby(sorted(iterable, key=get_first), get_first)
     )
+
+
+def merge_dicts(dict_list: list, merge_func):
+    ''' Merge dictionaries and merge values by merge_funct'''
+    rtn = {}
+    for d in dict_list:
+        for k, v in d.items():
+            if k in rtn.keys():
+                rtn[k] = merge_func(rtn[k], v)
+            else:
+                rtn[k] = v
+    return rtn
+
+
+def equal_ignore_order(a, b):
+    """ Use only when elements are neither hashable nor sortable! """
+    unmatched = list(b)
+    for element in a:
+        try:
+            unmatched.remove(element)
+        except ValueError:
+            return False
+    return not unmatched
