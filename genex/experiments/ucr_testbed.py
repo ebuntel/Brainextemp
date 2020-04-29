@@ -57,11 +57,13 @@ if __name__ == "__main__":
     check the docstring of the above function - run_ucr_test for details regarding the parameters
     '''
     dataset = '/home/apocalyvec/data/UCRArchive_2018'
+
     ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
     output_reg = '/home/apocalyvec/data/UCR_test'
     output_dss = '/home/apocalyvec/data/UCR_DSS_test'
+    output_dyn = '/home/apocalyvec/data/UCR_dyn_test'
 
-    exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted']
+    exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
 
     dist_types_to_test = ['eu', 'ma', 'ch']
 
@@ -74,17 +76,27 @@ if __name__ == "__main__":
         'loi_range': 0.1,
         'st': 0.1,
         'paa_c': 0.6,
+        'test_option': 'regular',
+
+        'cases_split': 0.01
     }
-    mp_args = {'num_worker': 32,
-               'driver_mem': 24,
-               'max_result_mem': 24}
+    mp_args = {'num_worker': 12,
+               'driver_mem': 12,
+               'max_result_mem': 12}
 
     # End of Config Parameters, Experiment starts here ################################################################
+    # at the moment, there are three different experiments
     # run_ucr_test(dataset, ds_soi, output_reg, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
 
-    # for test grouping, keep this part commented for the pure UCR testing ############################################
-    ex_config_test['_test_dss'] = True
-    ex_config_test['dataset_split'] = 0.01
-    ex_config_test['query_split'] = 0.1
-    ex_config_test['loi_range'] = 1.0  # set to cluster the full length
-    run_ucr_test(dataset, ds_soi, output_dss, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
+    # for testing  grouping, keep this part commented for the regular UCR testing ######################################
+    # ex_config_test['test_option'] = 'DSS'
+    # ex_config_test['cases_split'] = 0.01
+    # ex_config_test['query_split'] = 0.2
+    # ex_config_test['loi_range'] = 1.0  # set to cluster the full length
+    # run_ucr_test(dataset, ds_soi, output_dss, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
+
+    # for testing Dynamic Genex,  keep this part commented for the regular UCR testing  ################################
+    ex_config_test['test_option'] = 'dynamic'
+    ex_config_test['query_split'] = 0.2
+    ex_config_test['loi_range'] = 0.9
+    run_ucr_test(dataset, ds_soi, output_dyn, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)

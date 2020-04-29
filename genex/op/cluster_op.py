@@ -1,9 +1,11 @@
 # import _ucrdtw
 import random
+import numpy as np
 # distance libraries
 
 import math
 
+from genex.classes.Sequence import Sequence
 from genex.utils.ts_utils import lb_kim_sequence
 
 
@@ -27,14 +29,161 @@ def _randomize(arr, seed=42):
     return arr
 
 
-def _cluster_groups(groups: list, st: float, dist_func, data_list, log_level: int = 1) -> list:
+def _build_clusters_dynamic(groups: list, st: float, dist_func, data_list, log_level: int) -> list:
+    """
+    the dynamic programming implementation of the clustering algorithm
+    :param groups:
+    :param st:
+    :param dist_func:
+    :param data_list:
+    :param log_level:
+    """
+    group_dict = dict(groups)
+    subseq_lengths = list(group_dict.keys())
+    subseq_lengths.reverse()  # use reversed to start from longer
+    clusters = {}  # seq_len -> center_seq -> list of represented seq
+    for length in subseq_lengths:
+        preformed_c = dict()
+        group_target = group_dict[length]
+        if length + 1 not in clusters.keys():  # check if there is a cluster of current length + 1
+            cl, preformed_c = cluster_group(group_target, st, length, dist_func=dist_func, data_list=data_list, preformed_c=preformed_c)
+            clusters[cl] = preformed_c
+        else:  # if the cluster of length 1+n exists, we use it as heuristics
+            reprs_up = np.array(list(clusters[length + 1].keys()), dtype=Sequence)
+            reprs_head_off = np.array([x.S(slice(1, None, None)) for x in reprs_up], dtype=Sequence)
+            reprs_tail_off = np.array([x.S(slice(None, -1, None)) for x in reprs_up], dtype=Sequence)
+            # TODO use the representative dist mt from length +1 to save calculation
+            stay_mask_head = coalease_repr(reprs_head_off, diameter=st, dist_func=dist_func, data_list=data_list)
+            stay_mask_tail = coalease_repr(reprs_tail_off, diameter=st, dist_func=dist_func, data_list=data_list)
+            # we keep the larger list of representatives
+            reprs_preformed, stay_mask = (reprs_head_off, stay_mask_head) \
+                if np.sum(stay_mask_head) > np.sum(stay_mask_tail) else (reprs_tail_off, stay_mask_tail)
+            reprs_preformed = reprs_preformed[stay_mask]
+            # add to the new cluster
+            # now onto validating the represented sequences
+            # r is the centers from the masked (preformed) centers' list
+            # count = 0
+            # ori_len = len(group_target)
+            for r_up, r in zip(reprs_up[stay_mask], reprs_preformed):  # repr_up is the representative from length+1 clusters
+                preformed_c[r] = []
+                for seq_up in clusters[length + 1][r_up]:
+                    # seq_up_data = seq_up.fetch_data(data_list)
+                    # trimmed_head = seq_up_data[0]
+                    # trimmed_tail = seq_up_data[-1]
+                    seq_head_off = seq_up.S(slice(1, None, None))
+                    seq_tail_off = seq_up.S(slice(None, -1, None))
+
+                    if coalease_seq(r, seq_head_off, st, dist_func, data_list):
+                        if seq_head_off in group_target:
+                            # count += 1
+                            group_target.remove(seq_head_off)
+                            preformed_c[r].append(seq_head_off)
+                    if coalease_seq(r, seq_tail_off, st, dist_func, data_list):  # same deal for tailOff
+                        if seq_tail_off in group_target:
+                            # count += 1
+                            group_target.remove(seq_tail_off)
+                            preformed_c[r].append(seq_tail_off)
+            # print(str(count) + ' out of ' + str(ori_len) + ' subsequences pre-clustered')
+            cl, c = cluster_group(group_target, st, length, dist_func=dist_func, data_list=data_list, preformed_c=preformed_c)
+            clusters[cl] = c
+
+    return list(clusters.items())
+
+
+def coalease_seq(r, s, st, dist_func, data_list):
+    # TODO update to use dynamical distances
+    dist = dist_func(r.fetch_data(data_list), s.fetch_data(data_list))
+    return dist < st / 2.0
+    # if pnorm == math.inf:  # if using chebyshev distance
+    #     dist = 1
+    # else:
+    #     pass
+    #     # dist = dist_up ** pnorm +
+
+def coalease_repr(seqs: list, diameter, dist_func, data_list):
+    """
+    calculate the distances between the seqs and return a mask of that says which sequences should be ruled out
+    are all greater than the half the diameter
+    the current implementation rule out sequences in a row-wise fashion, in the future, this should be improved to
+    rule out the sequences with the most negative values, thus to achieve more remaining sequences
+    :param diameter:
+    :param seqs:
+    """
+    dist_mt = np.full((len(seqs), len(seqs)), math.inf)
+    for i in range(len(seqs)):  # TODO use DP to derive this matrix from length + 1 iteration
+        for j in range(i + 1):
+            dist_mt[i, j] = dist_func(seqs[j].fetch_data(data_list), seqs[i].fetch_data(data_list)) if i != j else math.inf
+    stay_mask = dist_mt > diameter / 2.0
+    stay_mask = np.all(stay_mask, axis=1)
+    return stay_mask
+
+
+def _build_clusters(groups: list, st: float, dist_func, data_list, log_level: int = 1) -> list:
     result = []
     for seq_len, grp in groups:
-        result.append(cluster_with_filter(grp, st, seq_len, dist_func=dist_func, data_list=data_list))
+        result.append(cluster_group(grp, st, seq_len, dist_func=dist_func, data_list=data_list, preformed_c=dict()))
     return result
 
 
-def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, data_list, log_level: int = 1):
+def cluster_group(group: list, st: float, sequence_len: int, dist_func, data_list, preformed_c: dict,
+                  log_level: int = 1):
+    """
+    all subsequence in 'group' must be of the same length
+    For example:
+    [[1,4,2],[6,1,4],[1,2,3],[3,2,1]] is a valid 'sub-sequences'
+
+    :param preformed_c:
+    :param cluster:
+    :param data_list:
+    :param del_data:
+    :param log_level:
+    :param sequence_len:
+    :param group: list of sebsequences of a specific length, entry = sequence object
+    :param int length: the length of the group to be clustered
+    :param float st: similarity threshold to determine whether a sub-sequence
+    :param float global_min: used for minmax normalization
+    :param float global_min: used for minmax normalization
+    :param dist_func: distance types including eu = euclidean, ma = mahalanobis, mi = minkowski
+    belongs to a group
+
+    :return a dictionary of clusters
+    """
+    cluster = preformed_c
+    # randomize the sequence in the group to remove clusters-related bias
+    group = _randomize(group)
+
+    for s in group:
+        if not cluster.keys():  # if there's no representatives, the first subsequence becomes a representative
+            cluster[s] = [(s)]
+        else:
+            # find the closest representative
+            min_dist = math.inf
+            min_representative = None
+
+            for r in list(cluster.keys()):
+                r_data = r.fetch_data(data_list)
+                s_data = s.fetch_data(data_list)
+                if lb_kim_sequence(r_data, s_data) > min_dist:  # compute the lb_kim
+                    continue
+                dist = dist_func(r_data, s_data)
+                if dist < min_dist:
+                    min_dist = dist
+                    min_representative = r
+
+            if min_dist <= st / 2.0:  # if the calculated min similarity is smaller than the
+                # similarity threshold, put subsequence in the similarity cluster keyed by the min representative
+                cluster[min_representative].append(s)
+
+            else:
+                # if the minSim is greater than the similarity threshold, we create a new similarity group
+                # with this sequence being its representative
+                if s not in cluster.keys():
+                    cluster[s] = [s]
+    # print('Cluster length: ' + str(sequence_len) + '   Done!----------------------------------------------')
+    return sequence_len, cluster
+
+
+def cluster_group_dist(group: list, st: float, sequence_len: int, dist_func, data_list, log_level: int = 1):
     """
     all subsequence in 'group' must be of the same length
     For example:
@@ -61,7 +210,7 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, da
 
     for s in group:
         if not cluster.keys():  # if there's no representatives, the first subsequence becomes a representative
-            cluster[s] = [s]
+            cluster[s] = [(0.0, s)]  # put the distances and the sequence
         else:
             # find the closest representative
             min_dist = math.inf
@@ -79,13 +228,13 @@ def cluster_with_filter(group: list, st: float, sequence_len: int, dist_func, da
 
             if min_dist <= st / 2.0:  # if the calculated min similarity is smaller than the
                 # similarity threshold, put subsequence in the similarity cluster keyed by the min representative
-                cluster[min_representative].append(s)
+                cluster[min_representative].append((min_dist, s))
 
             else:
                 # if the minSim is greater than the similarity threshold, we create a new similarity group
                 # with this sequence being its representative
                 if s not in cluster.keys():
-                    cluster[s] = [s]
+                    cluster[s] = [(0.0, s)]
     # print('Cluster length: ' + str(sequence_len) + '   Done!----------------------------------------------')
     return sequence_len, cluster
 

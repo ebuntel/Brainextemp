@@ -45,8 +45,30 @@ class Sequence:
     # def __iter__(self):
     #     return iter(self.data)
     #
-    # def __getitem__(self, i):
-    #     return self.data[i]
+
+    def S(self, s):
+        if type(s) == slice:
+            try:
+                assert s.step is None
+            except AssertionError:
+                raise Exception('Sequence object does not support stepping in slices.')
+            new_start = self.start + s.start if s.start else self.start
+            new_end = self.end + s.stop if s.stop else self.end
+            try:
+                assert new_start >= self.start
+                assert new_end <= self.end
+            except AssertionError:
+                raise IndexError()
+            return Sequence(seq_id=self.seq_id, start=new_start, end=new_end)
+        elif type(s) == int:
+            new_index = self.start + s if s >= 0 else self.end + s + 1
+            try:
+                assert new_index <= self.end and new_index >= self.start
+            except AssertionError:
+                raise IndexError()
+            return Sequence(seq_id=self.seq_id, start=new_index, end=new_index)
+        else:
+            raise ValueError('Sequence object does not support index type of ' + type(s))
 
     def del_data(self):
         del self.data

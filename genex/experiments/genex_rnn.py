@@ -24,7 +24,7 @@ mmScaler = preprocessing.MinMaxScaler()
 X = mmScaler.fit_transform(X)
 X = np.expand_dims(X, axis=-1)
 
-# binary encode target correct & incorrect
+# binary encode paa_data correct & incorrect
 lb = preprocessing.LabelBinarizer()
 Y = lb.fit_transform(Y)
 

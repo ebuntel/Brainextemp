@@ -43,7 +43,7 @@ if __name__ == '__main__':
     # date = 'Jan-30-2020-12-N-UseSpark-R1-noOptFastDTW_numSample400'
     # notes = 'UseSpark-R1-noOptFastDTW_numSample400'
     notes = 'UCR_Small[0-50000]'
-    root = 'results/Small'
+    root = 'results/ucr_experiment/Small'
     file_list = os.listdir(root)
     file_list = [os.path.join(root, x) for x in file_list]
 
