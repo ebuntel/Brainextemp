@@ -4,7 +4,7 @@ from tslearn.piecewise import PiecewiseAggregateApproximation
 from genex.op.query_op import _get_dist_query, _get_dist_paa
 from genex.op.cluster_op import _build_clusters, _cluster_to_meta, _cluster_reduce_func, _build_clusters_dynamic
 from genex.misc import pr_red
-from genex.utils.process_utils import _group_time_series, dss
+from genex.utils.process_utils import _group_time_series, dss, dss_multiple
 from genex.utils.ts_utils import paa_compress
 from genex.utils.utils import flatten
 
@@ -30,19 +30,21 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, data_normalized_bc,
     # validate and save the loi to gxdb class fields
     parallelism = sc.defaultParallelism
     # if False:
-    if len(data_normalized) == 1 and len(data_normalized[0][1]) > parallelism and use_dss:
-        print('_cluster_with_spark: Using DSS')
-        # series, we use step-distribution-grouping
-        groups = [i for i in range(parallelism)]
-        group_rdd = sc.parallelize(groups, numSlices=parallelism)
 
-        # ss = []
-        # group_partition = group_rdd.glom().collect()  # for debug purposes
-        # for gp in group_partition:
-        #     g = _sdg(gp, data_normalized_bc, start, end, parallelism)  # for debug purposes
-        #     ss = ss + (flatten([x[1] for x in g]))
-        group_rdd = group_rdd.mapPartitions(
-            lambda x: dss(x, data_normalized_bc, start, end, parallelism), preservesPartitioning=True).cache()
+    if use_dss:
+        print('_cluster_with_spark: Using Generalized DSS')
+        input = [i for i in range(parallelism)]  # creates parallelized slicing indices
+        input_rdd = sc.parallelize(input, numSlices=parallelism)
+
+        # a = []# debug
+        # input_partitions = input_rdd.glom().collect()  # debug
+        # for ip in input_partitions:# debug
+        #     a.append(dss_multiple(ip, data_normalized_bc.value, start, end, parallelism))# debug
+
+        group_rdd = input_rdd.mapPartitions(
+            lambda x: dss_multiple(x, data_normalized_bc.value, start, end, parallelism),
+            preservesPartitioning=True).cache()
+        # b = group_rdd.collect()  # debug
     else:
         # distribute the data_original
         input_rdd = sc.parallelize(data_normalized, numSlices=parallelism)
@@ -57,6 +59,7 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, data_normalized_bc,
     # group_partition = group_rdd.glom().collect()  # for debug purposes
     # group = group_rdd.collect()  # for debug purposes
     # all_ss = flatten([x[1] for x in group])
+    # all_ss_num = sum(len(x[1]) * (len(x[1]) + 1) / 2 for x in data_normalized)
 
     # Cluster the data_original with Gcluster
     # cluster = _build_clusters(groups=group_rdd.glom().collect()[0], st=similarity_threshold,

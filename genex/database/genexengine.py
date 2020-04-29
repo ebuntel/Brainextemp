@@ -91,6 +91,10 @@ class GenexEngine:
         self._data_normalized_bc = None
         self.feature_num = len(self.data_normalized[0][0])
 
+    def __del__(self):
+        self.stop()
+        del self
+
     def __set_conf(self, conf):
         self.conf = conf
 
