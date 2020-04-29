@@ -13,7 +13,9 @@ if __name__ == '__main__':
     matplotlib.rc('font', **font)
 
     notes = 'UCR_Small[0-50000] - Incomplete'
-    root = 'results/ucr_experiment/dynamic/Apr-28-2020-3-N-UCR_test_eu_soi_0-to-50000/'
+    # root = 'results/ucr_experiment/dynamic/Apr-28-2020-3-N-UCR_test_eu_soi_0-to-50000/'
+    root = 'results/ucr_experiment/dynamic/Apr-28-2020-21-N-UCR_test_eu_soi_0-to-50000/'
+
     file_list = os.listdir(root)
     file_list = [os.path.join(root, x) for x in file_list]
 
@@ -26,7 +28,7 @@ if __name__ == '__main__':
     axis_label_ft = 18
     title_ft = 20
 
-    data_size_coord = (0, 18)
+    data_size_coord = (0, 23)
 
     # End of Initial Variables #########################################################################################
     dt_list = dt_dict.keys()
@@ -59,15 +61,16 @@ if __name__ == '__main__':
 
             gx_c_time = df.iloc[1, 1]
             dynamic_c_time = df.iloc[1, 2]
+            paa_build_time = df.iloc[1, 3]
 
-            qbf_time = [x for x in df.iloc[:, 4].values if not np.isnan(x)]
-            # qpaa_time = [x for x in df.iloc[:, 7].values if not np.isnan(x)]
-            qgx_time = [x for x in df.iloc[:, 5].values if not np.isnan(x)]
-            qdynamic_time = [x for x in df.iloc[:, 6].values if not np.isnan(x)]
+            qbf_time = [x for x in df.iloc[:, 5].values if not np.isnan(x)]
+            qpaa_time = [x for x in df.iloc[:, 6].values if not np.isnan(x)]
+            qgx_time = [x for x in df.iloc[:, 7].values if not np.isnan(x)]
+            qdynamic_time = [x for x in df.iloc[:, 8].values if not np.isnan(x)]
 
-            # qpaa_error = [x for x in df.iloc[:, 10].values if not np.isnan(x)]
-            qgx_error = [x for x in df.iloc[:, 7].values if not np.isnan(x)]
-            qdynamic_error = [x for x in df.iloc[:, 8].values if not np.isnan(x)]
+            qpaa_error = [x for x in df.iloc[:, 9].values if not np.isnan(x)]
+            qgx_error = [x for x in df.iloc[:, 10].values if not np.isnan(x)]
+            qdynamic_error = [x for x in df.iloc[:, 11].values if not np.isnan(x)]
 
             bin_size.append(size)
 
@@ -75,11 +78,11 @@ if __name__ == '__main__':
             bin_dynamic_c_time.append(dynamic_c_time)
 
             bin_qbf_time.append(np.mean(qbf_time))
-            # bin_qpaa_time.append(np.mean(qpaa_time))
+            bin_qpaa_time.append(np.mean(qpaa_time))
             bin_qgx_time.append(np.mean(qgx_time))
             bin_qdynamic_time.append(np.mean(qdynamic_time))
 
-            # bin_qpaa_error.append(np.mean(qpaa_error))
+            bin_qpaa_error.append(np.mean(qpaa_error))
             bin_qgx_error.append(np.mean(qgx_error))
             bin_qdynamic_error.append(np.mean(qdynamic_error))
             pass
@@ -102,7 +105,7 @@ if __name__ == '__main__':
         fig.set_size_inches(15, 8)
         plt.title('Query Time across Data Size for Distance Type: ' + dt_dict[dt])
         plt.scatter(bin_size, bin_qbf_time, c='red', label='Brute Force Query Time', alpha=0.75)
-        # plt.scatter(bin_size, bin_qpaa_time, c='orange', label='PAA Query Time')
+        plt.scatter(bin_size, bin_qpaa_time, c='orange', label='PAA Query Time')
         plt.scatter(bin_size, bin_qgx_time, c='blue', label='Genex Query Time', alpha=0.75)
         plt.scatter(bin_size, bin_qdynamic_time, c='green', label='Dynamic Query Time', alpha=0.75)
         plt.ylabel('Time (second)')
@@ -115,7 +118,7 @@ if __name__ == '__main__':
         fig, ax = plt.subplots()
         fig.set_size_inches(15, 8)
         plt.title('Normalized Error across Data Size for Distance Type: ' + dt_dict[dt])
-        # plt.scatter(bin_size, bin_qpaa_error, c='orange', label='PAA Query Error')
+        plt.scatter(bin_size, bin_qpaa_error, c='orange', label='PAA Query Error')
         plt.scatter(bin_size, bin_qgx_error, c='blue', label='Genex Query Error', alpha=0.75)
         plt.scatter(bin_size, bin_qdynamic_error, c='green', label='Dynamic Query Error', alpha=0.75)
         plt.ylabel('Normalized Error')
