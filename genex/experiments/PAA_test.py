@@ -21,8 +21,11 @@ start = time.time()
 mygxe.build(st=0.1)
 print('Building took ' + str(time.time() - start) + ' sec')
 
+start = time.time()
+mygxe.build_paa(0.5, _dummy_slicing=True)
+print('Build PAA took ' + str(time.time() - start) + ' sec')
+
 q = mygxe.get_random_seq_of_len(20, seed=1)
-mygxe.build_paa(0.5)
 
 start = time.time()
 qr_PAA = mygxe.query_brute_force(query=q, best_k=5, _paa=True)
@@ -37,29 +40,24 @@ start = time.time()
 qr_gx = mygxe.query(query=q, best_k=5)
 duration_gx = time.time() - start
 
-# start = time.time()
-# query_result_1 = mygxe.query(query=q, best_k=5, _radius=1, _lb_opt=False)
-# duration_noOpt = time.time() - start
-# query_result = mygxe.query(query=q, best_k=5, _lb_opt=True)
-#
 # plot the query result
-plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
-for qr in qr_PAA:
-    plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
-plt.legend()
-plt.title('PAA results')
-plt.show()
-
-plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
-for qr in qr_bf:
-    plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
-plt.legend()
-plt.title('BF results')
-plt.show()
-
-plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
-for qr in qr_gx:
-    plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
-plt.legend()
-plt.title('GX results')
-plt.show()
+# plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
+# for qr in qr_PAA:
+#     plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
+# plt.legend()
+# plt.title('PAA results')
+# plt.show()
+#
+# plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
+# for qr in qr_bf:
+#     plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
+# plt.legend()
+# plt.title('BF results')
+# plt.show()
+#
+# plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
+# for qr in qr_gx:
+#     plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
+# plt.legend()
+# plt.title('GX results')
+# plt.show()

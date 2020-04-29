@@ -232,6 +232,7 @@ class GenexEngine:
                 if not paa:
                     candidate_list = _query_bf_spark(query, self.subsequences, dt_index, data_list=dn)
                 else:
+                    print('PAA-ing')
                     candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index)
             else:
                 candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, paa, data_list=dn)
@@ -254,7 +255,7 @@ class GenexEngine:
         self.stop()
         self.mp_context = _multiprocess_backend(use_spark, **kwargs)
 
-    def build_paa(self, paa_c):
+    def build_paa(self, paa_c: float, _dummy_slicing: bool=False):
         """
         preprocess function that must be run before calling PAA query
         must be run after build, because the subsequences are otherwise empty
@@ -266,7 +267,12 @@ class GenexEngine:
                 ('GenexEngine: engine not build, GenexEngine.build(...) must be called prior to this function')
         if self.is_using_spark():
             dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
-            ss_paaKv_rdd = _build_paa_spark(self.subsequences, paa_c, data_list=dn)  # ss_paaKv: subsequence PAA key-value pair
+            if _dummy_slicing:
+                start, end = self.build_conf.get('loi')
+                ss_paaKv_rdd = _build_paa_spark(self.subsequences, paa_c, data_list=dn,
+                                                _dummy_slicing=_dummy_slicing, _sc=self.mp_context, _start=start, _end=end)
+            else:
+                ss_paaKv_rdd = _build_paa_spark(self.subsequences, paa_c, data_list=dn, _dummy_slicing=_dummy_slicing)  # ss_paaKv: subsequence PAA key-value pair
         else:
             # _build_paa(self.mp_context)
             raise Exception('GenexEngine: prepare PAA is not implemented for non-spark version currently.')

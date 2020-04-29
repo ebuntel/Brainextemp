@@ -46,9 +46,9 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, data_normalized_bc,
     else:
         # distribute the data_original
         input_rdd = sc.parallelize(data_normalized, numSlices=parallelism)
-        partition_input = input_rdd.glom().collect()  # for debug purposes
+        # partition_input = input_rdd.glom().collect()  # for debug purposes
         # Grouping the data_original
-        group = _group_time_series(input_rdd.glom().collect()[0], start, end)  # for debug purposes
+        # group = _group_time_series(input_rdd.glom().collect()[0], start, end)  # for debug purposes
         group_rdd = input_rdd.mapPartitions(
             lambda x: _group_time_series(time_series=x, start=start, end=end), preservesPartitioning=True).cache()
 
@@ -86,7 +86,7 @@ def _cluster_to_meta_spark(cluster_rdd):
 
 def _query_bf_spark(query, subsequence_rdd, dt_index, data_list):
     pp_rdd = subsequence_rdd.map(
-        lambda x: _get_dist_query(query, x, dt_index=dt_index,  data_list=data_list.value))
+        lambda x: _get_dist_query(query, x, dt_index=dt_index, data_list=data_list.value))
     candidate_list = pp_rdd.collect()
     # clear data stored in the candidate list
 
@@ -117,10 +117,24 @@ def _destory_kwarg_bc(kwargs_dict: dict):
     [value.destroy() for key, value in kwargs_dict]
 
 
-def _build_paa_spark(subsequences_rdd, paa_c, data_list):
+def _build_paa_spark(subsequences_rdd, paa_c, data_list, _dummy_slicing, _sc: SparkContext = None, _start=None,
+                     _end=None):
+    if _dummy_slicing:
+        print('Simulating Slicing Time')
+        parallelism = _sc.defaultParallelism
+        input_rdd = _sc.parallelize(data_list.value, numSlices=parallelism)
+        # partition_input = input_rdd.glom().collect()  # for debug purposes
+        # Grouping the data_original
+        # group = _group_time_series(input_rdd.glom().collect()[0], start, end)  # for debug purposes
+        group_rdd = input_rdd.mapPartitions(
+            lambda x: _group_time_series(time_series=x, start=_start, end=_end), preservesPartitioning=True).cache()
+        subsequence_rdd = group_rdd.flatMap(lambda x: x[1]).cache()
+        subsequence_rdd.count()
+        subsequence_rdd.unpersist()  # remove the dummy subsequence to free resources
+        del subsequence_rdd
+
     ss_paaKv_rdd = subsequences_rdd.map(
         lambda x: (x, paa_compress(x.fetch_data(data_list.value), paa_c))).cache()
 
-    a = ss_paaKv_rdd.collect()
     ss_paaKv_rdd.count()
     return ss_paaKv_rdd

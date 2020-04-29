@@ -62,8 +62,8 @@ def _build_clusters_dynamic(groups: list, st: float, dist_func, data_list, log_l
             # add to the new cluster
             # now onto validating the represented sequences
             # r is the centers from the masked (preformed) centers' list
-            count = 0
-            ori_len = len(group_target)
+            # count = 0
+            # ori_len = len(group_target)
             for r_up, r in zip(reprs_up[stay_mask], reprs_preformed):  # repr_up is the representative from length+1 clusters
                 preformed_c[r] = []
                 for seq_up in clusters[length + 1][r_up]:
@@ -75,15 +75,15 @@ def _build_clusters_dynamic(groups: list, st: float, dist_func, data_list, log_l
 
                     if coalease_seq(r, seq_head_off, st, dist_func, data_list):
                         if seq_head_off in group_target:
-                            count += 1
+                            # count += 1
                             group_target.remove(seq_head_off)
                             preformed_c[r].append(seq_head_off)
                     if coalease_seq(r, seq_tail_off, st, dist_func, data_list):  # same deal for tailOff
                         if seq_tail_off in group_target:
-                            count += 1
+                            # count += 1
                             group_target.remove(seq_tail_off)
                             preformed_c[r].append(seq_tail_off)
-            print(str(count) + ' out of ' + str(ori_len) + ' subsequences pre-clustered')
+            # print(str(count) + ' out of ' + str(ori_len) + ' subsequences pre-clustered')
             cl, c = cluster_group(group_target, st, length, dist_func=dist_func, data_list=data_list, preformed_c=preformed_c)
             clusters[cl] = c
 
