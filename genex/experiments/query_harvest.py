@@ -13,6 +13,7 @@ import pandas as pd
 # java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
 # os.environ['JAVA_HOME'] = java8_location
 # findspark.init(spark_home=spark_location)
+from genex.experiments.harvests import experiment_BrainEX
 from genex.utils.gxe_utils import from_csv
 
 
@@ -164,26 +165,6 @@ def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split
     return gxe
 
 
-# def generate_exp_set_inplace(dataset_list, dist_type, notes: str):
-#     today = datetime.now()
-#     dir_name = os.path.join('results', today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
-#     if not os.path.exists(dir_name):
-#         os.mkdir(dir_name)
-#
-#     config_list = []
-#     for d in dataset_list:
-#         d_path = os.path.join('data', d + '.csv')
-#         assert os.path.exists(d_path)
-#
-#         config_list.append({
-#             'data': d_path,
-#             'output': os.path.join(dir_name, d + '_' + dist_type + '.csv'),
-#             'feature_num': 0,
-#             'dist_type': dist_type
-#         })
-#     return config_list
-
-
 def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes: str, soi):
     today = datetime.now()
     output_dir_path = os.path.join(output, today.strftime("%b-%d-%Y-") + str(today.hour) + '-N-' + notes)
@@ -220,7 +201,8 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
 def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
                 _lb_opt, radius, use_spark, loi_range, st, paa_c, test_option='regular'):
     options = ['regular', 'DSS', 'dynamic']
-    for es in exp_set:
+    for i, es in enumerate(exp_set):
+        print('$$ Running experiment set: ' + str(i) + ' of ' + str(len(exp_set)))
         if test_option == 'DSS':
             experiment_genex_dss(mp_args, **es, num_sample=num_sample, query_split=query_split, cases_split=cases_split,
                                  _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
@@ -233,6 +215,10 @@ def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
             experiment_genex_dynamic(mp_args, **es, num_sample=num_sample, query_split=query_split,
                                      _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
                                      paa_c=paa_c)
+        elif test_option == 'BrainEX':
+            experiment_BrainEX(mp_args, **es, num_sample=num_sample, query_split=query_split,
+                               _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
+                               paa_c=paa_c)
         else:
             raise Exception('Unrecognized test option, it must be one of the following: ' + str(options))
 
@@ -425,7 +411,7 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
                              dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
     # set up where to save the results
     result_headers = np.array(
-        [['gx_cluster_time', 'DynamicGx_cluster_time',  'paa_build_time',
+        [['gx_cluster_time', 'DynamicGx_cluster_time', 'paa_build_time',
           'query',
           'bf_time', 'paa_time', 'gx_time', 'DynamicGx_time',
           'dist_diff_btw_paa_bf', 'dist_diff_btw_gx_bf', 'dist_diff_btw_DynamicGx_bf',
