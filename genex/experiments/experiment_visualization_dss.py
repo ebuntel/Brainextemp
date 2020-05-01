@@ -5,7 +5,6 @@ import matplotlib
 import pandas as pd
 import numpy as np
 
-
 if __name__ == '__main__':
     font = {'family': 'DejaVu Sans',
             'weight': 'bold',
@@ -15,7 +14,7 @@ if __name__ == '__main__':
     # date = 'Jan-30-2020-12-N-UseSpark-R1-noOptFastDTW_numSample400'
     # notes = 'UseSpark-R1-noOptFastDTW_numSample400'
     notes = 'UCR_Small[0-50000]'
-    root = 'results/ucr_experiment/DSS'
+    root = 'results/ucr_experiment/DSS/Apr-29-2020-15-N-UCR_test_eu_soi_0-to-50000'
     file_list = os.listdir(root)
     file_list = [os.path.join(root, x) for x in file_list]
 
@@ -28,8 +27,6 @@ if __name__ == '__main__':
     axis_label_ft = 18
     title_ft = 20
 
-    data_size_coord = (0, 1)
-
     # End of Initial Variables #########################################################################################
     dt_list = dt_dict.keys()
     title = fig_name + notes
@@ -38,8 +35,9 @@ if __name__ == '__main__':
     for i, dt in enumerate(dt_list):
         fd = {x: x for x in file_list if '_' + dt + '.csv' in x}  # filter to get the result of a specific dist type
         # plot the clustering time as a heatmap across data length and data rows
-        bin_gx_c_time = []
-        bin_dss_c_time = []
+        bin_paa_prep_time = []
+        bin_gx_prep_time = []
+        bin_dss_prep_time = []
 
         bin_size = []
 
@@ -57,10 +55,11 @@ if __name__ == '__main__':
             df = pd.read_csv(result_file)
 
             # information about this dataset's result
-            size = df.iloc[data_size_coord]
+            size = df.iloc[(0, 24)]
 
-            gx_c_time = [x for x in df.iloc[:, 3].values if not np.isnan(x)]
-            dss_c_time = [x for x in df.iloc[:, 4].values if not np.isnan(x)]
+            paa_prep_time = df.iloc[(0, 1)]
+            gx_prep_time = df.iloc[(0, 2)]
+            dss_prep_time = df.iloc[(0, 3)]
 
             qbf_time = [x for x in df.iloc[:, 6].values if not np.isnan(x)]
             qpaa_time = [x for x in df.iloc[:, 7].values if not np.isnan(x)]
@@ -73,8 +72,9 @@ if __name__ == '__main__':
 
             bin_size.append(size)
 
-            bin_gx_c_time.append(np.mean(gx_c_time))
-            bin_dss_c_time.append(np.mean(dss_c_time))
+            bin_paa_prep_time.append(paa_prep_time)
+            bin_gx_prep_time.append(gx_prep_time)
+            bin_dss_prep_time.append(dss_prep_time)
 
             bin_qbf_time.append(np.mean(qbf_time))
             bin_qpaa_time.append(np.mean(qpaa_time))
@@ -86,16 +86,15 @@ if __name__ == '__main__':
             bin_qdss_error.append(np.mean(qdss_error))
             pass
 
+        note = '\n Each dot represents on dataset'
 
         # Plot the Cluster Time
         fig, ax = plt.subplots()
         fig.set_size_inches(15, 8)
-        plt.title('Cluster time across Data Size for Distance Type: ' + dt_dict[dt])
-        # plt.scatter(bin_size, bin_qbf_time, c='red', label='Brute Force Query Time')
-        # plt.scatter(bin_size, bin_qpaa_time, c='orange', label='PAA Query Time')
-        # plt.scatter(bin_size, bin_qgx_time, c='blue', label='Genex Query Time')
-        plt.scatter(bin_size, bin_gx_c_time, c='cyan', label='Genex Cluster Time', marker='x')
-        plt.scatter(bin_size, bin_dss_c_time, c='green', label='DSS Cluster Time', marker='x')
+        plt.title('Cluster time across Data Size for Distance Type: ' + dt_dict[dt] + note)
+        plt.scatter(bin_size, bin_paa_prep_time, c='blue', label='PAA Preparation Time')
+        plt.scatter(bin_size, bin_gx_prep_time, c='cyan', label='Genex Cluster Time', marker='x')
+        plt.scatter(bin_size, bin_dss_prep_time, c='green', label='DSS Cluster Time', marker='x')
         plt.ylabel('Time (second)')
         plt.xlabel('Time series length (number of data points)')
         # plt.ylim(-1, 25)
@@ -105,7 +104,7 @@ if __name__ == '__main__':
         # Plot the Query Time
         fig, ax = plt.subplots()
         fig.set_size_inches(15, 8)
-        plt.title('Query Time across Data Size for Distance Type: ' + dt_dict[dt])
+        plt.title('Query Time across Data Size for Distance Type: ' + dt_dict[dt] + note)
         plt.scatter(bin_size, bin_qbf_time, c='red', label='Brute Force Query Time')
         plt.scatter(bin_size, bin_qpaa_time, c='orange', label='PAA Query Time')
         plt.scatter(bin_size, bin_qgx_time, c='blue', label='Genex Query Time')
@@ -119,7 +118,7 @@ if __name__ == '__main__':
         # Plot the accuracy
         fig, ax = plt.subplots()
         fig.set_size_inches(15, 8)
-        plt.title('Normalized Error across Data Size for Distance Type: ' + dt_dict[dt])
+        plt.title('Normalized Error across Data Size for Distance Type: ' + dt_dict[dt] + note)
         plt.scatter(bin_size, bin_qpaa_error, c='orange', label='PAA Query Error')
         plt.scatter(bin_size, bin_qgx_error, c='blue', label='Genex Query Error')
         plt.scatter(bin_size, bin_qdss_error, c='green', label='DSS Query Error')
@@ -128,3 +127,12 @@ if __name__ == '__main__':
         # plt.ylim(-0.0025, 0.14)
         plt.legend()
         plt.show()
+
+        print('BrainEx Clustering on average took: ' + str(np.mean(bin_gx_prep_time)))
+        print('DSS Clustering on average took: ' + str(np.mean(bin_dss_prep_time)))
+
+        print('BrainEx error on average is: ' + str(np.mean(bin_qgx_error)))
+        print('DSS error on average is: ' + str(np.mean(bin_qdss_error)))
+
+        print('BrainEx query on average took: ' + str(np.mean(bin_qgx_time)))
+        print('DSS query on average took: ' + str(np.mean(bin_qdss_time)))
