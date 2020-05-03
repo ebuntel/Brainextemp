@@ -57,7 +57,7 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
     for i in range(sep):
         for j in range(math.ceil(num_query / 3)):
             q_range = loi[1] - loi[0]
-            qrange_start = math.floor(loi[0] + i * q_range / sep)
+            qrange_start = math.ceil(loi[0] + i * q_range / sep)
             qrange_end = math.floor(loi[0] + (i + 1) * q_range / sep)
 
             query_len = random.choice(list(range(qrange_start, qrange_end)))

@@ -298,6 +298,9 @@ class GenexEngine:
     #     return slice_rdd.collect()
 
     def get_random_seq_of_len(self, sequence_len, seed, with_data=False):
+        if sequence_len < 1:
+            warning('Genex Engine: cannot give sequences with length less than 1, setting sequence_len to 1')
+            sequence_len = 1
         random.seed(seed)
         filtered = [x for x in self.data_normalized if len(x[1]) >= sequence_len]
         try:
