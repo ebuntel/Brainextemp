@@ -237,7 +237,7 @@ class GenexEngine:
                     candidate_list = _query_bf_spark(query, self.subsequences, dt_index, data_list=dn)
                 else:
                     print('PAA-ing')
-                    candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index)
+                    candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index, self.build_conf['paa_c'])
             else:
                 candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, paa, data_list=dn)
         else:
@@ -282,7 +282,7 @@ class GenexEngine:
             raise Exception('GenexEngine: prepare PAA is not implemented for non-spark version currently.')
 
         self.subsequences_paa = ss_paaKv_rdd
-
+        self.build_conf['paa_c'] = paa_c
 
     # def group_sequences(self):
     #     """
