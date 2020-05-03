@@ -58,7 +58,7 @@ if __name__ == "__main__":
     '''
     dataset = '/home/apocalyvec/data/UCRArchive_2018'
 
-    ds_soi = [0, 3000]  # dataset size of interest, see the docstring of run_ucr_test for details
+    ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
     # output_reg = '/home/apocalyvec/data/UCR_test'
     # output_dss = '/home/apocalyvec/data/UCR_DSS_test'
     # output_dyn = '/home/apocalyvec/data/UCR_dyn_test'
@@ -66,15 +66,15 @@ if __name__ == "__main__":
 
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
 
-    dist_types_to_test = ['eu']
+    dist_types_to_test = ['eu', 'ma', 'ch']
 
     ex_config_test = {
         'num_sample': math.inf,
-        'query_split': 0.01,
+        'query_split': 0.1,
         '_lb_opt': False,
         'radius': 1,
         'use_spark': True,
-        'loi_range': 0.1,
+        'loi_range': 1.0,
         'st': 0.1,
         'paa_c': 1/3,
         'test_option': 'BrainEX',
@@ -101,6 +101,5 @@ if __name__ == "__main__":
     # ex_config_test['query_split'] = 0.2
     # ex_config_test['loi_range'] = 0.9
     # run_ucr_test(dataset, ds_soi, output_dyn, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
-
 
     run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
