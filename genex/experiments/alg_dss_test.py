@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 from genex.utils.gxe_utils import from_csv, from_db
 from genex.utils.process_utils import equal_ignore_order
 
-spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
-java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
-os.environ['JAVA_HOME'] = java8_location
-findspark.init(spark_home=spark_location)
+# spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
+# java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
+# os.environ['JAVA_HOME'] = java8_location
+# findspark.init(spark_home=spark_location)
 
 # create gxdb from a csv file
 data = 'data/ItalyPower.csv'
