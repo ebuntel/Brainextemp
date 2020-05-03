@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
 
-    dist_types_to_test = ['eu', 'ma', 'ch']
+    dist_types_to_test = ['ch', 'eu', 'ma']
 
     ex_config_test = {
         'num_sample': math.inf,
