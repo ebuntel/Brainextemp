@@ -96,9 +96,10 @@ def _query_bf_spark(query, subsequence_rdd, dt_index, data_list):
     return candidate_list
 
 
-def _query_paa_spark(query, ss_paaKv_rdd, dt_index):
+def _query_paa_spark(query, ss_paaKv_rdd, dt_index, paa_c):
+    q_paa_data = paa_compress(query.get_data(), paa_c)
     pp_rdd = ss_paaKv_rdd.map(
-        lambda x: (_get_dist_paa(query, x[1], dt_index=dt_index), x[0]))
+        lambda x: (_get_dist_paa(q_paa_data, x[1], dt_index=dt_index), x[0]))
     candidate_list = pp_rdd.collect()
     return candidate_list
 

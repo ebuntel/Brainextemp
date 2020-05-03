@@ -60,12 +60,12 @@ def _get_dist_query(query: Sequence, target: Sequence, dt_index, data_list):
     return sim_between_array(query.get_data(), target.fetch_data(data_list), pnorm=dt_index), target
 
 
-def _get_dist_paa(query: Sequence, paa_data: np.ndarray, dt_index):
+def _get_dist_paa(q_paa_data: Sequence, paa_data: np.ndarray, dt_index):
     try:
         assert len(paa_data) >= 1
     except (AssertionError, TypeError):
         raise Exception('Invalid paa_data: ' + str(paa_data))
-    return sim_between_array(query.get_data(), paa_data, pnorm=dt_index)
+    return sim_between_array(q_paa_data, paa_data, pnorm=dt_index)
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
