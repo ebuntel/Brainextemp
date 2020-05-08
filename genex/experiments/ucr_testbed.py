@@ -59,14 +59,16 @@ if __name__ == "__main__":
     dataset = '/home/apocalyvec/data/UCRArchive_2018'
 
     ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
+    ds_soi = [50000, 150000]  # dataset size of interest, see the docstring of run_ucr_test for details
+
     # output_reg = '/home/apocalyvec/data/UCR_test'
     # output_dss = '/home/apocalyvec/data/UCR_DSS_test'
     # output_dyn = '/home/apocalyvec/data/UCR_dyn_test'
-    output = '/home/apocalyvec/data/UCR_BrainEX_test'
+    output = '/home/apocalyvec/data/UCR_BrainEX_test/medium'
 
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
 
-    dist_types_to_test = ['ch', 'eu', 'ma']
+    dist_types_to_test = ['eu', 'ma', 'ch']
 
     ex_config_test = {
         'num_sample': math.inf,

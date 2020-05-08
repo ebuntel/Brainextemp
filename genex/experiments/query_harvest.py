@@ -186,12 +186,16 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
         if df.size < soi[0] or df.size > soi[1]:
             continue
         print('Distance type - ' + dist_type + ', adding ' + dataset_path)
-        config_list.append({
+        config_list.append((df.size, {  # record the size of the dataframe later start with smaller ones
             'data': dataset_path,
             'output': os.path.join(output_dir_path, d_name + '_' + dist_type + '.csv'),
             'feature_num': 1,  # IMPORTANT this should be 1 for the UCR archive
             'dist_type': dist_type
-        })
+        }))
+
+    config_list.sort(key=lambda x: x[0])  # sort by dataset size
+    config_list = [x[1] for x in config_list]  # remove the dat size variable
+
     if len(config_list) < 1:
         raise Exception('No dataset satisfied the given soi')
     print('Added ' + str(len(config_list)) + ' datasets with the given soi')
