@@ -81,7 +81,6 @@ def _cluster_with_spark(sc: SparkContext, data_normalized, data_normalized_bc,
 
 
 def _cluster_to_meta_spark(cluster_rdd):
-    a = cluster_rdd.map(_cluster_to_meta).collect()
     return dict(cluster_rdd.
                 map(_cluster_to_meta).
                 reduceByKey(_cluster_reduce_func).collect())
