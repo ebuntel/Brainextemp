@@ -24,11 +24,15 @@ def resolve_esi(e, data):
     return data.tostring().index(e_seq.tostring()) // data.itemsize  # find where the event occured
 
 
-def plot_event(e, ax, data, marker='.', label=None, use_line=True):
+def plot_event(e, ax, data, marker='.', color=None, label='auto', use_line=True):
     e_start_index = resolve_esi(e, data)
     if use_line:
         samples = 5
-        ax.plot([e_start_index] * samples, np.linspace(-15, 10, samples), label=str(e) if label is None else label)
+        if color is None:
+            ax.plot([e_start_index] * samples, np.linspace(-15, 10, samples), label=str(e) if label is 'auto' else label)
+        else:
+            ax.plot([e_start_index] * samples, np.linspace(-15, 10, samples), color=color, label=str(e) if label is 'auto' else label)
+
     else:
         ax.scatter(list(range(e_start_index, e_start_index + len(e.data))), e.data,
                    label=str(e) if label is None else label

@@ -69,7 +69,7 @@ def _get_dist_paa(q_paa_data: Sequence, paa_data: np.ndarray, dt_index):
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
-                     lb_opt: bool, exclude_same_id: bool, radius: int, st: float, prev_matches: list = []):
+                     lb_opt: bool, exclude_same_id: bool, radius: int, st: float, overlap: float, prev_matches: list = []):
     """
     This function finds k best matches for given query sequence on the worker node
 
@@ -129,9 +129,8 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
                     bsf_search_rspace(q, k, r_data, r_list=target_reprs, cluster=target_cluster, st=st, dt_index=pnorm)
             else:
                 this_candidates = \
-                    naive_search_rspace(q, k, r_data, r_list=target_reprs, cluster=target_cluster, dt_index=pnorm)
-
-            candidates = candidates + [c for c in this_candidates if c not in prev_matches]
+                    naive_search_rspace(q, k, r_data, r_list=target_reprs, cluster=target_cluster, dt_index=pnorm, overlap=overlap, prev_matches=prev_matches)
+            candidates += this_candidates
             cluster_dict.pop(target_l)
         radius += 1  # ready to search the next length
 
@@ -152,7 +151,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
         return naive_search(q, k, c_data, candidates, dt_index=pnorm)
 
 
-def naive_search_rspace(q, k, r_data, r_list, cluster, dt_index):
+def naive_search_rspace(q, k, r_data, r_list, cluster, dt_index, overlap, prev_matches):
     c_list = []
     target_reprs = [(sim_between_array(rd, q.get_data(), dt_index), r) for rd, r in
                     zip(r_data, r_list)]  # calculate DTW
@@ -161,7 +160,9 @@ def naive_search_rspace(q, k, r_data, r_list, cluster, dt_index):
     while len(target_reprs) > 0 and len(c_list) < k:
         this_repr = heapq.heappop(target_reprs)[
             1]  # take the second element for the first one is the DTW dist
-        c_list += (cluster[this_repr])
+        # filter by overlap
+        target_cluster = cluster[this_repr] if overlap == 1.0 else [c for c in cluster[this_repr] if not any(_isOverlap(c, pv_c[1], overlap) for pv_c in prev_matches)]
+        c_list += (target_cluster)
     return c_list
 
 

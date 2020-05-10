@@ -444,14 +444,13 @@ class GenexEngine:
         # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
         query_args = {'q': q, 'k': best_k, 'ke': _ke, 'data_normalized': dn, 'pnorm': dt_pnorm_dict[dist_type],
                       'lb_opt': _lb_opt, 'exclude_same_id': exclude_same_id, 'radius': _radius,
-                      'st': st
+                      'st': st, 'overlap': overlap
                       }
         best_matches = []
-        cand_aggregated = set()
         while len(best_matches) < best_k:
             if self.is_using_spark():  # The only place in query where it checks if is using Spark
                 query_rdd: RDD = self.clusters.mapPartitions(
-                    lambda c: _query_partition(**query_args, cluster=c, prev_matches=cand_aggregated))
+                    lambda c: _query_partition(**query_args, cluster=c, prev_matches=best_matches))
                 candidates = query_rdd.collect()
             else:
                 candidates = _query_mp(self.mp_context, self.clusters, **query_args)
@@ -485,7 +484,6 @@ class GenexEngine:
                 else:  # if consider overlap
                     if not any(_isOverlap(this_c[1], prev_match[1], overlap) for prev_match in best_matches):
                         best_matches.append(this_c)
-                    cand_aggregated = set([*cand_aggregated, this_c[1]])  # add to aggregated candidates to be the prev_match when query next
                 pass
         q.destroy()
         query_rdd.unpersist()
