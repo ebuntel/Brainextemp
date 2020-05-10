@@ -91,6 +91,10 @@ class GenexEngine:
         self._data_normalized_bc = None
         self.feature_num = len(self.data_normalized[0][0])
 
+    def __del__(self):
+        self.stop()
+        del self
+
     def __set_conf(self, conf):
         self.conf = conf
 
@@ -233,7 +237,7 @@ class GenexEngine:
                     candidate_list = _query_bf_spark(query, self.subsequences, dt_index, data_list=dn)
                 else:
                     print('PAA-ing')
-                    candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index)
+                    candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index, self.build_conf['paa_c'])
             else:
                 candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, paa, data_list=dn)
         else:
@@ -278,7 +282,7 @@ class GenexEngine:
             raise Exception('GenexEngine: prepare PAA is not implemented for non-spark version currently.')
 
         self.subsequences_paa = ss_paaKv_rdd
-
+        self.build_conf['paa_c'] = paa_c
 
     # def group_sequences(self):
     #     """
@@ -293,28 +297,29 @@ class GenexEngine:
     #
     #     return slice_rdd.collect()
 
-    def get_random_seq_of_len(self, sequence_len, seed):
+    def get_random_seq_of_len(self, sequence_len, seed, with_data=False):
+        if sequence_len < 1:
+            warning('Genex Engine: cannot give sequences with length less than 1, setting sequence_len to 1')
+            sequence_len = 1
         random.seed(seed)
-        target = random.choice(self.data_normalized)
+        filtered = [x for x in self.data_normalized if len(x[1]) >= sequence_len]
         try:
-            if sequence_len > len(target[1]):
-                warning('get_random_seq_of_len: given sequence len is greater than randomly picked paa_data, '
-                        'setting sequence len to paa_data len. If you are '
-                        'using the maximum seq len, your data may be consisted of sequences with varying length. Then '
-                        'you can ignore this warning')
-                sequence_len = len(target[1])
-                seq = Sequence(target[0], 0, len(target[1]) - 1)
-            else:
-                start = random.randint(0, len(target[1]) - sequence_len)
-                seq = Sequence(target[0], start, start + sequence_len - 1)
-        except ValueError:
-            raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
-                            'an implementation error, please report to the Repository as an issue.')
-        try:
-            assert len(seq.fetch_data(self.data_normalized)) == sequence_len
+            assert len(filtered) > 0
         except AssertionError:
             raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
                             'an implementation error, please report to the Repository as an issue.')
+        target = random.choice(filtered)
+        start = random.randint(0, len(target[1]) - sequence_len)
+        seq = Sequence(target[0], start, start + sequence_len - 1)
+
+        try:
+            assert len(seq.fetch_data(self.data_normalized)) == sequence_len
+        except AssertionError:
+            raise Exception('get_random_seq_of_len: given length does not have corresponding data. If you think this is '
+                            'an implementation error, please report to the Repository as an issue.')
+
+        if with_data:
+            seq.fetch_and_set_data(self.data_normalized)
         return seq
 
     def get_seqs_of_len(self, seq_len):

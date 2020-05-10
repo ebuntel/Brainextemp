@@ -2,6 +2,7 @@ import json
 import math
 import os
 import pickle
+import random
 import uuid
 import pandas as pd
 import numpy as np
@@ -46,12 +47,14 @@ def from_csv(data, feature_num: int,
              _ts_dim: int = 1,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
-             _is_z_normalize=True):
+             _is_z_normalize=True,
+             _seed=42):
     """
     build a genex_database object from given csv,
     Note: if time series are of different length, shorter sequences will be post padded to the length
     of the longest sequence in the dataset
 
+    :param _seed: random seed used for reproducible UUID generation
     :param header:
     :param _ts_dim:
     :param _is_z_normalize:
@@ -83,7 +86,10 @@ def from_csv(data, feature_num: int,
     if add_uuid:
         print('msg: from_csv, feature num is 0, auto-generating uuid')
         feature_num = feature_num + 1
-        df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
+        random.seed(_seed)
+        ass = ["%32x" % random.getrandbits(128) for x in range(len(df))]
+        rds = [a[:12] + '4' + a[13:16] + 'a' + a[17:] for a in ass]
+        df.insert(0, 'uuid', [uuid.UUID(rd) for rd in rds], False)
     # if _memory_opt == 'uuid':
     #     df.insert(0, 'uuid', [uuid.uuid4() for x in range(len(df))], False)
     #     feature_uuid_dict = _create_f_uuid_map(df=df, feature_num=feature_num)
