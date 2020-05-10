@@ -145,12 +145,9 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
     # start = time.time()
     # rtn = naive_search(q, k, candidates, overlap, exclude_same_id)
     # duration_nonopt = time.time() - start
-
     if lb_opt == 'bsf':
-        # print('Using bsf')
         return bsf_search(q, k, c_data, candidates, dt_index=pnorm)
     else:
-        # print('Using naive')
         return naive_search(q, k, c_data, candidates, overlap, exclude_same_id, dt_index=pnorm)
 
 
@@ -174,7 +171,7 @@ def naive_search(q: Sequence, k: int, c_data, candidates: list, overlap: float, 
     # note that we are using k here
     while len(c_dist_list) > 0 and len(query_result) < k:
         c_dist = heapq.heappop(c_dist_list)
-        if overlap == 1.0 or not exclude_same_id:
+        if overlap == 1.0 or exclude_same_id:
             query_result.append(c_dist)
         else:
             if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
