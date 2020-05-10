@@ -18,7 +18,7 @@ df_tic = pd.read_csv('/home/apocalyvec/data/sart/SART_AS/101-SART-June2018-AS_Ch
 db_path = '/home/apocalyvec/data/sart/SART_AS/gxe_doi(1)(120)_101-SART-June2018-AS_Ch1HbO'
 gxe = from_db(db_path, num_worker=12, driver_mem=12, max_result_mem=12)
 
-best_k = 50
+best_k = 5
 e_woi = [5, 5]  # event window of interest
 data = np.array(gxe.data_original[0][1])  # there's only on time series
 data_normalized = np.array(gxe.data_normalized[0][1])  # there's only on time series
@@ -39,7 +39,7 @@ events = df_to_event(df_tic)  # target incorrect events
 # plot with un-normalized data, this function also return the indices for the use in extract_query_normalized
 q = extract_query(events[0], sampling_rate, e_woi, data)[0]
 q_norm = extract_query_normalized(events[0], sampling_rate, e_woi, data, data_normalized)  # query with normalized data
-q_matches = gxe.query(q.data, best_k)
+q_matches = gxe.query(q.data, best_k, overlap=0.3)
 
 plot_event(q, ax, data, marker='x', label='Query ' + str(q), use_line=False)  # plot the query event
 
@@ -50,7 +50,7 @@ for ev in events:  # plot all the same events
 for i, item in enumerate(q_matches):
     dist, mtc_seq = item
     gxe.set_seq_data(mtc_seq)
-    plot_sequence(mtc_seq, ax, marker='X', label=str(i) + 'th match, dist=' + str(dist) + '; ' + str(mtc_seq))
+    plot_sequence(mtc_seq, ax, marker='X', label=str(i) + 'th match, dist=' + str(dist) + '; ' + str(mtc_seq), elevation=0.2 * i)
     ax.legend(prop={'size': 6})
 
 

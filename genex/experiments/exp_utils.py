@@ -35,8 +35,8 @@ def plot_event(e, ax, data, marker='.', label=None, use_line=True):
                    , marker=marker)
 
 
-def plot_sequence(s: Sequence, ax, marker='.', label=None):
-    ax.scatter(list(range(s.start, s.start + len(s))), s.data, label=str(s) if label is None else label
+def plot_sequence(s: Sequence, ax, marker='.', label=None, elevation=0.):
+    ax.scatter(list(range(s.start, s.start + len(s))), np.array(s.data) + elevation, label=str(s) if label is None else label
                , marker=marker)
 
 
