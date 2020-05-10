@@ -408,6 +408,11 @@ class GenexEngine:
             raise Exception('Give sequence is not in the dataset')
         return seq.fetch_data(self.data_original) if not normalize else seq.fetch_data(self.data_normalized)
 
+    def set_seq_data(self, seq: Sequence, normalize=False):
+        if not self.is_id_exists(seq):
+            raise Exception('Give sequence is not in the dataset')
+        seq.fetch_and_set_data(self.data_original) if not normalize else seq.fetch_data(self.data_normalized)
+
     def query(self, query, best_k: int,
               exclude_same_id: bool = False, overlap: float = 1.0,
               _lb_opt: bool = False, _ke=None, _radius: int = 1, _ke_factor: int = 1):
