@@ -2,7 +2,7 @@ import math
 import os
 import numpy as np
 
-from genex.experiments.query_harvest import generate_exp_set_from_root, run_exp_set
+from genex.experiments.harvest_setup import generate_exp_set_from_root, run_exp_set
 
 
 def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types, ex_config, mp_args):
@@ -25,7 +25,7 @@ def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types
         'use_spark': bool, whether to use the Spark backend, leave it being True if not otherwise specified
         'loi_range': float, only consider sequences within a percentage length of the longest sequence, use 0.1 for the time being
         'st': float, hyper-parameters that determines the cluster boundary in genex.build, leave it being True if not otherwise specified
-        'paa_c': the compression ratio of PAA method, use 0.1 for now
+        'paa_seg': the n segment of PAA, use 3 as a heuristic approach
     """
     valid_dt = ['eu', 'ch', 'ma']
     try:
@@ -58,8 +58,8 @@ if __name__ == "__main__":
     '''
     dataset = '/home/apocalyvec/data/UCRArchive_2018'
 
-    # ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
-    ds_soi = [50000, 1500000]  # dataset size of interest, see the docstring of run_ucr_test for details
+    ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
+    # ds_soi = [50000, 1500000]  # dataset size of interest, see the docstring of run_ucr_test for details
 
     # output_reg = '/home/apocalyvec/data/UCR_test'
     # output_dss = '/home/apocalyvec/data/UCR_DSS_test'
@@ -78,11 +78,10 @@ if __name__ == "__main__":
         'use_spark': True,
         'loi_range': 1.0,
         'st': 0.1,
-        'paa_c': 1/3,
+        'paa_seg': 3,
         'test_option': 'BrainEX',
 
         'cases_split': 0.01,
-        'test_PAA': False
     }
     mp_args = {'num_worker': 32,
                'driver_mem': 24,

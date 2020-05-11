@@ -30,7 +30,7 @@ from genex.utils.gxe_utils import from_csv
 ########################################################################################################################
 
 def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split,
-                     dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
+                     dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_seg: float):
     # create gxdb from a csv file
 
     # set up where to save the results
@@ -95,7 +95,7 @@ def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split
 
     print('Preparing PAA Subsequences')
     start = time.time()
-    gxe.build_paa(paa_c, _dummy_slicing=True)
+    gxe.build_paa(paa_seg, _dummy_slicing=True)
     paa_build_time = time.time() - start
     print('Prepare PAA subsequences took ' + str(paa_build_time))
 
@@ -203,26 +203,26 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
 
 
 def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
-                _lb_opt, radius, use_spark, loi_range, st, paa_c, test_option, test_PAA):
+                _lb_opt, radius, use_spark, loi_range, st, paa_seg, test_option='BrainEX', test_PAA=True):
     options = ['regular', 'DSS', 'dynamic']
     for i, es in enumerate(exp_set):
         print('$$ Running experiment set: ' + str(i) + ' of ' + str(len(exp_set)))
         if test_option == 'DSS':
             experiment_genex_dss(mp_args, **es, num_sample=num_sample, query_split=query_split, cases_split=cases_split,
                                  _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
-                                 paa_c=paa_c)
+                                 paa_seg=paa_seg)
         elif test_option == 'regular':
             experiment_genex(mp_args, **es, num_sample=num_sample, query_split=query_split,
                              _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
-                             paa_c=paa_c)
+                             paa_seg=paa_seg)
         elif test_option == 'dynamic':
             experiment_genex_dynamic(mp_args, **es, num_sample=num_sample, query_split=query_split,
                                      _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
-                                     paa_c=paa_c)
+                                     paa_seg=paa_seg)
         elif test_option == 'BrainEX':
             experiment_BrainEX(mp_args, **es, num_sample=num_sample, query_split=query_split,
                                _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
-                               paa_c=paa_c, test_PAA=test_PAA)
+                               paa_seg=paa_seg, test_PAA=test_PAA)
         else:
             raise Exception('Unrecognized test option, it must be one of the following: ' + str(options))
 
@@ -244,7 +244,7 @@ def get_dataset_train_path(root, exclude_list):
 
 
 def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_split, cases_split,
-                         dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
+                         dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_seg: float):
     # set up where to save the results
     result_headers = np.array(
         [['gx_cluster_time', 'dssGx_cluster_time', 'paa_build_time',
@@ -313,7 +313,7 @@ def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_s
 
         print('Preparing PAA Subsequences')
         start = time.time()
-        gxe.build_paa(paa_c, _dummy_slicing=True)
+        gxe.build_paa(paa_seg, _dummy_slicing=True)
         paa_build_time = time.time() - start
         print('Prepare PAA subsequences took ' + str(paa_build_time))
 
@@ -412,7 +412,7 @@ def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_s
 
 
 def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, query_split,
-                             dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
+                             dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_seg: float):
     # set up where to save the results
     result_headers = np.array(
         [['gx_cluster_time', 'DynamicGx_cluster_time', 'paa_build_time',
@@ -474,7 +474,7 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
 
     print('Preparing PAA Subsequences')
     start = time.time()
-    gxe.build_paa(paa_c, _dummy_slicing=True)
+    gxe.build_paa(paa_seg, _dummy_slicing=True)
     paa_build_time = time.time() - start
     print('Prepare PAA subsequences took ' + str(paa_build_time))
 

@@ -16,7 +16,7 @@ except ImportError:
     fd_workaround()
 
 
-def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, paa: float = None, use_fast=True):
+def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, use_fast=True):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
@@ -31,10 +31,6 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, paa: float = N
     #                    'ma': 1,
     #                    'ch': 2,
     #                    'min': 2}
-
-    if paa:
-        a1 = paa_compress(a1, paa).flatten()
-        a2 = paa_compress(a2, paa).flatten()
 
     dist = fastdtw(a1, a2, dist=pnorm)[0] if use_fast else dtw(a1, a2, dist=pnorm)[0]
     if pnorm == 2:

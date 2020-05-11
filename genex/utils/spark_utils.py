@@ -95,8 +95,8 @@ def _query_bf_spark(query, subsequence_rdd, dt_index, data_list):
     return candidate_list
 
 
-def _query_paa_spark(query, ss_paaKv_rdd, dt_index, paa_c):
-    q_paa_data = paa_compress(query.get_data(), paa_c)
+def _query_paa_spark(query, ss_paaKv_rdd, dt_index, paa_seg):
+    q_paa_data = paa_compress(query.get_data(), paa_seg)
     pp_rdd = ss_paaKv_rdd.map(
         lambda x: (_get_dist_paa(q_paa_data, x[1], dt_index=dt_index), x[0]))
     candidate_list = pp_rdd.collect()
@@ -120,7 +120,7 @@ def _destory_kwarg_bc(kwargs_dict: dict):
     [value.destroy() for key, value in kwargs_dict]
 
 
-def _build_paa_spark(subsequences_rdd, paa_c, data_list, _dummy_slicing, _sc: SparkContext = None, _start=None,
+def _build_paa_spark(subsequences_rdd, paa_seg, data_list, _dummy_slicing, _sc: SparkContext = None, _start=None,
                      _end=None):
     if _dummy_slicing:
         print('Simulating Slicing Time')
@@ -131,13 +131,19 @@ def _build_paa_spark(subsequences_rdd, paa_c, data_list, _dummy_slicing, _sc: Sp
         # group = _group_time_series(input_rdd.glom().collect()[0], start, end)  # for debug purposes
         group_rdd = input_rdd.mapPartitions(
             lambda x: _group_time_series(time_series=x, start=_start, end=_end), preservesPartitioning=True).cache()
-        subsequence_rdd = group_rdd.flatMap(lambda x: x[1]).cache()
-        subsequence_rdd.count()
-        subsequence_rdd.unpersist()  # remove the dummy subsequence to free resources
-        del subsequence_rdd
+        dummy_ss_rdd = group_rdd.flatMap(lambda x: x[1]).cache()
+        dummy_ss_rdd.count()
+        dummy_ss_rdd.unpersist()  # remove the dummy subsequence to free resources
+        del dummy_ss_rdd
+
+    # ss_paaKv = []
+    # for ss in subsequences_rdd.collect():
+    #     ss_paaKv.append(paa_compress(ss.fetch_data(data_list.value), paa_seg))
 
     ss_paaKv_rdd = subsequences_rdd.map(
-        lambda x: (x, paa_compress(x.fetch_data(data_list.value), paa_c))).cache()
+        lambda x: (x, paa_compress(x.fetch_data(data_list.value), paa_seg))).cache()
 
     ss_paaKv_rdd.count()
+    # a = ss_paaKv_rdd.collect()
+    # b = max([len(x[1]) for x in a])
     return ss_paaKv_rdd

@@ -237,7 +237,7 @@ class GenexEngine:
                     candidate_list = _query_bf_spark(query, self.subsequences, dt_index, data_list=dn)
                 else:
                     print('PAA-ing')
-                    candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index, self.build_conf['paa_c'])
+                    candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index, self.build_conf['paa_seg'])
             else:
                 candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, paa, data_list=dn)
         else:
@@ -259,7 +259,7 @@ class GenexEngine:
         self.stop()
         self.mp_context = _multiprocess_backend(use_spark, **kwargs)
 
-    def build_paa(self, paa_c: float, _dummy_slicing: bool=False):
+    def build_paa(self, paa_seg: int, _dummy_slicing: bool=False):
         """
         preprocess function that must be run before calling PAA query
         must be run after build, because the subsequences are otherwise empty
@@ -273,16 +273,16 @@ class GenexEngine:
             dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
             if _dummy_slicing:
                 start, end = self.build_conf.get('loi')
-                ss_paaKv_rdd = _build_paa_spark(self.subsequences, paa_c, data_list=dn,
+                ss_paaKv_rdd = _build_paa_spark(self.subsequences, paa_seg, data_list=dn,
                                                 _dummy_slicing=_dummy_slicing, _sc=self.mp_context, _start=start, _end=end)
             else:
-                ss_paaKv_rdd = _build_paa_spark(self.subsequences, paa_c, data_list=dn, _dummy_slicing=_dummy_slicing)  # ss_paaKv: subsequence PAA key-value pair
+                ss_paaKv_rdd = _build_paa_spark(self.subsequences, paa_seg, data_list=dn, _dummy_slicing=_dummy_slicing)  # ss_paaKv: subsequence PAA key-value pair
         else:
             # _build_paa(self.mp_context)
             raise Exception('GenexEngine: prepare PAA is not implemented for non-spark version currently.')
 
         self.subsequences_paa = ss_paaKv_rdd
-        self.build_conf['paa_c'] = paa_c
+        self.build_conf['paa_seg'] = paa_seg
 
     # def group_sequences(self):
     #     """

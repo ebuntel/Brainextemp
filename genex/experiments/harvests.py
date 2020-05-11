@@ -18,7 +18,7 @@ from genex.utils.gxe_utils import from_csv
 
 def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_split,
                        dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float,
-                       paa_c: float, test_PAA: bool):
+                       paa_seg: float, test_PAA: bool):
     # set up where to save the results
     result_headers = np.array(
         [['paa_preprocess_time', 'gx_preprocess_time', 'dssgx_preprocess_time',  # preprocessing times
@@ -80,7 +80,7 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
     if test_PAA:
         print('Preparing PAA Subsequences')
         start = time.time()
-        gxe.build_paa(paa_c, _dummy_slicing=True)
+        gxe.build_paa(paa_seg, _dummy_slicing=True)
         paa_build_time = time.time() - start
         print('Prepare PAA subsequences took ' + str(paa_build_time))
     else:
