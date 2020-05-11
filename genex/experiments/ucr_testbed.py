@@ -81,7 +81,8 @@ if __name__ == "__main__":
         'paa_c': 1/3,
         'test_option': 'BrainEX',
 
-        'cases_split': 0.01
+        'cases_split': 0.01,
+        'test_PAA': False
     }
     mp_args = {'num_worker': 32,
                'driver_mem': 24,

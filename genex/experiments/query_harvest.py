@@ -203,7 +203,7 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
 
 
 def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
-                _lb_opt, radius, use_spark, loi_range, st, paa_c, test_option='regular'):
+                _lb_opt, radius, use_spark, loi_range, st, paa_c, test_option, test_PAA):
     options = ['regular', 'DSS', 'dynamic']
     for i, es in enumerate(exp_set):
         print('$$ Running experiment set: ' + str(i) + ' of ' + str(len(exp_set)))
@@ -222,7 +222,7 @@ def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
         elif test_option == 'BrainEX':
             experiment_BrainEX(mp_args, **es, num_sample=num_sample, query_split=query_split,
                                _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
-                               paa_c=paa_c)
+                               paa_c=paa_c, test_PAA=test_PAA)
         else:
             raise Exception('Unrecognized test option, it must be one of the following: ' + str(options))
 

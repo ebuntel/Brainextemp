@@ -17,7 +17,8 @@ from genex.utils.gxe_utils import from_csv
 
 
 def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_split,
-                       dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float, paa_c: float):
+                       dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float,
+                       paa_c: float, test_PAA: bool):
     # set up where to save the results
     result_headers = np.array(
         [['paa_preprocess_time', 'gx_preprocess_time', 'dssgx_preprocess_time',  # preprocessing times
@@ -76,12 +77,14 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
     cluster_time_gx = time.time() - cluster_start_time
     print('gx_cluster_time took ' + str(cluster_time_gx) + ' sec')
 
-    print('Preparing PAA Subsequences')
-    start = time.time()
-    gxe.build_paa(paa_c, _dummy_slicing=True)
-    paa_build_time = time.time() - start
-    print('Prepare PAA subsequences took ' + str(paa_build_time))
-
+    if test_PAA:
+        print('Preparing PAA Subsequences')
+        start = time.time()
+        gxe.build_paa(paa_c, _dummy_slicing=True)
+        paa_build_time = time.time() - start
+        print('Prepare PAA subsequences took ' + str(paa_build_time))
+    else:
+        paa_build_time = cluster_time_gx
     print('Evaluating Query with Regular Genex, BF and PAA')
     for i, q in enumerate(query_set):
         print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
@@ -92,11 +95,15 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
         bf_time = time.time() - start
         print('Brute force query took ' + str(bf_time) + ' sec')
 
-        start = time.time()
-        print('Running Pure PAA Query ...')
-        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=True)
-        paa_time = time.time() - start
-        print('Pure PAA query took ' + str(paa_time) + ' sec')
+        if test_PAA:
+            start = time.time()
+            print('Running Pure PAA Query ...')
+            query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=True)
+            paa_time = time.time() - start
+            print('Pure PAA query took ' + str(paa_time) + ' sec')
+        else:  # duplicate that of the brute force's results
+            paa_time = bf_time
+            query_result_paa = query_result_bf
 
         print('Evaluating Regular Gx')
         start = time.time()
