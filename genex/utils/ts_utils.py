@@ -1,8 +1,11 @@
 import math
 
 import numpy as np
+from saxpy.alphabet import cuts_for_asize
 from tslearn import metrics
-from tslearn.piecewise import PiecewiseAggregateApproximation
+from tslearn.piecewise import PiecewiseAggregateApproximation, SymbolicAggregateApproximation
+from saxpy.paa import paa
+from saxpy.sax import ts_to_string
 
 from genex.classes.Sequence import Sequence
 
@@ -37,10 +40,9 @@ def lb_kim_sequence(candidate_seq, query_sequence):
     return lb_kim_sim / 2.0  # normalize
 
 
-def paa_compress(a: np.ndarray, c: float):
-    n_segment = max(int(len(a) * c), 1)  # clamp at 1
-    paa_n = PiecewiseAggregateApproximation(n_segment)
-    compressed = paa_n.fit_transform(a)
+def paa_compress(a: np.ndarray, paa_seg):
+    paa = PiecewiseAggregateApproximation(min(len(a), paa_seg))
+    compressed = paa.fit_transform(a)
 
     compressed = np.squeeze(compressed, axis=-1)
     # TODO do not squeeze all the dimension if the ts is multi-dimensional
@@ -49,3 +51,12 @@ def paa_compress(a: np.ndarray, c: float):
     return compressed
 
     # return np.squeeze(compressed)
+
+
+def sax_compress(a: np.ndarray, sax_seg, n_sax_symbols):
+    sax = SymbolicAggregateApproximation(n_segments=min(len(a), sax_seg), alphabet_size_avg=n_sax_symbols)
+    compressed = sax.fit_transform(a)
+    compressed = np.squeeze(compressed, axis=-1)
+    # TODO do not squeeze all the dimension if the ts is multi-dimensional
+    compressed = np.squeeze(compressed, axis=0)
+    return compressed

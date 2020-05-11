@@ -16,7 +16,7 @@ except ImportError:
     fd_workaround()
 
 
-def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, paa: float = None, use_fast=True):
+def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, use_fast=True):
     """
     calculate the similarity between sequence 1 and sequence 2 using DTW
 
@@ -32,10 +32,6 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, paa: float = N
     #                    'ch': 2,
     #                    'min': 2}
 
-    if paa:
-        a1 = paa_compress(a1, paa).flatten()
-        a2 = paa_compress(a2, paa).flatten()
-
     dist = fastdtw(a1, a2, dist=pnorm)[0] if use_fast else dtw(a1, a2, dist=pnorm)[0]
     if pnorm == 2:
         return np.sqrt(dist / (len(a1) + len(a2)))
@@ -47,25 +43,25 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, paa: float = N
         raise Exception('Unsupported dist type in array, this should never happen!')
 
 
-def _get_dist_query(query: Sequence, target: Sequence, dt_index, data_list):
+def _get_dist_sequence(seq1: Sequence, seq2: Sequence, dt_index, data_list):
     """
     the use of paa
-    :param query:
-    :param target:
+    :param seq1:
+    :param seq2:
     :param dt_index:
     :param paa:
     :param data_list:
     :return:
     """
-    return sim_between_array(query.get_data(), target.fetch_data(data_list), pnorm=dt_index), target
+    return sim_between_array(seq1.get_data(), seq2.fetch_data(data_list), pnorm=dt_index), seq2
 
 
-def _get_dist_paa(q_paa_data: Sequence, paa_data: np.ndarray, dt_index):
-    try:
-        assert len(paa_data) >= 1
-    except (AssertionError, TypeError):
-        raise Exception('Invalid paa_data: ' + str(paa_data))
-    return sim_between_array(q_paa_data, paa_data, pnorm=dt_index)
+def _get_dist_array(a1: np.ndarray, a2: np.ndarray, dt_index):
+    # try:
+    #     assert len(a2) >= 1 and len(a1) >= 1
+    # except (AssertionError, TypeError):
+    #     raise Exception('Invalid array length: ' + str(a2))
+    return sim_between_array(a1, a2, pnorm=dt_index)
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,

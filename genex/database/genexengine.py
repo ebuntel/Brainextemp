@@ -19,7 +19,7 @@ from scipy.spatial.distance import chebyshev
 from genex.classes.Sequence import Sequence
 from genex.op.query_op import _query_partition
 from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broadcast_kwargs, _destory_kwarg_bc, \
-    _build_paa_spark, _query_paa_spark
+    _build_piecewise_spark, _query_paa_spark, _query_sax_spark
 from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxe_query_arguments, _isOverlap, \
     flatten
 from genex.utils.context_utils import _multiprocess_backend
@@ -76,6 +76,7 @@ class GenexEngine:
         self.clusters = None
         self.subsequences = None
         self.subsequences_paa = None
+        self.subsequences_sax = None
         self.cluster_meta_dict = None
         if 'conf' in kwargs.keys():
             self.conf = kwargs['conf']
@@ -154,7 +155,8 @@ class GenexEngine:
         # update build configuration
         self.build_conf = {'similarity_threshold': st,
                            'dist_type': dist_type,
-                           'loi': (start, end)}
+                           'loi': (start, end),
+                           'piecewise': set()}
 
         # determine the distance calculation function
         try:
@@ -203,14 +205,14 @@ class GenexEngine:
             raise Exception('get_num_subsequences: the database must be build before calling this function')
         return self.subsequences.count() if self.is_using_spark() else len(self.subsequences)
 
-    def query_brute_force(self, query: Sequence, best_k: int, _use_cache: bool = True, _paa: bool = False):
+    def query_brute_force(self, query: Sequence, best_k: int, _use_cache: bool = True, _piecewise: str = None):
         """
         Retrieve best k matches for query sequence using Brute force method
 
         :param _use_cache:
         :param query: Sequence being queried
         :param best_k: Number of best matches to retrieve for the given query
-        :param _paa: number of segments of time series reduction while applying piecewise aggregation approximation representative
+        :param _piecewise: number of segments of time series reduction while applying piecewise aggregation approximation representative
 
         :return: a list containing best k matches for given query sequence
         """
@@ -220,12 +222,12 @@ class GenexEngine:
         start, end = self.build_conf.get('loi')
         query.fetch_and_set_data(self.data_normalized)
 
-        candidate_list = self.qbf(query, dt_index, best_k, _use_cache, _paa)
+        candidate_list = self._qbf(query, dt_index, best_k, _use_cache, _piecewise)
 
         return candidate_list[:best_k]
 
-    def qbf(self, query, dt_index, best_k, use_cache, paa: bool):
-        if paa and self.subsequences_paa is None:
+    def _qbf(self, query, dt_index, best_k, use_cache, piecewise: str):
+        if piecewise and self.subsequences_paa is None:
             raise Exception('GenexEngine: GenexEngine.build_paa(...) must be called prior to query with PAA')
 
         dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
@@ -233,13 +235,25 @@ class GenexEngine:
 
         if not candidate_list:  # there is no cached brute force result
             if self.is_using_spark():
-                if not paa:
+                if not piecewise:
                     candidate_list = _query_bf_spark(query, self.subsequences, dt_index, data_list=dn)
-                else:
-                    print('PAA-ing')
-                    candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index, self.build_conf['paa_c'])
+                elif piecewise == 'paa':
+                    try:
+                        assert 'paa' in self.build_conf['piecewise']
+                    except AssertionError:
+                        raise Exception('genexengine: must build_piece with the mode paa before querying with it')
+                    candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index,
+                                                      self.build_conf['n_segment'])
+                elif piecewise == 'sax':
+                    try:
+                        assert 'sax' in self.build_conf['piecewise']
+                    except AssertionError:
+                        raise Exception('genexengine: must build_piece with the mode sax before querying with it')
+                    candidate_list = _query_sax_spark(query, self.subsequences_sax, dt_index,
+                                                      self.build_conf['n_segment'], self.build_conf['n_sax_symbols'])
             else:
-                candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, paa, data_list=dn)
+                candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, piecewise,
+                                              data_list=dn)
         else:
             print('bf_query: using buffered bf results')
         if use_cache:
@@ -259,7 +273,7 @@ class GenexEngine:
         self.stop()
         self.mp_context = _multiprocess_backend(use_spark, **kwargs)
 
-    def build_paa(self, paa_c: float, _dummy_slicing: bool=False):
+    def build_piecewise(self, mode: str, n_segment: int = 3, n_sax_symbols: int = 8, _dummy_slicing: bool = False):
         """
         preprocess function that must be run before calling PAA query
         must be run after build, because the subsequences are otherwise empty
@@ -267,22 +281,25 @@ class GenexEngine:
         :param resize_by:
         """
         if self.subsequences is None:  # must be run after building
-            raise Exception\
+            raise Exception \
                 ('GenexEngine: engine not build, GenexEngine.build(...) must be called prior to this function')
         if self.is_using_spark():
             dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
-            if _dummy_slicing:
-                start, end = self.build_conf.get('loi')
-                ss_paaKv_rdd = _build_paa_spark(self.subsequences, paa_c, data_list=dn,
-                                                _dummy_slicing=_dummy_slicing, _sc=self.mp_context, _start=start, _end=end)
-            else:
-                ss_paaKv_rdd = _build_paa_spark(self.subsequences, paa_c, data_list=dn, _dummy_slicing=_dummy_slicing)  # ss_paaKv: subsequence PAA key-value pair
+            start, end = self.build_conf.get('loi')
+            piecewise_kv_rdd = _build_piecewise_spark(self.subsequences, mode, n_segment, n_sax_symbols, data_list=dn,
+                                                      _dummy_slicing=_dummy_slicing, _sc=self.mp_context, _start=start,
+                                                      _end=end)
+
         else:
             # _build_paa(self.mp_context)
             raise Exception('GenexEngine: prepare PAA is not implemented for non-spark version currently.')
-
-        self.subsequences_paa = ss_paaKv_rdd
-        self.build_conf['paa_c'] = paa_c
+        self.build_conf['n_segment'] = n_segment
+        if mode == 'paa':
+            self.subsequences_paa = piecewise_kv_rdd
+        elif mode == 'sax':
+            self.subsequences_sax = piecewise_kv_rdd
+            self.build_conf['n_sax_symbols'] = n_sax_symbols
+        self.build_conf['piecewise'] = set([*self.build_conf['piecewise'], mode])
 
     # def group_sequences(self):
     #     """
@@ -315,8 +332,9 @@ class GenexEngine:
         try:
             assert len(seq.fetch_data(self.data_normalized)) == sequence_len
         except AssertionError:
-            raise Exception('get_random_seq_of_len: given length does not have corresponding data. If you think this is '
-                            'an implementation error, please report to the Repository as an issue.')
+            raise Exception(
+                'get_random_seq_of_len: given length does not have corresponding data. If you think this is '
+                'an implementation error, please report to the Repository as an issue.')
 
         if with_data:
             seq.fetch_and_set_data(self.data_normalized)
@@ -454,26 +472,26 @@ class GenexEngine:
                 candidates = query_rdd.collect()
             else:
                 candidates = _query_mp(self.mp_context, self.clusters, **query_args)
-        #### testing distribute query vs. one-core query
-        # result_distributed = query_rdd.collect()
-        # result_distributed.sort(key=lambda x: x[0])
-        # result_distributed = result_distributed[:10]
-        # result_one_core = a
-        # result_one_core.sort(key=lambda x: x[0])
-        # result_one_core = result_one_core[:10]
-        # is_same = np.equal(result_distributed, result_one_core)
+            #### testing distribute query vs. one-core query
+            # result_distributed = query_rdd.collect()
+            # result_distributed.sort(key=lambda x: x[0])
+            # result_distributed = result_distributed[:10]
+            # result_one_core = a
+            # result_one_core.sort(key=lambda x: x[0])
+            # result_one_core = result_one_core[:10]
+            # is_same = np.equal(result_distributed, result_one_core)
 
-        # apply overlap
-        # note that we are using k here
-        # while len(c_dist_list) > 0 and len(query_result) < k:
-        #     c_dist = heapq.heappop(c_dist_list)
-        #     if overlap == 1.0 or exclude_same_id:
-        #         query_result.append(c_dist)
-        #     else:
-        #         if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
-        #                    query_result):  # check for overlap against all the matches so far
-        #             query_result.append(c_dist)
-        # return query_result
+            # apply overlap
+            # note that we are using k here
+            # while len(c_dist_list) > 0 and len(query_result) < k:
+            #     c_dist = heapq.heappop(c_dist_list)
+            #     if overlap == 1.0 or exclude_same_id:
+            #         query_result.append(c_dist)
+            #     else:
+            #         if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
+            #                    query_result):  # check for overlap against all the matches so far
+            #             query_result.append(c_dist)
+            # return query_result
             heapq.heapify(candidates)
             while len(candidates) > 0:
                 if len(best_matches) >= best_k:

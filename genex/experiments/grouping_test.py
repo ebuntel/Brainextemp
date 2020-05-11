@@ -131,7 +131,7 @@ def experiment_genex(data, output, feature_num, num_sample, query_split,
         # Pure PAA Query
         start = time.time()
         print('Running Pure PAA Query ...')
-        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=paa_c)
+        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _piecewise=paa_c)
         paa_time = time.time() - start
         print('Pure PAA query took ' + str(paa_time) + ' sec')
 

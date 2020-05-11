@@ -2,7 +2,7 @@ import math
 import multiprocessing
 
 from genex.op.cluster_op import _build_clusters, _cluster_to_meta, _cluster_reduce_func, _build_clusters_dynamic
-from genex.op.query_op import _get_dist_query, _query_partition
+from genex.op.query_op import _get_dist_sequence, _query_partition
 from genex.utils.utils import flatten
 from genex.utils.process_utils import _grouper, _group_time_series, reduce_by_key, get_second
 
@@ -67,7 +67,7 @@ def _query_bf_mp(query, p: multiprocessing.pool, subsequences: list, dt_index, p
         raise Exception('multiprocess_utils: PAA algorithm is not currently supported for Pyhton native multiprocessing'
                         ', please use the Spark implementation')
     dist_subsequences_arg = [(query, x, dt_index, paa, data_list) for x in subsequences]
-    dist_subsequences = p.starmap(_get_dist_query, dist_subsequences_arg)
+    dist_subsequences = p.starmap(_get_dist_sequence, dist_subsequences_arg)
     return dist_subsequences
 
 
