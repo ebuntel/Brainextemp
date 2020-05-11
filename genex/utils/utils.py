@@ -257,7 +257,9 @@ def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
 
 
 def _calculate_overlap(seq1, seq2) -> float:
-    if seq2.end > seq1.end and seq2.start >= seq1.start:
+    if seq1 == seq2:
+        return 1.0
+    elif seq2.end > seq1.end and seq2.start >= seq1.start:
         return (seq1.end - seq2.start + 1) / (seq2.end - seq1.start + 1)
     elif seq1.end > seq2.end and seq1.start >= seq2.start:
         return (seq2.end - seq1.start + 1) / (seq1.end - seq2.start + 1)
@@ -277,7 +279,7 @@ def _calculate_overlap(seq1, seq2) -> float:
 
     elif seq2.start > seq1.end or seq1.start > seq2.end:  # does not overlap at all
         return 0.0
-    else:
-        print(seq1)
-        print(seq2)
-        raise Exception('FATAL: sequence 100% overlap, please report the bug')
+    # else:
+        # print(seq1)
+        # print(seq2)
+        # raise Exception('FATAL: sequence 100% overlap, please report the bug')

@@ -408,6 +408,11 @@ class GenexEngine:
             raise Exception('Give sequence is not in the dataset')
         return seq.fetch_data(self.data_original) if not normalize else seq.fetch_data(self.data_normalized)
 
+    def set_seq_data(self, seq: Sequence, normalize=False):
+        if not self.is_id_exists(seq):
+            raise Exception('Give sequence is not in the dataset')
+        seq.fetch_and_set_data(self.data_original) if not normalize else seq.fetch_data(self.data_normalized)
+
     def query(self, query, best_k: int,
               exclude_same_id: bool = False, overlap: float = 1.0,
               _lb_opt: bool = False, _ke=None, _radius: int = 1, _ke_factor: int = 1):
@@ -422,7 +427,8 @@ class GenexEngine:
         :param: query: Sequence to be queried
         :param best_k: Number of best matches to retrieve
         :param exclude_same_id: Whether to exclude query sequence in the retrieved matches
-        :param overlap: Value for overlapping parameter (Must be between 0 and 1 inclusive)
+        :param overlap: Value for overlapping parameter (Must be between 0 and 1 inclusive), this is to say any pair in
+        the query result will no overlap more than <overlap> percent
 
         :return: a list containing k best matches for given query sequence
         """
@@ -437,19 +443,17 @@ class GenexEngine:
         q = self.mp_context.broadcast(query) if self.is_using_spark() else query
         # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
         query_args = {'q': q, 'k': best_k, 'ke': _ke, 'data_normalized': dn, 'pnorm': dt_pnorm_dict[dist_type],
-                      'lb_opt': _lb_opt, 'overlap': overlap, 'exclude_same_id': exclude_same_id, 'radius': _radius,
-                      'st': st
+                      'lb_opt': _lb_opt, 'exclude_same_id': exclude_same_id, 'radius': _radius,
+                      'st': st, 'overlap': overlap
                       }
-        if self.is_using_spark():  # The only place in query where it checks if is using Spark
-
-            query_rdd: RDD = self.clusters.mapPartitions(
-                lambda c: _query_partition(**query_args, cluster=c))
-            candidates = query_rdd.collect()
-            q.destroy()
-            query_rdd.unpersist()
-        else:
-            candidates = _query_mp(self.mp_context, self.clusters, **query_args)
-
+        best_matches = []
+        while len(best_matches) < best_k:
+            if self.is_using_spark():  # The only place in query where it checks if is using Spark
+                query_rdd: RDD = self.clusters.mapPartitions(
+                    lambda c: _query_partition(**query_args, cluster=c, prev_matches=best_matches))
+                candidates = query_rdd.collect()
+            else:
+                candidates = _query_mp(self.mp_context, self.clusters, **query_args)
         #### testing distribute query vs. one-core query
         # result_distributed = query_rdd.collect()
         # result_distributed.sort(key=lambda x: x[0])
@@ -459,12 +463,30 @@ class GenexEngine:
         # result_one_core = result_one_core[:10]
         # is_same = np.equal(result_distributed, result_one_core)
 
-        heapq.heapify(candidates)
-        best_matches = []
-
-        for i in range(best_k):
-            best_matches.append(heapq.heappop(candidates))
-
+        # apply overlap
+        # note that we are using k here
+        # while len(c_dist_list) > 0 and len(query_result) < k:
+        #     c_dist = heapq.heappop(c_dist_list)
+        #     if overlap == 1.0 or exclude_same_id:
+        #         query_result.append(c_dist)
+        #     else:
+        #         if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
+        #                    query_result):  # check for overlap against all the matches so far
+        #             query_result.append(c_dist)
+        # return query_result
+            heapq.heapify(candidates)
+            while len(candidates) > 0:
+                if len(best_matches) >= best_k:
+                    break
+                this_c = heapq.heappop(candidates)
+                if overlap == 1.0 or exclude_same_id:  # needless to consider overlap if same if as already been excluded
+                    best_matches.append(this_c)
+                else:  # if consider overlap
+                    if not any(_isOverlap(this_c[1], prev_match[1], overlap) for prev_match in best_matches):
+                        best_matches.append(this_c)
+                pass
+        q.destroy()
+        query_rdd.unpersist()
         return best_matches
 
     def query_on_batch(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,

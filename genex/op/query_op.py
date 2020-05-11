@@ -69,7 +69,7 @@ def _get_dist_paa(q_paa_data: Sequence, paa_data: np.ndarray, dt_index):
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
-                     lb_opt: bool,  overlap: float, exclude_same_id: bool, radius: int, st: float):
+                     lb_opt: bool, exclude_same_id: bool, radius: int, st: float, overlap: float, prev_matches: list = []):
     """
     This function finds k best matches for given query sequence on the worker node
 
@@ -112,7 +112,8 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
             # print('searching')
             target_cluster = cluster_dict[target_l]
             target_reprs = target_cluster.keys()
-            r_data = [x.fetch_data(data_normalized) for x in target_reprs]  # fetch data_original for the representatives
+            r_data = [x.fetch_data(data_normalized) for x in
+                      target_reprs]  # fetch data_original for the representatives
 
             # start = time.time()
             # this_candidates = get_sequences_represented(
@@ -128,8 +129,7 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
                     bsf_search_rspace(q, k, r_data, r_list=target_reprs, cluster=target_cluster, st=st, dt_index=pnorm)
             else:
                 this_candidates = \
-                    naive_search_rspace(q, k, r_data, r_list=target_reprs, cluster=target_cluster, dt_index=pnorm)
-
+                    naive_search_rspace(q, k, r_data, r_list=target_reprs, cluster=target_cluster, dt_index=pnorm, overlap=overlap, prev_matches=prev_matches)
             candidates += this_candidates
             cluster_dict.pop(target_l)
         radius += 1  # ready to search the next length
@@ -145,41 +145,38 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
     # start = time.time()
     # rtn = naive_search(q, k, candidates, overlap, exclude_same_id)
     # duration_nonopt = time.time() - start
-
     if lb_opt == 'bsf':
-        # print('Using bsf')
         return bsf_search(q, k, c_data, candidates, dt_index=pnorm)
     else:
-        # print('Using naive')
-        return naive_search(q, k, c_data, candidates, overlap, exclude_same_id, dt_index=pnorm)
+        return naive_search(q, k, c_data, candidates, dt_index=pnorm)
 
 
-def naive_search_rspace(q, k, r_data, r_list, cluster, dt_index):
+def naive_search_rspace(q, k, r_data, r_list, cluster, dt_index, overlap, prev_matches):
     c_list = []
-    target_reprs = [(sim_between_array(rd, q.get_data(), dt_index), r) for rd, r in zip(r_data, r_list)]  # calculate DTW
+    target_reprs = [(sim_between_array(rd, q.get_data(), dt_index), r) for rd, r in
+                    zip(r_data, r_list)]  # calculate DTW
     heapq.heapify(target_reprs)  # heap sort R-space
     # get enough sequence from the clusters represented to query
     while len(target_reprs) > 0 and len(c_list) < k:
         this_repr = heapq.heappop(target_reprs)[
             1]  # take the second element for the first one is the DTW dist
-        c_list += (cluster[this_repr])
+        # filter by overlap
+        target_cluster = cluster[this_repr] if overlap == 1.0 else [c for c in cluster[this_repr] if not any(_isOverlap(c, pv_c[1], overlap) for pv_c in prev_matches)]
+        c_list += (target_cluster)
     return c_list
 
 
-def naive_search(q: Sequence, k: int, c_data, candidates: list, overlap: float, exclude_same_id: bool, dt_index: int):
+def naive_search(q: Sequence, k: int, c_data, candidates: list, dt_index: int):
     query_result = []
     c_dist_list = [(sim_between_array(cd, q.get_data(), dt_index), c) for cd, c in zip(c_data, candidates)]
     heapq.heapify(c_dist_list)
 
+    # k = k if overlap == 1.0 or exclude_same_id else int((1000 * k) / (1 - overlap))
+    # print(k)
     # note that we are using k here
     while len(c_dist_list) > 0 and len(query_result) < k:
-        c_dist = heapq.heappop(c_dist_list)
-        if overlap == 1.0 or not exclude_same_id:
-            query_result.append(c_dist)
-        else:
-            if not any(_isOverlap(c_dist[1], prev_match[1], overlap) for prev_match in
-                       query_result):  # check for overlap against all the matches so far
-                query_result.append(c_dist)
+        query_result.append(heapq.heappop(c_dist_list))
+
     return query_result
 
 
@@ -201,7 +198,7 @@ def bsf_search(q, k, c_data, candidates, dt_index: int):
             # interpolate for keogh calculation
             if len(c) != len(q):
                 c_interp_data = np.interp(np.linspace(0, 1, len(q)),
-                                                  np.linspace(0, 1, len(cd)), cd)
+                                          np.linspace(0, 1, len(cd)), cd)
             else:
                 c_interp_data = cd
             if -lb_keogh_sequence(c_interp_data, q.data) < query_result[0][0]:
@@ -246,7 +243,7 @@ def bsf_search_rspace(q, ke, r_data, r_list, cluster, st, dt_index: int):
             # interpolate for keogh calculation
             if len(r) != len(q):
                 r_interp_data = np.interp(np.linspace(0, 1, len(q)),
-                                                  np.linspace(0, 1, len(rd)), rd)
+                                          np.linspace(0, 1, len(rd)), rd)
             else:
                 r_interp_data = rd
             # b = lb_keogh_sequence(candidate_interp_data, q.data)

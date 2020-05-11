@@ -38,9 +38,11 @@ def _cluster_multi_process(p: multiprocessing.pool, data_normalized, start, end,
 
     """
     if _use_dynamic:
-        # cluster_partition = []
-        # for arg in cluster_arg_partition:
-        #     cluster_partition.append(_build_clusters_dynamic(*arg))
+        cluster_arg_partition = [x + (pnorm,) for x in cluster_arg_partition]
+
+        cluster_partition = []
+        for arg in cluster_arg_partition:
+            cluster_partition.append(_build_clusters_dynamic(*arg))
 
         cluster_partition = p.starmap(_build_clusters_dynamic, cluster_arg_partition)
     else:
