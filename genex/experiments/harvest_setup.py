@@ -95,7 +95,7 @@ def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split
 
     print('Preparing PAA Subsequences')
     start = time.time()
-    gxe.build_paa(paa_seg, _dummy_slicing=True)
+    gxe.build_piecewise(paa_seg, _dummy_slicing=True)
     paa_build_time = time.time() - start
     print('Prepare PAA subsequences took ' + str(paa_build_time))
 
@@ -129,7 +129,7 @@ def experiment_genex(mp_args, data, output, feature_num, num_sample, query_split
         # Pure PAA Query
         start = time.time()
         print('Running Pure PAA Query ...')
-        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=True)
+        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _piecewise=True)
         paa_time = time.time() - start
         print('Pure PAA query took ' + str(paa_time) + ' sec')
 
@@ -203,26 +203,26 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
 
 
 def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
-                _lb_opt, radius, use_spark, loi_range, st, paa_seg, test_option='BrainEX', test_PAA=True):
+                _lb_opt, radius, use_spark, loi_range, st, n_segment, test_option='BrainEX'):
     options = ['regular', 'DSS', 'dynamic']
     for i, es in enumerate(exp_set):
         print('$$ Running experiment set: ' + str(i) + ' of ' + str(len(exp_set)))
         if test_option == 'DSS':
             experiment_genex_dss(mp_args, **es, num_sample=num_sample, query_split=query_split, cases_split=cases_split,
                                  _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
-                                 paa_seg=paa_seg)
+                                 paa_seg=n_segment)
         elif test_option == 'regular':
             experiment_genex(mp_args, **es, num_sample=num_sample, query_split=query_split,
                              _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
-                             paa_seg=paa_seg)
+                             paa_seg=n_segment)
         elif test_option == 'dynamic':
             experiment_genex_dynamic(mp_args, **es, num_sample=num_sample, query_split=query_split,
                                      _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
-                                     paa_seg=paa_seg)
+                                     paa_seg=n_segment)
         elif test_option == 'BrainEX':
             experiment_BrainEX(mp_args, **es, num_sample=num_sample, query_split=query_split,
                                _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, loi_range=loi_range, st=st,
-                               paa_seg=paa_seg, test_PAA=test_PAA)
+                               n_segment=n_segment)
         else:
             raise Exception('Unrecognized test option, it must be one of the following: ' + str(options))
 
@@ -313,7 +313,7 @@ def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_s
 
         print('Preparing PAA Subsequences')
         start = time.time()
-        gxe.build_paa(paa_seg, _dummy_slicing=True)
+        gxe.build_piecewise(paa_seg, _dummy_slicing=True)
         paa_build_time = time.time() - start
         print('Prepare PAA subsequences took ' + str(paa_build_time))
 
@@ -329,7 +329,7 @@ def experiment_genex_dss(mp_args, data, output, feature_num, num_sample, query_s
 
             start = time.time()
             print('Running Pure PAA Query ...')
-            query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=True)
+            query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _piecewise=True)
             paa_time = time.time() - start
             print('Pure PAA query took ' + str(paa_time) + ' sec')
 
@@ -474,7 +474,7 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
 
     print('Preparing PAA Subsequences')
     start = time.time()
-    gxe.build_paa(paa_seg, _dummy_slicing=True)
+    gxe.build_piecewise(paa_seg, _dummy_slicing=True)
     paa_build_time = time.time() - start
     print('Prepare PAA subsequences took ' + str(paa_build_time))
 
@@ -490,7 +490,7 @@ def experiment_genex_dynamic(mp_args, data, output, feature_num, num_sample, que
 
         start = time.time()
         print('Running Pure PAA Query ...')
-        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _paa=True)
+        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _piecewise=True)
         paa_time = time.time() - start
         print('Pure PAA query took ' + str(paa_time) + ' sec')
 

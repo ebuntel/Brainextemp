@@ -68,7 +68,8 @@ if __name__ == "__main__":
 
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
 
-    dist_types_to_test = ['eu', 'ma', 'ch']
+    dist_types_to_test = ['eu']
+    # dist_types_to_test = ['eu', 'ma', 'ch']
 
     ex_config_test = {
         'num_sample': math.inf,
@@ -78,7 +79,7 @@ if __name__ == "__main__":
         'use_spark': True,
         'loi_range': 1.0,
         'st': 0.1,
-        'paa_seg': 3,
+        'n_segment': 3,
         'test_option': 'BrainEX',
 
         'cases_split': 0.01,

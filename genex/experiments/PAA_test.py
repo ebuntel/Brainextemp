@@ -22,13 +22,13 @@ mygxe.build(st=0.1)
 print('Building took ' + str(time.time() - start) + ' sec')
 
 start = time.time()
-mygxe.build_paa(0.5, _dummy_slicing=True)
+mygxe.build_piecewise(0.5, _dummy_slicing=True)
 print('Build PAA took ' + str(time.time() - start) + ' sec')
 
 q = mygxe.get_random_seq_of_len(20, seed=1)
 
 start = time.time()
-qr_PAA = mygxe.query_brute_force(query=q, best_k=5, _paa=True)
+qr_PAA = mygxe.query_brute_force(query=q, best_k=5, _piecewise=True)
 durationPAA = time.time() - start
 
 
