@@ -151,7 +151,8 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
                                   'num_query': len(query_set)}, ignore_index=True)
     for i, q in enumerate(query_set):
         this_record = q_records[str(q)]
-        result_df = result_df.append({'query': str(q), 'query_len': len(q),
+        result_df = result_df.append({'query': str(q) + ': ' + str(np.array(gxe.get_seq_data(q, normalize=False)).tostring()),
+                                      'query_len': len(q),
                                       'bf_query_time': this_record['bf_query_time'],
                                       'paa_query_time': this_record['paa_query_time'],
                                       'gx_query_time': this_record['gx_query_time'],
