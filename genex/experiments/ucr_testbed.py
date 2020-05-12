@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # output_reg = '/home/apocalyvec/data/UCR_test'
     # output_dss = '/home/apocalyvec/data/UCR_DSS_test'
     # output_dyn = '/home/apocalyvec/data/UCR_dyn_test'
-    output = '/home/apocalyvec/data/UCR_BrainEX_test/medium'
+    output = '/home/apocalyvec/data/UCR_BrainEX_test/small'
 
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
 
