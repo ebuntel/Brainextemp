@@ -1,11 +1,8 @@
 import math
 
 import numpy as np
-from saxpy.alphabet import cuts_for_asize
 from tslearn import metrics
 from tslearn.piecewise import PiecewiseAggregateApproximation, SymbolicAggregateApproximation
-from saxpy.paa import paa
-from saxpy.sax import ts_to_string
 
 from genex.classes.Sequence import Sequence
 

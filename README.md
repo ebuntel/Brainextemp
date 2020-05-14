@@ -1,4 +1,4 @@
-# Genex
+# BrainEX
 This repository is a General Exploration System that implements DTW in exploring time series.
 This program implements the algorithm described in these papers:
 
