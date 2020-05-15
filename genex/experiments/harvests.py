@@ -84,7 +84,7 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
     gxe.build_piecewise(mode='paa', n_segment=n_segment, _dummy_slicing=True)
     paa_build_time = time.time() - start
     print('Prepare PAA subsequences took ' + str(paa_build_time))
-    paa_build_time = cluster_time_gx
+    paa_build_time = paa_build_time
 
     print('Preparing SAX Subsequences')
     start = time.time()
