@@ -18,7 +18,7 @@ if __name__ == '__main__':
     # date = 'Jan-30-2020-12-N-UseSpark-R1-noOptFastDTW_numSample400'
     # notes = 'UseSpark-R1-noOptFastDTW_numSample400'
     notes = 'UCR_Small[0-50000]'
-    root = 'results/ucr_experiment/GeneralizedDSS/Apr-29-2020-15-N-UCR_test_soi_0-to-50000'
+    root = 'results/ucr_experiment/small'
     file_list = os.listdir(root)
     file_list = [os.path.join(root, x) for x in file_list]
 
@@ -40,6 +40,7 @@ if __name__ == '__main__':
         fd = {x: x for x in file_list if '_' + dt + '.csv' in x}  # filter to get the result of a specific dist type
         # plot the clustering time as a heatmap across data length and data rows
         bin_paa_prep_time = []
+        bin_sax_prep_time = []
         bin_gx_prep_time = []
         bin_dss_prep_time = []
 
@@ -47,10 +48,12 @@ if __name__ == '__main__':
 
         bin_qbf_time = []  # query brute force
         bin_qpaa_time = []  # query paa
+        bin_qsax_time = []  # query paa
         bin_qgx_time = []  # query genex
         bin_qdss_time = []  # query genex
 
         bin_qpaa_error = []
+        bin_qsax_error = []
         bin_qgx_error = []
         bin_qdss_error = []
 
@@ -59,33 +62,39 @@ if __name__ == '__main__':
             df = pd.read_csv(result_file)
 
             # information about this dataset's result
-            size = df.iloc[(0, 24)]
+            size = df.iloc[(0, 29)]
 
             paa_prep_time = df.iloc[(0, 1)]
-            gx_prep_time = df.iloc[(0, 2)]
-            dss_prep_time = df.iloc[(0, 3)]
+            sax_prep_time = df.iloc[(0, 2)]
+            gx_prep_time = df.iloc[(0, 3)]
+            dss_prep_time = df.iloc[(0, 4)]
 
-            qbf_time = [x for x in df.iloc[:, 6].values if not np.isnan(x)]
-            qpaa_time = [x for x in df.iloc[:, 7].values if not np.isnan(x)]
-            qgx_time = [x for x in df.iloc[:, 8].values if not np.isnan(x)]
-            qdss_time = [x for x in df.iloc[:, 9].values if not np.isnan(x)]
+            qbf_time = [x for x in df.iloc[:, 7].values if not np.isnan(x)]
+            qpaa_time = [x for x in df.iloc[:, 8].values if not np.isnan(x)]
+            qsax_time = [x for x in df.iloc[:, 9].values if not np.isnan(x)]
+            qgx_time = [x for x in df.iloc[:, 10].values if not np.isnan(x)]
+            qdss_time = [x for x in df.iloc[:, 11].values if not np.isnan(x)]
 
-            qpaa_error = [x for x in df.iloc[:, 10].values if not np.isnan(x)]
-            qgx_error = [x for x in df.iloc[:, 11].values if not np.isnan(x)]
-            qdss_error = [x for x in df.iloc[:, 12].values if not np.isnan(x)]
+            qpaa_error = [x for x in df.iloc[:, 12].values if not np.isnan(x)]
+            qsax_error = [x for x in df.iloc[:, 13].values if not np.isnan(x)]
+            qgx_error = [x for x in df.iloc[:, 14].values if not np.isnan(x)]
+            qdss_error = [x for x in df.iloc[:, 15].values if not np.isnan(x)]
 
             bin_size.append(size)
 
             bin_paa_prep_time.append(paa_prep_time)
+            bin_sax_prep_time.append(sax_prep_time)
             bin_gx_prep_time.append(gx_prep_time)
             bin_dss_prep_time.append(dss_prep_time)
 
             bin_qbf_time.append(np.mean(qbf_time))
+            bin_qsax_time.append(np.mean(qsax_time))
             bin_qpaa_time.append(np.mean(qpaa_time))
             bin_qgx_time.append(np.mean(qgx_time))
             bin_qdss_time.append(np.mean(qdss_time))
 
             bin_qpaa_error.append(np.mean(qpaa_error))
+            bin_qsax_error.append(np.mean(qsax_error))
             bin_qgx_error.append(np.mean(qgx_error))
             bin_qdss_error.append(np.mean(qdss_error))
             pass
@@ -94,23 +103,23 @@ if __name__ == '__main__':
         prep_line = np.linspace(min(bin_size), max(bin_size), 100)
 
         # Plot the Cluster Time
-        fig, ax = plt.subplots()
-        fig.set_size_inches(15, 8)
-        plt.title('Cluster time across Data Size for Distance Type: ' + dt_dict[dt] + note)
-        # plt.scatter(bin_size, bin_paa_prep_time, c='blue', label='PAA Preparation Time')
-
-        model = np.poly1d(np.polyfit(bin_size, bin_gx_prep_time, 3))
-        plt.plot(prep_line, model(prep_line), label='Genex Cluster Time Fitted', c='cyan')
-        plt.scatter(bin_size, bin_gx_prep_time, c='cyan', label='Genex Cluster Time', marker='x')
-
-        model = np.poly1d(np.polyfit(bin_size, bin_dss_prep_time, 3))
-        plt.plot(prep_line, model(prep_line), label='DSS Cluster Time Fitted', c='green')
-        plt.scatter(bin_size, bin_dss_prep_time, c='green', label='DSS Cluster Time', marker='x')
-        plt.ylabel('Time (second)')
-        plt.xlabel('Time series length (number of data points)')
-        # plt.ylim(-1, 25)
-        plt.legend()
-        plt.show()
+        # fig, ax = plt.subplots()
+        # fig.set_size_inches(15, 8)
+        # plt.title('Cluster time across Data Size for Distance Type: ' + dt_dict[dt] + note)
+        # # plt.scatter(bin_size, bin_paa_prep_time, c='blue', label='PAA Preparation Time')
+        #
+        # model = np.poly1d(np.polyfit(bin_size, bin_gx_prep_time, 3))
+        # plt.plot(prep_line, model(prep_line), label='Genex Cluster Time Fitted', c='cyan')
+        # plt.scatter(bin_size, bin_gx_prep_time, c='cyan', label='Genex Cluster Time', marker='x')
+        #
+        # model = np.poly1d(np.polyfit(bin_size, bin_dss_prep_time, 3))
+        # plt.plot(prep_line, model(prep_line), label='DSS Cluster Time Fitted', c='green')
+        # plt.scatter(bin_size, bin_dss_prep_time, c='green', label='DSS Cluster Time', marker='x')
+        # plt.ylabel('Time (second)')
+        # plt.xlabel('Time series length (number of data points)')
+        # # plt.ylim(-1, 25)
+        # plt.legend()
+        # plt.show()
 
         # Plot the Query Time
         fig, ax = plt.subplots()
@@ -120,13 +129,26 @@ if __name__ == '__main__':
         # plt.scatter(bin_size, bin_qbf_time, c='red', label='Brute Force Query Time')
         # plt.scatter(bin_size, bin_qpaa_time, c='orange', label='PAA Query Time')
 
+        model = np.poly1d(np.polyfit(bin_size, bin_qbf_time, 3))  # change the Y vector in this line
+        plt.plot(prep_line, model(prep_line), label='Brute Force Query Time Fitted', c='red')
+        plt.scatter(bin_size, bin_qbf_time, c='red', label='Brute Force Query Time')
+
+        model = np.poly1d(np.polyfit(bin_size, bin_qsax_time, 3))  # change the Y vector in this line
+        plt.plot(prep_line, model(prep_line), label='SAX Query Time Fitted', c='orange')
+        plt.scatter(bin_size, bin_qsax_time, c='orange', label='SAX Query Time')
+
+        model = np.poly1d(np.polyfit(bin_size, bin_qpaa_time, 3))  # change the Y vector in this line
+        plt.plot(prep_line, model(prep_line), label='PAA Query Time Fitted', c='magenta')
+        plt.scatter(bin_size, bin_qpaa_time, c='magenta', label='PAA Query Time')
+
         model = np.poly1d(np.polyfit(bin_size, bin_qgx_time, 3))  # change the Y vector in this line
-        plt.plot(prep_line, model(prep_line), label='Genex Query Time Fitted', c='cyan')
+        plt.plot(prep_line, model(prep_line), label='Genex Query Time Fitted', c='blue')
         plt.scatter(bin_size, bin_qgx_time, c='blue', label='Genex Query Time')
 
         model = np.poly1d(np.polyfit(bin_size, bin_qdss_time, 3))  # change the Y vector in this line
         plt.plot(prep_line, model(prep_line), label='DSS Cluster Time Fitted', c='green')
         plt.scatter(bin_size, bin_qdss_time, c='green', label='DSS Query Time')
+
         plt.ylabel('Time (second)')
         plt.xlabel('Time series length (number of data points)')
         # plt.ylim(-1, 25)
@@ -143,8 +165,17 @@ if __name__ == '__main__':
 
         plt.title('Normalized Error across Data Size for Distance Type: ' + dt_dict[dt] + note)
         # plt.scatter(bin_size, bin_qpaa_error, c='orange', label='PAA Query Error')
+
+        model = np.poly1d(np.polyfit(bin_size, bin_qsax_error, 3))  # change the Y vector in this line
+        plt.plot(prep_line, model(prep_line), label='PAA Error Fitted', c='orange')
+        plt.scatter(bin_size, bin_qsax_error, c='orange', label='SAX Query Error')
+
+        model = np.poly1d(np.polyfit(bin_size, bin_qpaa_error, 3))  # change the Y vector in this line
+        plt.plot(prep_line, model(prep_line), label='PAA Error Fitted', c='magenta')
+        plt.scatter(bin_size, bin_qpaa_error, c='magenta', label='PAA Query Error')
+
         model = np.poly1d(np.polyfit(bin_size, bin_qgx_error, 3))  # change the Y vector in this line
-        plt.plot(prep_line, model(prep_line), label='Genex Query Error Fitted', c='cyan')
+        plt.plot(prep_line, model(prep_line), label='Genex Query Error Fitted', c='blue')
         plt.scatter(bin_size, bin_qgx_error, c='blue', label='Genex Query Error')
 
         model = np.poly1d(np.polyfit(bin_size, bin_qdss_error, 3))  # change the Y vector in this line
