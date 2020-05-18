@@ -120,7 +120,13 @@ def _validate_gxe_query_arguments(args: dict):
     :param args:
     :return:
     """
-    pass
+    filter_modes = ['any', 'all']
+    if args['id_filter']:
+        try:
+            assert args['filter_mode']
+            assert args['filter_mode'] in filter_modes
+        except AssertionError:
+            raise Exception('_validate_gxe_query_arguments: must provide a filter mode: "any" or "all"')
 
 
 def _df_to_list(df, feature_num):

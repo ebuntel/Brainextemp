@@ -432,12 +432,13 @@ class GenexEngine:
         seq.fetch_and_set_data(self.data_original) if not normalize else seq.fetch_data(self.data_normalized)
 
     def query(self, query, best_k: int,
-              id_filter=None, loi=None,
+              id_filter=None, filter_mode=None, loi=None,
               exclude_same_id: bool = False, overlap: float = 1.0,
               _lb_opt: bool = False, _ke=None, _radius: int = 1, _ke_factor: int = 1):
         """
         Find best k matches for given query sequence using Distributed Genex method
 
+        :param filter_mode: must be any or all
         :param loi:
         :param id_filter:
         :param _ke_factor:
@@ -454,6 +455,10 @@ class GenexEngine:
         :return: a list containing k best matches for given query sequence
         """
         _validate_gxe_query_arguments(locals())
+        if loi:
+            start, end = process_loi_query(loi, self.build_conf.get('loi'))
+            loi = (start, end)
+            pass
         query = self._process_query(query)
 
         _ke = self._process_ke(_ke_factor, best_k)
@@ -464,15 +469,10 @@ class GenexEngine:
         q = self.mp_context.broadcast(query) if self.is_using_spark() else query
         # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
 
-        if loi:
-            start, end = process_loi_query(loi, self.build_conf.get('loi'))
-            loi = (start, end)
-            pass
-
         query_args = {'q': q, 'k': best_k, 'ke': _ke, 'data_normalized': dn, 'pnorm': dt_pnorm_dict[dist_type],
                       'lb_opt': _lb_opt, 'exclude_same_id': exclude_same_id, 'radius': _radius,
                       'st': st, 'overlap': overlap,
-                      'id_filter': id_filter, 'loi': loi
+                      'id_filter': id_filter, 'filter_mode': filter_mode, 'loi': loi
                       }
         best_matches = []
         while len(best_matches) < best_k:
