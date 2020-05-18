@@ -65,7 +65,8 @@ def _get_dist_array(a1: np.ndarray, a2: np.ndarray, dt_index):
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
-                     lb_opt: bool, exclude_same_id: bool, radius: int, st: float, overlap: float, prev_matches: list = []):
+                     lb_opt: bool, exclude_same_id: bool, radius: int, st: float, overlap: float, id_filter, loi,
+                     prev_matches: list = []):
     """
     This function finds k best matches for given query sequence on the worker node
 
@@ -88,6 +89,9 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
     cluster_dict = dict(list(reduce_by_key(lambda x, y: merge_dict([x, y]), cluster)))
     q_length = len(q.data)
     candidates = []
+    if loi:  # filter by LOI
+        cluster_dict = dict([(c_len, c) for c_len, c in cluster_dict.items() if loi[0] <= c_len <= loi[1]])
+
     # cluster_filtered = [x for x in cluster if x[0] in range(loi.start, loi.stop)] if loi is not None else cluster
     # cluster_dict = dict(list(reduce_by_key(lambda x, y: merge_dict([x, y]), cluster_filtered)))
     # try:

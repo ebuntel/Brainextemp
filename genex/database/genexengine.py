@@ -21,7 +21,7 @@ from genex.op.query_op import _query_partition
 from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broadcast_kwargs, _destory_kwarg_bc, \
     _build_piecewise_spark, _query_paa_spark, _query_sax_spark
 from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxe_query_arguments, _isOverlap, \
-    flatten
+    flatten, process_loi_query
 from genex.utils.context_utils import _multiprocess_backend
 
 from genex.utils.mutiprocess_utils import _cluster_multi_process, _query_bf_mp, _query_mp
@@ -432,11 +432,14 @@ class GenexEngine:
         seq.fetch_and_set_data(self.data_original) if not normalize else seq.fetch_data(self.data_normalized)
 
     def query(self, query, best_k: int,
+              id_filter=None, loi=None,
               exclude_same_id: bool = False, overlap: float = 1.0,
               _lb_opt: bool = False, _ke=None, _radius: int = 1, _ke_factor: int = 1):
         """
         Find best k matches for given query sequence using Distributed Genex method
 
+        :param loi:
+        :param id_filter:
         :param _ke_factor:
         :param _lb_opt:
         :param query:
@@ -460,9 +463,16 @@ class GenexEngine:
         dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
         q = self.mp_context.broadcast(query) if self.is_using_spark() else query
         # order of this kwargs MUST be perserved in accordance to genex.op.query_op._query_partition
+
+        if loi:
+            start, end = process_loi_query(loi, self.build_conf.get('loi'))
+            loi = (start, end)
+            pass
+
         query_args = {'q': q, 'k': best_k, 'ke': _ke, 'data_normalized': dn, 'pnorm': dt_pnorm_dict[dist_type],
                       'lb_opt': _lb_opt, 'exclude_same_id': exclude_same_id, 'radius': _radius,
-                      'st': st, 'overlap': overlap
+                      'st': st, 'overlap': overlap,
+                      'id_filter': id_filter, 'loi': loi
                       }
         best_matches = []
         while len(best_matches) < best_k:

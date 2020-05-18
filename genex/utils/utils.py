@@ -159,24 +159,24 @@ def _process_loi(loi, max_len):
     """
     if loi is not None:
         try:
-            loi[0] < max_len
+            assert loi[0] < max_len
         except AssertionError:
             raise Exception('Error: the start of the Length of interest must be smaller than the longest sequence in '
                             'the original dataset. Given ' + str(loi[0]) + '; Max len is ' + str(max_len))
         try:
-            loi[0] >= 1
+            assert loi[0] >= 1
         except AssertionError:
             raise Exception('The start of Length of interest must be an integer greater than 0.')
 
         start = max(1, loi[0])
         if len(loi) == 2:
             try:
-                loi[1] >= 1
+                assert loi[1] >= 1
             except AssertionError:
                 raise Exception('The end of Length of interest must be an integer greater than 0.')
 
             try:
-                loi[1] >= loi[0]
+                assert loi[1] >= loi[0]
             except AssertionError:
                 raise Exception('The start of Length of interest must be less than or equal to the end')
 
@@ -193,6 +193,23 @@ def _process_loi(loi, max_len):
         start = 1
         end = max_len
     return int(start), int(end)
+
+
+def process_loi_query(loi, build_loi):
+    """
+    resolve the start and end in gxe.query(), the max_len and min_len should be from the build configs
+    :param loi:
+    :param max_len:
+    :param min_len:
+    """
+    min_len, max_len = build_loi
+    start, end = _process_loi(loi, max_len=max_len)
+    try:
+        assert start >= min_len
+    except AssertionError:
+        raise Exception('process_loi_query: given starting length is shorter than build starting length, build_start=' +
+                        str(min_len))
+    return start, end
 
 
 from functools import reduce
