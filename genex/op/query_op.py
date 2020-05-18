@@ -65,7 +65,9 @@ def _get_dist_array(a1: np.ndarray, a2: np.ndarray, dt_index):
 
 
 def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
-                     lb_opt: bool, exclude_same_id: bool, radius: int, st: float, overlap: float, prev_matches: list = []):
+                     lb_opt: bool, exclude_same_id: bool, radius: int, st: float,
+                     overlap: float, id_filter, filter_mode, loi,
+                     prev_matches: list = []):
     """
     This function finds k best matches for given query sequence on the worker node
 
@@ -88,6 +90,9 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
     cluster_dict = dict(list(reduce_by_key(lambda x, y: merge_dict([x, y]), cluster)))
     q_length = len(q.data)
     candidates = []
+    if loi:  # filter by LOI
+        cluster_dict = dict([(c_len, c) for c_len, c in cluster_dict.items() if loi[0] <= c_len <= loi[1]])
+
     # cluster_filtered = [x for x in cluster if x[0] in range(loi.start, loi.stop)] if loi is not None else cluster
     # cluster_dict = dict(list(reduce_by_key(lambda x, y: merge_dict([x, y]), cluster_filtered)))
     # try:
@@ -132,20 +137,41 @@ def _query_partition(cluster, q, k: int, ke: int, data_normalized, pnorm: int,
 
     # process exclude same id
     candidates = [x for x in candidates if x.seq_id != q.seq_id] if exclude_same_id else candidates
-    c_data = [x.fetch_data(data_normalized) for x in candidates]  # fetch data_original for the candidates]
+    if id_filter:  # filter by seq id
+        if filter_mode == 'any':
+            candidates = [x for x in candidates if (check_id_any(x.seq_id, id_filter))]
+        if filter_mode == 'all':
+            candidates = [x for x in candidates if (check_id_all(x.seq_id, id_filter))]
+    if len(candidates) == 0:
+        return []
+
+    # fetch data_original for the candidates
+    c_data = [x.fetch_data(data_normalized) for x in candidates]
     # print('# Sequences in the candidate list:: ' + str(len(candidates)))
 
-    # start = time.time()
-    # rtn = bsf_search(q, k, candidates)
-    # duration_opt = time.time() - start
-    # start = time.time()
-    # rtn = naive_search(q, k, candidates, overlap, exclude_same_id)
-    # duration_nonopt = time.time() - start
     if lb_opt == 'bsf':
         return bsf_search(q, k, c_data, candidates, dt_index=pnorm)
     else:
         return naive_search(q, k, c_data, candidates, dt_index=pnorm)
 
+
+def check_id_any(ids1: tuple, ids2: tuple):
+    """
+    check if there are common elements in two id tuple
+    :param ids1:
+    :param ids2:
+    :return:
+    """
+    return len(set(ids1).intersection(ids2)) > 0
+
+
+def check_id_all(candidate_ids: tuple, filter_ids: tuple):
+    """
+    return true only when all the elements in filter_ids are present in candidate_ids
+    :param candidate_ids:
+    :param filter_ids:
+    """
+    return set(filter_ids).issubset(set(candidate_ids))
 
 def naive_search_rspace(q, k, r_data, r_list, cluster, dt_index, overlap, prev_matches):
     c_list = []
