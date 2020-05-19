@@ -156,7 +156,7 @@ class GenexEngine:
         self.build_conf = {'similarity_threshold': st,
                            'dist_type': dist_type,
                            'loi': (start, end),
-                           'piecewise': set()}
+                           'piecewise': tuple()}
 
         # determine the distance calculation function
         try:
@@ -299,7 +299,7 @@ class GenexEngine:
         elif mode == 'sax':
             self.subsequences_sax = piecewise_kv_rdd
             self.build_conf['n_sax_symbols'] = n_sax_symbols
-        self.build_conf['piecewise'] = set([*self.build_conf['piecewise'], mode])
+        self.build_conf['piecewise'] = tuple(set([*self.build_conf['piecewise'], mode]))
 
     # def group_sequences(self):
     #     """
