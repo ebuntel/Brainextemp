@@ -1,12 +1,15 @@
+import os
 import time
+
+import findspark
 import matplotlib.pyplot as plt
 
 from genex.utils.gxe_utils import from_csv, from_db
 
-# spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
-# java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
-# os.environ['JAVA_HOME'] = java8_location
-# findspark.init(spark_home=spark_location)
+spark_location = '/Users/Leo/spark-2.4.3-bin-hadoop2.7' # Set your own
+java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
+os.environ['JAVA_HOME'] = java8_location
+findspark.init(spark_home=spark_location)
 
 # create gxdb from a csv file
 data = 'data/ItalyPower.csv'
@@ -50,7 +53,7 @@ query_result = mygxe.query(query=q, best_k=5, _lb_opt=True)
 # plot the query result
 plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
 for qr in query_result_0:
-    plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
+    plt.plot(qr[1].fetch_data(mygxe.data_normalized), label=str(qr[0]))
 plt.legend()
 plt.show()
 
