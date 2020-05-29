@@ -98,7 +98,7 @@ def _query_bf_spark(query, subsequence_rdd, dt_index, data_list):
 def _query_piecewise_spark(query, subsequence_rdd, dt_index, data_list, piecewise, n_segment):
     pp_rdd = subsequence_rdd.map(
         lambda x: _get_dist_sequence_piecewise(query, x, dt_index=dt_index, data_list=data_list.value,
-                                               piecewise= piecewise, n_segment=n_segment))
+                                               piecewise=piecewise, n_segment=n_segment))
     candidate_list = pp_rdd.collect()
     # clear data stored in the candidate list
 
@@ -113,8 +113,8 @@ def _query_paa_spark(query, paa_kv_rdd, dt_index, n_segment):
     return candidate_list
 
 
-def _query_sax_spark(query, sax_kv_rdd, dt_index, n_segment, n_sax_symbols):
-    q_sax_data = sax_compress(query.get_data(), n_segment, n_sax_symbols)
+def _query_sax_spark(query, sax_kv_rdd, dt_index, n_segment):
+    q_sax_data = sax_compress(query.get_data(), n_segment)
     sax_rdd = sax_kv_rdd.map(
         lambda x: (_get_dist_array(q_sax_data, x[1], dt_index=dt_index), x[0]))
     candidate_list = sax_rdd.collect()
@@ -138,7 +138,7 @@ def _destory_kwarg_bc(kwargs_dict: dict):
     [value.destroy() for key, value in kwargs_dict]
 
 
-def _build_piecewise_spark(subsequences_rdd, mode: str, n_segment: int, n_sax_symbols: int, data_list, _dummy_slicing,
+def _build_piecewise_spark(subsequences_rdd, mode: str, n_segment: int, data_list, _dummy_slicing,
                            _sc: SparkContext = None, _start=None, _end=None):
     if _dummy_slicing:
         assert _start and _end  # must include start and end if apply dummy slice
@@ -166,7 +166,7 @@ def _build_piecewise_spark(subsequences_rdd, mode: str, n_segment: int, n_sax_sy
             lambda x: (x, paa_compress(x.fetch_data(data_list.value), n_segment))).cache()
     elif mode == 'sax':
         piecewise_kv_rdd = subsequences_rdd.map(
-            lambda x: (x, sax_compress(x.fetch_data(data_list.value), n_segment, n_sax_symbols))).cache()
+            lambda x: (x, sax_compress(x.fetch_data(data_list.value), n_segment))).cache()
     else:
         raise Exception('spark_utils: unrecognized piecewise mode, it must be paa or sax')
 
