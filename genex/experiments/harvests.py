@@ -16,7 +16,7 @@ import pandas as pd
 from genex.utils.gxe_utils import from_csv
 
 
-def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_split,
+def experiment_BrainEX(mp_args, data: str, output, feature_num, num_sample, query_split,
                        dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float,
                        n_segment: float):
     # set up where to save the results
@@ -41,13 +41,18 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
 
     q_records = {}
 
+    # load in the test data for getting query sequences outside of the training set, which is the genexengine to query
+    test_data = data.replace('TRAIN', 'TEST')
+    gxe_test = from_csv(test_data, feature_num=feature_num, num_worker=mp_args['num_worker'],
+                        use_spark=False, header=None)
+
     gxe = from_csv(data, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
                    max_result_mem=mp_args['max_result_mem'],
                    feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
-                   header=None)
+                   header=None)  # load in the training set as the main genexengine to query
     num_rows = len(gxe.data_raw)
     num_query = max(1, int(query_split * num_rows))
-    loi = (int(gxe.get_max_seq_len() * (1 - loi_range)), int(gxe.get_max_seq_len()))
+    loi = (max(1, int(gxe.get_max_seq_len() * (1 - loi_range))), int(gxe.get_max_seq_len()))
     print('Max seq len is ' + str(gxe.get_max_seq_len()))
 
     print('Generating query set')
@@ -64,10 +69,15 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
             qrange_end = math.floor(loi[0] + (i + 1) * q_range / sep)
 
             query_len = random.choice(list(range(qrange_start, qrange_end)))
-            this_query = gxe.get_random_seq_of_len(query_len, seed=i * j)
-            query_set.append(this_query)
-            print('Adding to query set: ' + str(this_query))
+            query_train = gxe.get_random_seq_of_len(query_len, seed=i * j)
+            query_test = gxe_test.get_random_seq_of_len(query_len, seed=i * j)
 
+            query_set += [query_train, query_test]
+            print('Adding to query set from TRAIN: ' + str(query_train))
+            print('Adding to query set from TEST: ' + str(query_test))
+
+    gxe_test.stop()  # the test gxe is no longer needed as we already loaded queries from it
+    del gxe_test
     print('Using dist_type = ' + str(dist_type))
     print('Using loi offset of ' + str(loi_range))
     print('Building length of interest is ' + str(loi))

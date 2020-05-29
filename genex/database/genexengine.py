@@ -19,7 +19,7 @@ from scipy.spatial.distance import chebyshev
 from genex.classes.Sequence import Sequence
 from genex.op.query_op import _query_partition
 from genex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broadcast_kwargs, _destory_kwarg_bc, \
-    _build_piecewise_spark, _query_paa_spark, _query_sax_spark
+    _build_piecewise_spark, _query_paa_spark, _query_sax_spark, _query_piecewise_spark
 from genex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxe_query_arguments, _isOverlap, \
     flatten, process_loi_query
 from genex.utils.context_utils import _multiprocess_backend
@@ -205,7 +205,7 @@ class GenexEngine:
             raise Exception('get_num_subsequences: the database must be build before calling this function')
         return self.subsequences.count() if self.is_using_spark() else len(self.subsequences)
 
-    def query_brute_force(self, query: Sequence, best_k: int, _use_cache: bool = True, _piecewise: str = None):
+    def query_brute_force(self, query: Sequence, best_k: int, _use_cache: bool = True, _piecewise: str = None, _use_built_piecewise: bool=True):
         """
         Retrieve best k matches for query sequence using Brute force method
 
@@ -222,11 +222,11 @@ class GenexEngine:
         start, end = self.build_conf.get('loi')
         query.fetch_and_set_data(self.data_normalized)
 
-        candidate_list = self._qbf(query, dt_index, best_k, _use_cache, _piecewise)
+        candidate_list = self._qbf(query, dt_index, best_k, _use_cache, _piecewise, _use_built_piecewise)
 
         return candidate_list[:best_k]
 
-    def _qbf(self, query, dt_index, best_k, use_cache, piecewise: str):
+    def _qbf(self, query, dt_index, best_k, use_cache, piecewise: str, _use_built_piecewise):
         if piecewise and self.subsequences_paa is None:
             raise Exception('GenexEngine: GenexEngine.build_paa(...) must be called prior to query with PAA')
 
@@ -238,19 +238,27 @@ class GenexEngine:
                 if not piecewise:
                     candidate_list = _query_bf_spark(query, self.subsequences, dt_index, data_list=dn)
                 elif piecewise == 'paa':
-                    try:
-                        assert 'paa' in self.build_conf['piecewise']
-                    except AssertionError:
-                        raise Exception('genexengine: must build_piece with the mode paa before querying with it')
-                    candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index,
-                                                      self.build_conf['n_segment'])
+                    if _use_built_piecewise:
+                        try:
+                            assert 'paa' in self.build_conf['piecewise']
+                        except AssertionError:
+                            raise Exception('genexengine: must build_piece with the mode paa before querying with it')
+                        candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index,
+                                                          self.build_conf['n_segment'])
+                    else:
+                        candidate_list = _query_piecewise_spark(query, self.subsequences_paa, dt_index, piecewise,
+                                                          self.build_conf['n_segment'])
                 elif piecewise == 'sax':
-                    try:
-                        assert 'sax' in self.build_conf['piecewise']
-                    except AssertionError:
-                        raise Exception('genexengine: must build_piece with the mode sax before querying with it')
-                    candidate_list = _query_sax_spark(query, self.subsequences_sax, dt_index,
-                                                      self.build_conf['n_segment'], self.build_conf['n_sax_symbols'])
+                    if _use_built_piecewise:
+                        try:
+                            assert 'sax' in self.build_conf['piecewise']
+                        except AssertionError:
+                            raise Exception('genexengine: must build_piece with the mode sax before querying with it')
+                        candidate_list = _query_sax_spark(query, self.subsequences_sax, dt_index,
+                                                          self.build_conf['n_segment'], self.build_conf['n_sax_symbols'])
+                    else:
+                        candidate_list = _query_piecewise_spark(query, self.subsequences_paa, dt_index, piecewise,
+                                                          self.build_conf['n_segment'])
             else:
                 candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, piecewise,
                                               data_list=dn)

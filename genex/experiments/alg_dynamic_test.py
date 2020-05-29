@@ -36,7 +36,7 @@ print('Regular Building took ' + str(time.time() - start) + ' sec')
 # duration_bf = time.time() - start
 #
 # start = time.time()
-# query_result_0 = mygxe.query(query=q, best_k=5)
+# query_result = mygxe.query(query=q, best_k=5)
 # duration_withOpt = time.time() - start
 #
 # start = time.time()
@@ -46,7 +46,7 @@ print('Regular Building took ' + str(time.time() - start) + ' sec')
 #
 # # plot the query result
 # plt.plot(q.fetch_data(mygxe.data_normalized), linewidth=5, color='red')
-# for qr in query_result_0:
+# for qr in query_result:
 #     plt.plot(qr[1].fetch_data(mygxe.data_normalized), color='blue', label=str(qr[0]))
 # plt.legend()
 # plt.show()
