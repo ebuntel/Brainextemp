@@ -6,7 +6,7 @@ from pyspark.broadcast import Broadcast
 
 from genex.classes.Sequence import Sequence
 from genex.misc import merge_dict, fd_workaround
-from genex.utils.ts_utils import lb_kim_sequence, lb_keogh_sequence, paa_compress
+from genex.utils.ts_utils import lb_kim_sequence, lb_keogh_sequence, paa_compress, sax_compress
 from genex.utils.utils import get_trgt_len_within_r, get_sequences_represented, _isOverlap, reduce_by_key
 
 try:
@@ -43,6 +43,37 @@ def sim_between_array(a1: np.ndarray, a2: np.ndarray, pnorm: int, use_fast=True)
         raise Exception('Unsupported dist type in array, this should never happen!')
 
 
+def sim_between_array_piecewise(a1: np.ndarray, a2: np.ndarray, pnorm: int, piecewise: str, n_segment, use_fast=True):
+    """
+    calculate the similarity between sequence 1 and sequence 2 using DTW
+
+    :param n_segment:
+    :param piecewise:
+    :param use_fast:
+    :param paa: the number of segments for time series reduction
+    :param a1:
+    :param a2:
+    :param pnorm: the distance type that can be: 0, 1, or 2
+    :return float: return the Normalized DTW distance between sequence 1 (seq1) and sequence 2 (seq2)
+    """
+    if piecewise == 'paa':
+        a1 = paa_compress(a1, n_segment)
+        a2 = paa_compress(a2, n_segment)
+    elif piecewise == 'sax':
+        a1 = sax_compress(a1, n_segment, n_sax_symbols=2**n_segment)
+        a2 = paa_compress(a2, n_segment, n_sax_symbols=2**n_segment)
+
+    dist = fastdtw(a1, a2, dist=pnorm)[0] if use_fast else dtw(a1, a2, dist=pnorm)[0]
+    if pnorm == 2:
+        return np.sqrt(dist / (len(a1) + len(a2)))
+    elif pnorm == 1:
+        return dist / (len(a1) + len(a2))
+    elif pnorm == math.inf:
+        return dist
+    else:
+        raise Exception('Unsupported dist type in array, this should never happen!')
+
+
 def _get_dist_sequence(seq1: Sequence, seq2: Sequence, dt_index, data_list):
     """
     the use of paa
@@ -54,6 +85,19 @@ def _get_dist_sequence(seq1: Sequence, seq2: Sequence, dt_index, data_list):
     :return:
     """
     return sim_between_array(seq1.get_data(), seq2.fetch_data(data_list), pnorm=dt_index), seq2
+
+
+def _get_dist_sequence_piecewise(seq1: Sequence, seq2: Sequence, dt_index, data_list, piecewise, n_segment):
+    """
+    the use of paa
+    :param seq1:
+    :param seq2:
+    :param dt_index:
+    :param paa:
+    :param data_list:
+    :return:
+    """
+    return sim_between_array_piecewise(seq1.get_data(), seq2.fetch_data(data_list), dt_index, piecewise, n_segment), seq2
 
 
 def _get_dist_array(a1: np.ndarray, a2: np.ndarray, dt_index):
