@@ -156,7 +156,7 @@ class GenexEngine:
         self.build_conf = {'similarity_threshold': st,
                            'dist_type': dist_type,
                            'loi': (start, end),
-                           'piecewise': set()}
+                           'piecewise': tuple()}
 
         # determine the distance calculation function
         try:
@@ -219,16 +219,12 @@ class GenexEngine:
         query = self._process_query(query)
         dist_type = self.build_conf.get('dist_type')
         dt_index = dt_pnorm_dict[dist_type]
-        start, end = self.build_conf.get('loi')
-        query.fetch_and_set_data(self.data_normalized)
 
         candidate_list = self._qbf(query, dt_index, best_k, _use_cache, _piecewise, _use_built_piecewise)
 
         return candidate_list[:best_k]
 
     def _qbf(self, query, dt_index, best_k, use_cache, piecewise: str, _use_built_piecewise):
-        if piecewise and self.subsequences_paa is None:
-            raise Exception('GenexEngine: GenexEngine.build_paa(...) must be called prior to query with PAA')
 
         dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
         candidate_list = self.check_bf_query_cache(query, best_k=best_k) if use_cache else None  # TODO paa cache check
@@ -246,8 +242,8 @@ class GenexEngine:
                         candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index,
                                                           self.build_conf['n_segment'])
                     else:
-                        candidate_list = _query_piecewise_spark(query, self.subsequences_paa, dt_index, piecewise,
-                                                          self.build_conf['n_segment'])
+                        candidate_list = _query_piecewise_spark(query, self.subsequences, dt_index,  data_list=dn,
+                                                                piecewise=piecewise, n_segment=self.build_conf['n_segment'])
                 elif piecewise == 'sax':
                     if _use_built_piecewise:
                         try:
@@ -255,10 +251,10 @@ class GenexEngine:
                         except AssertionError:
                             raise Exception('genexengine: must build_piece with the mode sax before querying with it')
                         candidate_list = _query_sax_spark(query, self.subsequences_sax, dt_index,
-                                                          self.build_conf['n_segment'], self.build_conf['n_sax_symbols'])
-                    else:
-                        candidate_list = _query_piecewise_spark(query, self.subsequences_paa, dt_index, piecewise,
                                                           self.build_conf['n_segment'])
+                    else:
+                        candidate_list = _query_piecewise_spark(query, self.subsequences, dt_index,  data_list=dn,
+                                                                piecewise=piecewise, n_segment=self.build_conf['n_segment'])
             else:
                 candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, piecewise,
                                               data_list=dn)
@@ -277,11 +273,14 @@ class GenexEngine:
         except KeyError:
             return None
 
+    def set_piecewise_segment(self, n_segment: int):
+        self.build_conf['n_segment'] = n_segment
+
     def reset_mp(self, use_spark, **kwargs):
         self.stop()
         self.mp_context = _multiprocess_backend(use_spark, **kwargs)
 
-    def build_piecewise(self, mode: str, n_segment: int = 3, n_sax_symbols: int = 8, _dummy_slicing: bool = False):
+    def build_piecewise(self, mode: str, n_segment: int = 3, _dummy_slicing: bool = False):
         """
         preprocess function that must be run before calling PAA query
         must be run after build, because the subsequences are otherwise empty
@@ -294,7 +293,7 @@ class GenexEngine:
         if self.is_using_spark():
             dn = self._data_normalized_bc if self.is_using_spark() else self.data_normalized
             start, end = self.build_conf.get('loi')
-            piecewise_kv_rdd = _build_piecewise_spark(self.subsequences, mode, n_segment, n_sax_symbols, data_list=dn,
+            piecewise_kv_rdd = _build_piecewise_spark(self.subsequences, mode, n_segment, data_list=dn,
                                                       _dummy_slicing=_dummy_slicing, _sc=self.mp_context, _start=start,
                                                       _end=end)
 
@@ -306,8 +305,7 @@ class GenexEngine:
             self.subsequences_paa = piecewise_kv_rdd
         elif mode == 'sax':
             self.subsequences_sax = piecewise_kv_rdd
-            self.build_conf['n_sax_symbols'] = n_sax_symbols
-        self.build_conf['piecewise'] = set([*self.build_conf['piecewise'], mode])
+        self.build_conf['piecewise'] = tuple(set([*self.build_conf['piecewise'], mode]))
 
     # def group_sequences(self):
     #     """
@@ -654,7 +652,6 @@ def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
     if seq1.seq_id != seq2.seq_id:  # overlap does NOT matter if two seq have different id
         return True
     else:
-        of = _calculate_overlap(seq1, seq2)
         return _calculate_overlap(seq1, seq2) >= overlap
 
 

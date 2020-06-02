@@ -50,8 +50,8 @@ def paa_compress(a: np.ndarray, paa_seg):
     # return np.squeeze(compressed)
 
 
-def sax_compress(a: np.ndarray, sax_seg, n_sax_symbols):
-    sax = SymbolicAggregateApproximation(n_segments=min(len(a), sax_seg), alphabet_size_avg=n_sax_symbols)
+def sax_compress(a: np.ndarray, sax_seg):
+    sax = SymbolicAggregateApproximation(n_segments=min(len(a), sax_seg), alphabet_size_avg=2 ** sax_seg)
     compressed = sax.fit_transform(a)
     compressed = np.squeeze(compressed, axis=-1)
     # TODO do not squeeze all the dimension if the ts is multi-dimensional

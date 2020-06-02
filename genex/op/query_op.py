@@ -60,8 +60,8 @@ def sim_between_array_piecewise(a1: np.ndarray, a2: np.ndarray, pnorm: int, piec
         a1 = paa_compress(a1, n_segment)
         a2 = paa_compress(a2, n_segment)
     elif piecewise == 'sax':
-        a1 = sax_compress(a1, n_segment, n_sax_symbols=2**n_segment)
-        a2 = paa_compress(a2, n_segment, n_sax_symbols=2**n_segment)
+        a1 = sax_compress(a1, n_segment)
+        a2 = paa_compress(a2, n_segment)
 
     dist = fastdtw(a1, a2, dist=pnorm)[0] if use_fast else dtw(a1, a2, dist=pnorm)[0]
     if pnorm == 2:

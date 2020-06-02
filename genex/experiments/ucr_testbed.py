@@ -58,7 +58,7 @@ if __name__ == "__main__":
     '''
     dataset = '/home/apocalyvec/data/UCRArchive_2018'
     # dataset = '/Users/Leo/Documents/data/UCRArchive_2018'
-    output = '/Users/Leo/Documents/data/temp'
+    output = '/home/apocalyvec/data/UCR_BrainEX_test'
 
     ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
     # ds_soi = [50000, 1500000]  # dataset size of interest, see the docstring of run_ucr_test for details
