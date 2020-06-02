@@ -57,20 +57,13 @@ if __name__ == "__main__":
     check the docstring of the above function - run_ucr_test for details regarding the parameters
     '''
     dataset = '/home/apocalyvec/data/UCRArchive_2018'
+    # dataset = '/Users/Leo/Documents/data/UCRArchive_2018'
+    output = '/home/apocalyvec/data/UCR_BrainEX_test'
 
     ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
     # ds_soi = [50000, 1500000]  # dataset size of interest, see the docstring of run_ucr_test for details
-
-    # output_reg = '/home/apocalyvec/data/UCR_test'
-    # output_dss = '/home/apocalyvec/data/UCR_DSS_test'
-    # output_dyn = '/home/apocalyvec/data/UCR_dyn_test'
-    output = '/home/apocalyvec/data/UCR_BrainEX_test/small'
-
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
-
-    # dist_types_to_test = ['eu']
-    dist_types_to_test = ['ma', 'ch']
-
+    dist_types_to_test = ['eu']
     ex_config_test = {
         'num_sample': math.inf,
         'query_split': 0.1,

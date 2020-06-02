@@ -16,9 +16,9 @@ import pandas as pd
 from genex.utils.gxe_utils import from_csv
 
 
-def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_split,
+def experiment_BrainEX(mp_args, data: str, output, feature_num, num_sample, query_split,
                        dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float,
-                       n_segment: float):
+                       n_segment: float, use_build_piecewise=True):
     # set up where to save the results
     result_headers = np.array(
         [['paa_preprocess_time', 'sax_preprocess_time', 'gx_preprocess_time', 'dssgx_preprocess_time',  # preprocessing times
@@ -41,13 +41,18 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
 
     q_records = {}
 
+    # load in the test data for getting query sequences outside of the training set, which is the genexengine to query
+    test_data = data.replace('TRAIN', 'TEST')
+    gxe_test = from_csv(test_data, feature_num=feature_num, num_worker=mp_args['num_worker'],
+                        use_spark=False, header=None)
+
     gxe = from_csv(data, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
                    max_result_mem=mp_args['max_result_mem'],
                    feature_num=feature_num, use_spark=use_spark, _rows_to_consider=num_sample,
-                   header=None)
+                   header=None)  # load in the training set as the main genexengine to query
     num_rows = len(gxe.data_raw)
     num_query = max(1, int(query_split * num_rows))
-    loi = (int(gxe.get_max_seq_len() * (1 - loi_range)), int(gxe.get_max_seq_len()))
+    loi = (max(1, int(gxe.get_max_seq_len() * (1 - loi_range))), int(gxe.get_max_seq_len()))
     print('Max seq len is ' + str(gxe.get_max_seq_len()))
 
     print('Generating query set')
@@ -64,10 +69,15 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
             qrange_end = math.floor(loi[0] + (i + 1) * q_range / sep)
 
             query_len = random.choice(list(range(qrange_start, qrange_end)))
-            this_query = gxe.get_random_seq_of_len(query_len, seed=i * j)
-            query_set.append(this_query)
-            print('Adding to query set: ' + str(this_query))
+            query_train = gxe.get_random_seq_of_len(query_len, seed=i * j)
+            query_test = gxe_test.get_random_seq_of_len(query_len, seed=i * j, with_data=True).get_data()
 
+            query_set += [query_train, query_test]
+            print('Adding to query set from TRAIN: ' + str(query_train))
+            print('Adding to query set from TEST: ' + str(query_test))
+
+    gxe_test.stop()  # the test gxe is no longer needed as we already loaded queries from it
+    del gxe_test
     print('Using dist_type = ' + str(dist_type))
     print('Using loi offset of ' + str(loi_range))
     print('Building length of interest is ' + str(loi))
@@ -79,19 +89,23 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
     cluster_time_gx = time.time() - cluster_start_time
     print('gx_cluster_time took ' + str(cluster_time_gx) + ' sec')
 
-    print('Preparing PAA Subsequences')
-    start = time.time()
-    gxe.build_piecewise(mode='paa', n_segment=n_segment, _dummy_slicing=True)
-    paa_build_time = time.time() - start
-    print('Prepare PAA subsequences took ' + str(paa_build_time))
-    paa_build_time = paa_build_time
+    if use_build_piecewise:
+        print('Preparing PAA Subsequences')
+        start = time.time()
+        gxe.build_piecewise(mode='paa', n_segment=n_segment, _dummy_slicing=True)
+        paa_build_time = time.time() - start
+        print('Prepare PAA subsequences took ' + str(paa_build_time))
+        paa_build_time = paa_build_time
 
-    print('Preparing SAX Subsequences')
-    start = time.time()
-    gxe.build_piecewise(mode='sax', n_segment=n_segment, _dummy_slicing=True)
-    sax_build_time = time.time() - start
-    print('Prepare SAX subsequences took ' + str(sax_build_time))
-
+        print('Preparing SAX Subsequences')
+        start = time.time()
+        gxe.build_piecewise(mode='sax', n_segment=n_segment, _dummy_slicing=True)
+        sax_build_time = time.time() - start
+        print('Prepare SAX subsequences took ' + str(sax_build_time))
+    else:
+        gxe.set_piecewise_segment(n_segment=n_segment)
+        paa_build_time = np.NaN
+        sax_build_time = np.NaN
     print('Evaluating Query with Regular Genex, BF and PAA')
     for i, q in enumerate(query_set):
         print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
@@ -104,13 +118,13 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
 
         start = time.time()
         print('Running PAA Query ...')
-        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _piecewise='paa')
+        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _piecewise='paa', _use_built_piecewise=use_build_piecewise)
         paa_time = time.time() - start
         print('PAA query took ' + str(paa_time) + ' sec')
 
         start = time.time()
         print('Running SAX Query ...')
-        query_result_sax = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _piecewise='sax')
+        query_result_sax = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _piecewise='sax', _use_built_piecewise=use_build_piecewise)
         sax_time = time.time() - start
         print('SAX query took ' + str(sax_time) + ' sec')
 
@@ -162,7 +176,8 @@ def experiment_BrainEX(mp_args, data, output, feature_num, num_sample, query_spl
                                   'num_query': len(query_set)}, ignore_index=True)
     for i, q in enumerate(query_set):
         this_record = q_records[str(q)]
-        result_df = result_df.append({'query': str(q) + ': ' + str(np.array(gxe.get_seq_data(q, normalize=False)).tostring()),
+        q_data = str(q.tostring() if type(q) == np.ndarray else np.array(gxe.get_seq_data(q, normalize=False)).tostring())
+        result_df = result_df.append({'query': str(q) + ':' + q_data,
                                       'query_len': len(q),
                                       'bf_query_time': this_record['bf_query_time'],
                                       'paa_query_time': this_record['paa_query_time'],
