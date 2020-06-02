@@ -525,6 +525,10 @@ class GenexEngine:
         query_rdd.unpersist()
         return best_matches
 
+    def get_num_clusters(self):
+        a = flatten(self.cluster_meta_dict.keys())
+        return len(flatten(self.cluster_meta_dict.keys()))
+
     def query_on_batch(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
                        _lb_opt: bool = False, _ke=None, _radius: int = 1):
         pass
