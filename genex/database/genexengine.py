@@ -519,13 +519,13 @@ class GenexEngine:
                     if not any(_isOverlap(this_c[1], prev_match[1], overlap) for prev_match in best_matches):
                         best_matches.append(this_c)
                 pass
-        q.destroy()
-        query_rdd.unpersist()
+        if self.is_using_spark():
+            q.destroy()
+            query_rdd.unpersist()
         return best_matches
 
     def get_num_clusters(self):
-        a = flatten(self.cluster_meta_dict.keys())
-        return len(flatten(self.cluster_meta_dict.keys()))
+        return len(flatten(self.cluster_meta_dict.values()))
 
     def query_on_batch(self, query: Sequence, best_k: int, exclude_same_id: bool = False, overlap: float = 1.0,
                        _lb_opt: bool = False, _ke=None, _radius: int = 1):
