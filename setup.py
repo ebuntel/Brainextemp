@@ -1,6 +1,6 @@
 import setuptools
 
-from genex.misc import pr_red, fd_workaround
+from brainex.misc import pr_red, fd_workaround
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
