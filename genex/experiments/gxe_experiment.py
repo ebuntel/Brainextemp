@@ -12,12 +12,13 @@ os.environ['JAVA_HOME'] = java8_location
 findspark.init(spark_home=spark_location)
 
 # create gxdb from a csv file
-data = 'data/ItalyPower.csv'
+# data = 'data/ItalyPower.csv'
+data = '/Users/Leo/PycharmProjects/Genex/genex/experiments/data/ItalyPowerDemand_TRAIN.tsv'
 # data = '/Users/Leo/Desktop/ECG200_DATA.csv'
 db_path = 'results/test_db'
 
-# mygxe = from_csv(data, feature_num=1, num_worker=16, use_spark=True, driver_mem=10, max_result_mem=10, header=None, _rows_to_consider=24)
-mygxe = from_csv(data, feature_num=0, num_worker=16, use_spark=False, _rows_to_consider=24)
+mygxe = from_csv(data, feature_num=1, num_worker=16, use_spark=True, driver_mem=10, max_result_mem=10, header=None, _rows_to_consider=24)
+# mygxe = from_csv(data, feature_num=0, num_worker=16, use_spark=False, _rows_to_consider=24)
 
 # Save reloading unbuilt Genex database
 # mygxe.save(path=db_path)

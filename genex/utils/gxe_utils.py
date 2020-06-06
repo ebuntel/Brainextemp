@@ -10,6 +10,7 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 
 from genex import GenexEngine
+from genex.database.BrainexEngine import BrainexEngine
 from genex.misc import allUnique
 from genex.utils.utils import _create_f_uuid_map, _df_to_list, genex_normalize
 from genex.utils.context_utils import _multiprocess_backend
@@ -120,7 +121,7 @@ def from_csv(data, feature_num: int,
     data_norm_list, global_max, global_min = genex_normalize(data_list, z_normalization=_is_z_normalize)
     mp_context = _multiprocess_backend(use_spark, num_worker=num_worker, driver_mem=driver_mem,
                                        max_result_mem=max_result_mem)
-    return GenexEngine(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
+    return BrainexEngine(data_raw=df, data_original=data_list, data_normalized=data_norm_list, global_max=global_max,
                        global_min=global_min, has_uuid=add_uuid,
                        mp_context=mp_context, backend='multiprocess' if not use_spark else 'spark',
                        seq_dim=_ts_dim)
