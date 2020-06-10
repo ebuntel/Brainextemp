@@ -4,8 +4,8 @@ import pandas as pd
 import sys
 import random
 import pytest as pt
-from genex.database import genexengine as gxdb
-from genex.utils import gxe_utils as gutils
+from brainex.database import genexengine as gxdb
+from brainex.utils import gxe_utils as gutils
 
 
 class TestGenex_database:
@@ -16,7 +16,7 @@ class TestGenex_database:
 
     def test_load(self):
         # related path vs absolute path
-        data_file = '../genex/experiments/data/ItalyPower.csv'
+        data_file = '../brainex/experiments/data/ItalyPower.csv'
         # Missing a default parameter while loading a data file
         with pt.raises(TypeError) as e:
             gutils.load(data_file, num_worker=self.num_cores)
@@ -27,13 +27,13 @@ class TestGenex_database:
         assert 'provide a valid feature number' in str(e.value)
 
         # Loading a dataset from a fake path
-        fake_path = '../genex/fake_path'
+        fake_path = '../brainex/fake_path'
         with pt.raises(ValueError) as e:
             gutils.load(fake_path, num_worker=self.num_cores)
         assert 'Not a valid file name or directory path' in str(e.value)
 
     def test_from_csv(self):
-        data_file = '../genex/experiments/data/ItalyPower.csv'
+        data_file = '../brainex/experiments/data/ItalyPower.csv'
         feature_num = 0
 
         df = pd.read_csv(data_file)
@@ -47,7 +47,7 @@ class TestGenex_database:
         del test_db
 
         # Running test for another dataset including column header
-        data_file = '../genex/experiments/data_original/SART2018_HbO_altered.csv'
+        data_file = '../brainex/experiments/data_original/SART2018_HbO_altered.csv'
         feature_num = 5
         df = pd.read_csv(data_file, header=0)  # header is only used to avoid duplicate code
 
@@ -62,7 +62,7 @@ class TestGenex_database:
     def test_from_csv_2(self):
         # The provided feature number is incorrect
         # 1. feature_num < the real feature number of the dataset
-        data_file = '../genex/experiments/data_original/SART2018_HbO_altered.csv'
+        data_file = '../brainex/experiments/data_original/SART2018_HbO_altered.csv'
         feature_num = 2
         df = pd.read_csv(data_file)
 
@@ -83,7 +83,7 @@ class TestGenex_database:
         assert len(id_ls) == len(df)
 
     def test_from_db(self):
-        data_file = '../genex/experiments/data_original/SART2018_HbO_altered.csv'
+        data_file = '../brainex/experiments/data_original/SART2018_HbO_altered.csv'
         feature_num = 5
         path = '../experiments/unittest/test_db'
 
@@ -125,7 +125,7 @@ class TestGenex_database:
     def test_build(self):
         # Test case for the functionality of build method
         # After grouping
-        data_file = '../genex/experiments/data/ItalyPower.csv'
+        data_file = '../brainex/experiments/data/ItalyPower.csv'
         feature_num = 0
 
         # Checking numbers of subsequences before clustering
@@ -146,7 +146,7 @@ class TestGenex_database:
 
     def test_build_2(self):
         # Test cases for parameters
-        data_file = '../genex/experiments/data/ItalyPower.csv'
+        data_file = '../brainex/experiments/data/ItalyPower.csv'
         tdb = gutils.from_csv(data_file, feature_num=0, num_worker=self.num_cores, use_spark=False)
 
         # Test case for the similarity threshold
@@ -161,7 +161,7 @@ class TestGenex_database:
 
     def test_build_3(self):
         # Test cases for the loi parameter
-        data_file = '../genex/experiments/data/ItalyPower.csv'
+        data_file = '../brainex/experiments/data/ItalyPower.csv'
         db = gutils.from_csv(data_file, feature_num=0, num_worker=self.num_cores, use_spark=False)
 
         with pt.raises(Exception) as e:
@@ -191,7 +191,7 @@ class TestGenex_database:
         5. sequence type issue
         :return:
         """
-        data_file = '../genex/experiments/data_original/SART2018_HbO_altered.csv'
+        data_file = '../brainex/experiments/data_original/SART2018_HbO_altered.csv'
         feature_num = 5
         test_db = gutils.load(data_file, num_worker=self.num_cores, use_spark=False, feature_num=feature_num)
         test_db.build(0.05, loi=(test_db.get_max_seq_len() - 5, test_db.get_max_seq_len()))
