@@ -635,7 +635,7 @@ class GenexEngine:
                 str(kn_labels.count(res)) + ' out of ' + str(len(kn_labels)) + ' voted positive for label:' + str(res))
         return res
 
-    def predice_label_knn_on_batch(self):
+    def predite_label_knn_on_batch(self):
         pass
 
 
@@ -688,3 +688,12 @@ def _calculate_overlap(seq1, seq2) -> float:
         print(seq1)
         print(seq2)
         raise Exception('FATAL: sequence 100% overlap, please report the bug')
+
+    def normalize():
+        """
+        normalize a sequence on the same scale as the loaded dataset, this sequence can later be used to query.
+        """
+        pass
+
+    def inverse_normalize():
+        pass

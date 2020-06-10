@@ -243,21 +243,21 @@ def normalize_num(num, global_max, global_min):
     return (num - global_min) / (global_max - global_min)
 
 
-def genex_normalize(input_list, z_normalization=False):
+def genex_normalize(input_list, z_normalization):
     # perform z normalization
     if z_normalization:
-        z_normalized_input_list = _z_normalize(input_list)
+        input_list = _z_normalize(input_list)
     else:
         print('Not using z-normalization')
     # get a flatten z normalized list so to obtain the global min and max
-    flattened_list = flatten([x[1] for x in z_normalized_input_list])
+    flattened_list = flatten([x[1] for x in input_list])
     global_max = np.max(flattened_list)
     global_min = np.min(flattened_list)
 
     # perform Min-max normalization
-    zmm_normalized_list = _min_max_normalize(z_normalized_input_list, global_max=global_max, global_min=global_min)
+    zmm_normalized_list = _min_max_normalize(input_list, global_max=global_max, global_min=global_min)
 
-    normalized_array = np.asarray([x[1] for x in zmm_normalized_list])
+    # normalized_array = np.asarray([x[1] for x in zmm_normalized_list])
     return zmm_normalized_list, global_max, global_min
 
 
