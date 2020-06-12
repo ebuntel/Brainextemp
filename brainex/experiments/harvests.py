@@ -70,7 +70,10 @@ def experiment_BrainEX(mp_args, data: str, output, feature_num, num_sample, quer
 
             query_len = random.choice(list(range(qrange_start, qrange_end)))
             query_train = gxe.get_random_seq_of_len(query_len, seed=i * j)
-            query_test = gxe_test.get_random_seq_of_len(query_len, seed=i * j, with_data=True).get_data()
+
+            # normalize the external query on the scale of the train
+            query_test = gxe_test.get_random_seq_of_len(query_len, seed=i * j, with_data=True, normalize=False).get_data()
+            query_test = gxe.normalize(query_test)
 
             query_set += [query_train, query_test]
             print('Adding to query set from TRAIN: ' + str(query_train))

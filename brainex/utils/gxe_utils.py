@@ -50,7 +50,7 @@ def from_csv(data, feature_num: int,
              _ts_dim: int = 1,
              _rows_to_consider: int = None,
              _memory_opt: str = None,
-             _is_z_normalize=True,
+             _is_z_normalize=False,
              _seed=42):
     """
     build a genex_database object from given csv,

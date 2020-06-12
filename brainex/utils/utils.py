@@ -189,7 +189,8 @@ def _process_loi(loi, max_len):
             end = min(max_len, loi[1])
             if loi[1] > max_len:
                 warning(
-                    'Warning: Length of interest must end less or equal to the length of the longest time series in the '
+                    'Warning: Length of interest must end less or equal to the length of the longest time series in '
+                    'the '
                     'dataset, setting end to that max.')
         else:
             end = max_len
@@ -271,6 +272,14 @@ def _min_max_normalize(input_list, global_max, global_min):
     return mm_normalized_list
 
 
+def _min_max_normalize_single(array, global_max, global_min):
+    return np.array([(x - global_min) / (global_max - global_min) for x in array])
+
+
+def _inverse_min_max_normalize_single(array, global_max, global_min):
+    return np.array([x * (global_max - global_min) + global_min for x in array])
+
+
 def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
     if seq1.seq_id != seq2.seq_id:  # overlap does NOT matter if two seq have different id
         return False
@@ -303,6 +312,6 @@ def _calculate_overlap(seq1, seq2) -> float:
     elif seq2.start > seq1.end or seq1.start > seq2.end:  # does not overlap at all
         return 0.0
     # else:
-        # print(seq1)
-        # print(seq2)
-        # raise Exception('FATAL: sequence 100% overlap, please report the bug')
+    # print(seq1)
+    # print(seq2)
+    # raise Exception('FATAL: sequence 100% overlap, please report the bug')

@@ -21,7 +21,8 @@ from brainex.op.query_op import _query_partition
 from brainex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broadcast_kwargs, _destory_kwarg_bc, \
     _build_piecewise_spark, _query_paa_spark, _query_sax_spark, _query_piecewise_spark
 from brainex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxe_query_arguments, _isOverlap, \
-    flatten, process_loi_query
+    flatten, process_loi_query, _min_max_normalize_single, \
+    _inverse_min_max_normalize_single
 from brainex.utils.context_utils import _multiprocess_backend
 
 from brainex.utils.mutiprocess_utils import _cluster_multi_process, _query_bf_mp, _query_mp
@@ -320,7 +321,7 @@ class GenexEngine:
     #
     #     return slice_rdd.collect()
 
-    def get_random_seq_of_len(self, sequence_len, seed, with_data=False):
+    def get_random_seq_of_len(self, sequence_len, seed, with_data=False, normalize=True):
         if sequence_len < 1:
             warning('Genex Engine: cannot give sequences with length less than 1, setting sequence_len to 1')
             sequence_len = 1
@@ -343,7 +344,7 @@ class GenexEngine:
                 'an implementation error, please report to the Repository as an issue.')
 
         if with_data:
-            seq.fetch_and_set_data(self.data_normalized)
+            seq.fetch_and_set_data(self.data_normalized) if normalize else seq.fetch_and_set_data(self.data_original)
         return seq
 
     def get_seqs_of_len(self, seq_len):
@@ -638,6 +639,15 @@ class GenexEngine:
     def predite_label_knn_on_batch(self):
         pass
 
+    def normalize(self, array):
+        """
+        normalize a sequence on the same scale as the loaded dataset, this sequence can later be used to query.
+        """
+        return _min_max_normalize_single(array, global_max=self.conf['global_max'], global_min=self.conf['global_min'])
+
+    def inverse_normalize(self, array):
+        return _inverse_min_max_normalize_single(array, global_max=self.conf['global_max'], global_min=self.conf['global_min'])
+
 
 def _is_overlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
     """
@@ -689,11 +699,5 @@ def _calculate_overlap(seq1, seq2) -> float:
         print(seq2)
         raise Exception('FATAL: sequence 100% overlap, please report the bug')
 
-    def normalize():
-        """
-        normalize a sequence on the same scale as the loaded dataset, this sequence can later be used to query.
-        """
-        pass
 
-    def inverse_normalize():
-        pass
+
