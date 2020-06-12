@@ -321,7 +321,7 @@ class GenexEngine:
     #
     #     return slice_rdd.collect()
 
-    def get_random_seq_of_len(self, sequence_len, seed, with_data=False):
+    def get_random_seq_of_len(self, sequence_len, seed, with_data=False, normalize=True):
         if sequence_len < 1:
             warning('Genex Engine: cannot give sequences with length less than 1, setting sequence_len to 1')
             sequence_len = 1
@@ -344,7 +344,7 @@ class GenexEngine:
                 'an implementation error, please report to the Repository as an issue.')
 
         if with_data:
-            seq.fetch_and_set_data(self.data_normalized)
+            seq.fetch_and_set_data(self.data_normalized) if normalize else seq.fetch_and_set_data(self.data_original)
         return seq
 
     def get_seqs_of_len(self, seq_len):

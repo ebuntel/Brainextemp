@@ -273,11 +273,11 @@ def _min_max_normalize(input_list, global_max, global_min):
 
 
 def _min_max_normalize_single(array, global_max, global_min):
-    return [(x - global_min) / (global_max - global_min) for x in array]
+    return np.array([(x - global_min) / (global_max - global_min) for x in array])
 
 
 def _inverse_min_max_normalize_single(array, global_max, global_min):
-    return [x * (global_max - global_min) + global_min for x in array]
+    return np.array([x * (global_max - global_min) + global_min for x in array])
 
 
 def _isOverlap(seq1: Sequence, seq2: Sequence, overlap: float) -> bool:
