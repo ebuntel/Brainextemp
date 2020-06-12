@@ -30,7 +30,7 @@ requires = ['Cython',
 
 setuptools.setup(
     name="brainex",  # Replace with your own username
-    version="0.2.0",
+    version="0.2.4",
     author="ApocalyVec",
     author_email="s-vector.lee@hotmail.com",
     description="This package is a General Exploration System that implements DTW in exploring time series",
@@ -43,6 +43,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
+    packages=setuptools.find_packages(),
     install_requires=requires)
 
 fd_workaround()
