@@ -17,7 +17,7 @@ from scipy.spatial.distance import euclidean
 from scipy.spatial.distance import chebyshev
 
 from brainex.classes.Sequence import Sequence
-from brainex.op.query_op import _query_partition
+from brainex.op.query_op import _query_partition, sim_between_array
 from brainex.utils.spark_utils import _cluster_with_spark, _query_bf_spark, _broadcast_kwargs, _destory_kwarg_bc, \
     _build_piecewise_spark, _query_paa_spark, _query_sax_spark, _query_piecewise_spark
 from brainex.utils.utils import _validate_gxdb_build_arguments, _process_loi, _validate_gxe_query_arguments, _isOverlap, \
@@ -222,8 +222,10 @@ class GenexEngine:
         dt_index = dt_pnorm_dict[dist_type]
 
         candidate_list = self._qbf(query, dt_index, best_k, _use_cache, _piecewise, _use_built_piecewise)
-
-        return candidate_list[:best_k]
+        rtn = candidate_list[:best_k]
+        if _piecewise: # calculate the true DTW distance (not piecewise approximated)
+            rtn = [(sim_between_array(self.get_seq_data(x[1]), query.data, pnorm=dt_index), x[1]) for x in rtn]
+        return rtn
 
     def _qbf(self, query, dt_index, best_k, use_cache, piecewise: str, _use_built_piecewise):
 

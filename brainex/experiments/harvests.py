@@ -18,10 +18,12 @@ from brainex.utils.gxe_utils import from_csv
 
 def experiment_BrainEX(mp_args, data: str, output, feature_num, num_sample, query_split,
                        dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float,
-                       n_segment: float, use_build_piecewise=True):
+                       n_segment: float, best_ks=[1, 5, 10]):
     # set up where to save the results
     result_headers = np.array(
-        [['paa_preprocess_time', 'sax_preprocess_time', 'gx_preprocess_time', 'dssgx_preprocess_time',  # preprocessing times
+        [['k',
+          'paa_preprocess_time', 'sax_preprocess_time', 'gx_preprocess_time', 'dssgx_preprocess_time',
+          # preprocessing times
           'query', 'query_len',  # the query sequence
           'bf_query_time', 'paa_query_time', 'sax_query_time', 'gx_query_time', 'dssgx_query_time',  # query times
           'dist_diff_btw_paa_bf', 'dist_diff_btw_sax_bf', 'dist_diff_btw_gx_bf', 'dist_diff_btw_dssgx_bf',  # errors
@@ -31,8 +33,6 @@ def experiment_BrainEX(mp_args, data: str, output, feature_num, num_sample, quer
           'gx_dist', 'gx_match',  # gx matches
           'dssgx_dist', 'dssgx_match',  # dssgx matches
           'num_rows', 'num_cols_max', 'num_cols_median', 'data_size', 'num_query']])  # meta info about this experiment
-
-    result_df = pd.DataFrame(columns=result_headers[0, :])
 
     overall_diff_paabf_list = []
     overall_diff_saxbf_list = []
@@ -72,7 +72,8 @@ def experiment_BrainEX(mp_args, data: str, output, feature_num, num_sample, quer
             query_train = gxe.get_random_seq_of_len(query_len, seed=i * j)
 
             # normalize the external query on the scale of the train
-            query_test = gxe_test.get_random_seq_of_len(query_len, seed=i * j, with_data=True, normalize=False).get_data()
+            query_test = gxe_test.get_random_seq_of_len(query_len, seed=i * j, with_data=True,
+                                                        normalize=False).get_data()
             query_test = gxe.normalize(query_test)
 
             query_set += [query_train, query_test]
@@ -92,59 +93,35 @@ def experiment_BrainEX(mp_args, data: str, output, feature_num, num_sample, quer
     cluster_time_gx = time.time() - cluster_start_time
     print('gx_cluster_time took ' + str(cluster_time_gx) + ' sec')
 
-    if use_build_piecewise:
-        print('Preparing PAA Subsequences')
-        start = time.time()
-        gxe.build_piecewise(mode='paa', n_segment=n_segment, _dummy_slicing=True)
-        paa_build_time = time.time() - start
-        print('Prepare PAA subsequences took ' + str(paa_build_time))
-        paa_build_time = paa_build_time
+    gxe.set_piecewise_segment(n_segment=n_segment)
+    paa_build_time = np.NaN
+    sax_build_time = np.NaN
 
-        print('Preparing SAX Subsequences')
-        start = time.time()
-        gxe.build_piecewise(mode='sax', n_segment=n_segment, _dummy_slicing=True)
-        sax_build_time = time.time() - start
-        print('Prepare SAX subsequences took ' + str(sax_build_time))
-    else:
-        gxe.set_piecewise_segment(n_segment=n_segment)
-        paa_build_time = np.NaN
-        sax_build_time = np.NaN
-    print('Evaluating Query with Regular Genex, BF and PAA')
+    print('Evaluating Query with BF, PAA, SAX')
     for i, q in enumerate(query_set):
         print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
             len(query_set)) + '; query = ' + str(q))
-        start = time.time()
-        print('Running Brute Force Query ...')
-        query_result_bf = gxe.query_brute_force(query=q, best_k=15, _use_cache=False)
-        bf_time = time.time() - start
-        print('Brute force query took ' + str(bf_time) + ' sec')
 
-        start = time.time()
-        print('Running PAA Query ...')
-        query_result_paa = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _piecewise='paa', _use_built_piecewise=use_build_piecewise)
-        paa_time = time.time() - start
-        print('PAA query took ' + str(paa_time) + ' sec')
-
-        start = time.time()
-        print('Running SAX Query ...')
-        query_result_sax = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _piecewise='sax', _use_built_piecewise=use_build_piecewise)
-        sax_time = time.time() - start
-        print('SAX query took ' + str(sax_time) + ' sec')
-
-
-        print('Evaluating Regular Gx')
-        start = time.time()
-        print('Running Genex Query ...')
-        query_result_gx = gxe.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
-        gx_time = time.time() - start
-        print('Genex  query took ' + str(gx_time) + ' sec')
+        query_result_bf, bf_time = run_query(gxe, q, best_k=15, algo='bf', _lb_opt=_lb_opt, _radius=_radius)
+        query_result_paa, paa_time = run_query(gxe, q, best_k=15, algo='paa', _lb_opt=_lb_opt, _radius=_radius)
+        query_result_sax, sax_time = run_query(gxe, q, best_k=15, algo='sax', _lb_opt=_lb_opt, _radius=_radius)
 
         q_records[str(q)] = {'bf_query_time': bf_time, 'paa_query_time': paa_time, 'sax_query_time': sax_time,
-                             'gx_query_time': gx_time, 'dssgx_query_time': None,
+                             'gx_query_time': {}, 'dssgx_query_time': {},
                              'bf_match': query_result_bf, 'paa_match': query_result_paa, 'sax_match': query_result_sax,
-                             'gx_match': query_result_gx, 'dssgx_match': None}
+                             'gx_match': {}, 'dssgx_match': {}}
+
+    for k in best_ks:
+        print('Evaluating Query with Regular BrainEx for k = ' + str(k))
+        for i, q in enumerate(query_set):
+            print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
+                len(query_set)) + '; query = ' + str(q))
+            query_result_gx, gx_time = run_query(gxe, q, best_k=k, algo='bx', _lb_opt=_lb_opt, _radius=_radius)
+            q_records[str(q)]['gx_query_time'][k] = gx_time
+            q_records[str(q)]['gx_match'][k] = query_result_gx
 
     print('Performing clustering with DSS algorithm...')
+    gxe.stop()
     del gxe
     gxe = from_csv(data, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
                    max_result_mem=mp_args['max_result_mem'],
@@ -155,68 +132,91 @@ def experiment_BrainEX(mp_args, data: str, output, feature_num, num_sample, quer
     cluster_time_dynamicGx = time.time() - cluster_start_time
     print('gx_cluster_time Dynamic took ' + str(cluster_time_dynamicGx) + ' sec')
 
-    print('Evaluating DynamicGx')
-    for i, q in enumerate(query_set):
-        print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
-            len(query_set)) + '; query = ' + str(q))
-        start = time.time()
-        qr_dynamic = gxe.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
-        dynamic_time = time.time() - start
-        print('Dynamic query took ' + str(dynamic_time) + ' sec')
-        q_records[str(q)]['dssgx_query_time'] = dynamic_time,
-        q_records[str(q)]['dssgx_query_time'] = q_records[str(q)]['dssgx_query_time'][0]  # TODO fix tupling issue,
-        q_records[str(q)]['dssgx_match'] = qr_dynamic
+    for k in best_ks:
+        print('Evaluating DSS Bx for k = ' + str(k))
+        for i, q in enumerate(query_set):
+            print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
+                len(query_set)) + '; query = ' + str(q))
+            query_result_dss, dss_time = run_query(gxe, q, best_k=k, algo='bx', _lb_opt=_lb_opt, _radius=_radius)
+            q_records[str(q)]['dssgx_query_time'][k] = dss_time
+            q_records[str(q)]['dssgx_match'][k] = query_result_dss
 
-    # culminate the result in the result data frame
-    result_df = result_df.append({'gx_preprocess_time': cluster_time_gx,
-                                  'dssgx_preprocess_time': cluster_time_dynamicGx,
-                                  'paa_preprocess_time': paa_build_time,
-                                  'sax_preprocess_time': sax_build_time,
-                                  'num_rows': num_rows,
-                                  'num_cols_max': gxe.get_max_seq_len(),
-                                  'num_cols_median': np.median(gxe.get_seq_length_list()),
-                                  'data_size': gxe.get_data_size(),
-                                  'num_query': len(query_set)}, ignore_index=True)
-    for i, q in enumerate(query_set):
-        this_record = q_records[str(q)]
-        q_data = str(q.tostring() if type(q) == np.ndarray else np.array(gxe.get_seq_data(q, normalize=False)).tostring())
-        result_df = result_df.append({'query': str(q) + ':' + q_data,
-                                      'query_len': len(q),
-                                      'bf_query_time': this_record['bf_query_time'],
-                                      'paa_query_time': this_record['paa_query_time'],
-                                      'sax_query_time': this_record['sax_query_time'],
-                                      'gx_query_time': this_record['gx_query_time'],
-                                      'dssgx_query_time': this_record['dssgx_query_time']},
-                                     ignore_index=True)  # append the query times
+    # add the meta information and preprocessing times
+    for k in best_ks:
+        result_df = pd.DataFrame(columns=result_headers[0, :])
+        result_df = result_df.append({'k': k,
+                                      'gx_preprocess_time': cluster_time_gx,
+                                      'dssgx_preprocess_time': cluster_time_dynamicGx,
+                                      'paa_preprocess_time': paa_build_time,
+                                      'sax_preprocess_time': sax_build_time,
+                                      'num_rows': num_rows,
+                                      'num_cols_max': gxe.get_max_seq_len(),
+                                      'num_cols_median': np.median(gxe.get_seq_length_list()),
+                                      'data_size': gxe.get_data_size(),
+                                      'num_query': len(query_set)}, ignore_index=True)
+        # add the accuracies and time performance
+        for i, q in enumerate(query_set):
+            this_record = q_records[str(q)]
+            q_data = str(
+                q.tostring() if type(q) == np.ndarray else np.array(gxe.get_seq_data(q, normalize=False)).tostring())
+            result_df = result_df.append({'query': str(q) + ':' + q_data,
+                                          'query_len': len(q),
+                                          'bf_query_time': this_record['bf_query_time'],
+                                          'paa_query_time': this_record['paa_query_time'],
+                                          'sax_query_time': this_record['sax_query_time'],
+                                          'gx_query_time': this_record['gx_query_time'][k],  # k for best k
+                                          'dssgx_query_time': this_record['dssgx_query_time'][k]},  # k for best k
+                                         ignore_index=True)  # append the query times
 
-        for bf_r, paa_r, sax_r, gx_r, dynamic_r in zip(this_record['bf_match'], this_record['paa_match'], this_record['sax_match'],
-                                                this_record['gx_match'], this_record['dssgx_match']):  # resolve the query matches
-            diff_saxbf = abs(sax_r[0] - bf_r[0])
-            diff_paabf = abs(paa_r[0] - bf_r[0])
-            diff_gxbf = abs(gx_r[0] - bf_r[0])
-            diff_dssgxbf = abs(dynamic_r[0] - bf_r[0])
+            # add the accuracies
+            for bf_r, paa_r, sax_r, gx_r, dynamic_r in zip(this_record['bf_match'][:k],
+                                                           this_record['paa_match'][:k],
+                                                           this_record['sax_match'][:k],
+                                                           this_record['gx_match'][k],
+                                                           this_record['dssgx_match'][k]):  # resolve the query matches
+                diff_saxbf = abs(sax_r[0] - bf_r[0])
+                diff_paabf = abs(paa_r[0] - bf_r[0])
+                diff_gxbf = abs(gx_r[0] - bf_r[0])
+                diff_dssgxbf = abs(dynamic_r[0] - bf_r[0])
 
-            overall_diff_saxbf_list.append(diff_saxbf)
-            overall_diff_paabf_list.append(diff_paabf)
-            overall_diff_gxbf_list.append(diff_gxbf)
-            overall_diff_dssgxbf_list.append(diff_dssgxbf)
+                overall_diff_saxbf_list.append(diff_saxbf)
+                overall_diff_paabf_list.append(diff_paabf)
+                overall_diff_gxbf_list.append(diff_gxbf)
+                overall_diff_dssgxbf_list.append(diff_dssgxbf)
 
-            result_df = result_df.append({'dist_diff_btw_paa_bf': diff_paabf,
-                                          'dist_diff_btw_sax_bf': diff_saxbf,
-                                          'dist_diff_btw_gx_bf': diff_gxbf,
-                                          'dist_diff_btw_dssgx_bf': diff_dssgxbf,
-                                          'bf_dist': bf_r[0], 'bf_match': bf_r[1],
-                                          'paa_dist': paa_r[0], 'paa_match': paa_r[1],
-                                          'sax_dist': sax_r[0], 'sax_match': sax_r[1],
-                                          'gx_dist': gx_r[0], 'gx_match': gx_r[1],
-                                          'dssgx_dist': dynamic_r[0], 'dssgx_match': dynamic_r[1]
-                                          }, ignore_index=True)
-        print('Current PAA error for query is ' + str(np.mean(overall_diff_paabf_list)))
-        print('Current SAX error for query is ' + str(np.mean(overall_diff_saxbf_list)))
-        print('Current GX error for query is ' + str(np.mean(overall_diff_gxbf_list)))
-        print('Current Dynamic error for query is ' + str(np.mean(overall_diff_dssgxbf_list)))
+                result_df = result_df.append({'dist_diff_btw_paa_bf': diff_paabf,
+                                              'dist_diff_btw_sax_bf': diff_saxbf,
+                                              'dist_diff_btw_gx_bf': diff_gxbf,
+                                              'dist_diff_btw_dssgx_bf': diff_dssgxbf,
+                                              'bf_dist': bf_r[0], 'bf_match': bf_r[1],
+                                              'paa_dist': paa_r[0], 'paa_match': paa_r[1],
+                                              'sax_dist': sax_r[0], 'sax_match': sax_r[1],
+                                              'gx_dist': gx_r[0], 'gx_match': gx_r[1],
+                                              'dssgx_dist': dynamic_r[0], 'dssgx_match': dynamic_r[1]
+                                              }, ignore_index=True)
+            print('Current PAA error for query is ' + str(np.mean(overall_diff_paabf_list)))
+            print('Current SAX error for query is ' + str(np.mean(overall_diff_saxbf_list)))
+            print('Current BX error for query is ' + str(np.mean(overall_diff_gxbf_list)))
+            print('Current Dynamic error for query is ' + str(np.mean(overall_diff_dssgxbf_list)))
+        result_path = output + '_k=' + str(k)
+        print('Result saved to ' + result_path)
+        result_df.to_csv(result_path)
 
-    print('Result saved to ' + output)
-    result_df.to_csv(output)
     gxe.stop()
-    print('Done')
+    print('Done with ' + data)
+
+
+def run_query(gxe, q, best_k, algo, _lb_opt, _radius):
+    start = time.time()
+    print('Running Brute Force Query ...')
+    if algo == 'bf':
+        q_result = gxe.query_brute_force(query=q, best_k=best_k, _use_cache=False)
+    elif algo == 'bx':
+        q_result = gxe.query(query=q, best_k=15, _lb_opt=_lb_opt, _radius=_radius)
+    else:
+        q_result = gxe.query_brute_force(query=q, best_k=15, _use_cache=False, _piecewise=algo,
+                                         _use_built_piecewise=False)
+
+    q_time = time.time() - start
+    print(algo + ' query took ' + str(q_time) + ' sec')
+    return q_result, q_time
