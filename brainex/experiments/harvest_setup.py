@@ -188,7 +188,7 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
         print('Distance type - ' + dist_type + ', adding ' + dataset_path)
         config_list.append((df.size, {  # record the size of the dataframe later start with smaller ones
             'data': dataset_path,
-            'output': os.path.join(output_dir_path, d_name + '_' + dist_type + '.csv'),
+            'output': os.path.join(output_dir_path, d_name + '_' + dist_type),
             'feature_num': 1,  # IMPORTANT this should be 1 for the UCR archive
             'dist_type': dist_type
         }))

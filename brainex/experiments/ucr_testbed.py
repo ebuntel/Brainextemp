@@ -56,10 +56,10 @@ if __name__ == "__main__":
     '''
     check the docstring of the above function - run_ucr_test for details regarding the parameters
     '''
-    # dataset = '/home/apocalyvec/data/UCRArchive_2018'
-    dataset = '/Users/Leo/Documents/data/UCRArchive_2018'
-    # output = '/home/apocalyvec/data/UCR_BrainEX_test'
-    output = '/Users/Leo/PycharmProjects/BrainEX/brainex/experiments/results/test'
+    dataset = '/home/apocalyvec/data/UCRArchive_2018'
+    # dataset = '/Users/Leo/Documents/data/UCRArchive_2018'
+    output = '/home/apocalyvec/data/UCR_BrainEX_test'
+    # output = '/Users/Leo/PycharmProjects/BrainEX/brainex/experiments/results/test'
 
     ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
     # ds_soi = [50000, 1500000]  # dataset size of interest, see the docstring of run_ucr_test for details
@@ -70,7 +70,7 @@ if __name__ == "__main__":
         'query_split': 0.1,
         '_lb_opt': False,
         'radius': 1,
-        'use_spark': False,
+        'use_spark': True,
         'loi_range': 1.0,
         'st': 0.1,
         'n_segment': 3,
