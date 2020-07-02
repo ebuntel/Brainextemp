@@ -102,9 +102,9 @@ def experiment_BrainEX(mp_args, data: str, output: str, feature_num, num_sample,
         print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
             len(query_set)) + '; query = ' + str(q))
 
-        query_result_bf, bf_time = run_query(gxe, q, best_k=15, algo='bf', _lb_opt=_lb_opt, _radius=_radius)
-        query_result_paa, paa_time = run_query(gxe, q, best_k=15, algo='paa', _lb_opt=_lb_opt, _radius=_radius)
-        query_result_sax, sax_time = run_query(gxe, q, best_k=15, algo='sax', _lb_opt=_lb_opt, _radius=_radius)
+        query_result_bf, bf_time = run_query(gxe, q, best_k=max(best_ks), algo='bf', _lb_opt=_lb_opt, _radius=_radius)
+        query_result_paa, paa_time = run_query(gxe, q, best_k=max(best_ks), algo='paa', _lb_opt=_lb_opt, _radius=_radius)
+        query_result_sax, sax_time = run_query(gxe, q, best_k=max(best_ks), algo='sax', _lb_opt=_lb_opt, _radius=_radius)
 
         q_records[str(q)] = {'bf_query_time': bf_time, 'paa_query_time': paa_time, 'sax_query_time': sax_time,
                              'gx_query_time': {}, 'dssgx_query_time': {},
