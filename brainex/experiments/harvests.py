@@ -16,7 +16,7 @@ import pandas as pd
 from brainex.utils.gxe_utils import from_csv
 
 
-def experiment_BrainEX(mp_args, data: str, output, feature_num, num_sample, query_split,
+def experiment_BrainEX(mp_args, data: str, output: str, feature_num, num_sample, query_split,
                        dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float,
                        n_segment: float, best_ks=[1, 5, 10]):
     # set up where to save the results
@@ -198,7 +198,7 @@ def experiment_BrainEX(mp_args, data: str, output, feature_num, num_sample, quer
             print('Current SAX error for query is ' + str(np.mean(overall_diff_saxbf_list)))
             print('Current BX error for query is ' + str(np.mean(overall_diff_gxbf_list)))
             print('Current Dynamic error for query is ' + str(np.mean(overall_diff_dssgxbf_list)))
-        result_path = output + '_k=' + str(k)
+        result_path = output + '_k=' + str(k) + '.csv'
         print('Result saved to ' + result_path)
         result_df.to_csv(result_path)
 
