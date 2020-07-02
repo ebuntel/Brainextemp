@@ -65,7 +65,7 @@ if __name__ == "__main__":
     # ds_soi = [50000, 1500000]  # dataset size of interest, see the docstring of run_ucr_test for details
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
     dist_types_to_test = ['eu']
-    ex_config_test = {
+    ex_config = {
         'num_sample': math.inf,
         'query_split': 0.1,
         '_lb_opt': False,
@@ -77,6 +77,7 @@ if __name__ == "__main__":
         'test_option': 'BrainEX',
 
         'cases_split': 0.01,
+        'best_ks': [1, 5, 15]
     }
     mp_args = {'num_worker': 32,
                'driver_mem': 24,
@@ -99,4 +100,4 @@ if __name__ == "__main__":
     # ex_config_test['loi_range'] = 0.9
     # run_ucr_test(dataset, ds_soi, output_dyn, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
 
-    run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
+    run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config, mp_args=mp_args)

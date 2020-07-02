@@ -18,7 +18,7 @@ from brainex.utils.gxe_utils import from_csv
 
 def experiment_BrainEX(mp_args, data: str, output: str, feature_num, num_sample, query_split,
                        dist_type, _lb_opt, _radius, use_spark: bool, loi_range: float, st: float,
-                       n_segment: float, best_ks=[1, 5, 10]):
+                       n_segment: float, best_ks):
     # set up where to save the results
     result_headers = np.array(
         [['k',
