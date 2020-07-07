@@ -332,8 +332,9 @@ class GenexEngine:
         try:
             assert len(filtered) > 0
         except AssertionError:
-            raise Exception('get_random_seq_of_len: given length does not exist in the database. If you think this is '
-                            'an implementation error, please report to the Repository as an issue.')
+            raise Exception('get_random_seq_of_len: given length does not exist in the database. Given ' + str(sequence_len) +
+                            ', Max len is ' + str(self.get_max_seq_len()) +
+                            '\nIf you think this is an implementation error, please report to the Repository as an issue.')
         target = random.choice(filtered)
         start = random.randint(0, len(target[1]) - sequence_len)
         seq = Sequence(target[0], start, start + sequence_len - 1)

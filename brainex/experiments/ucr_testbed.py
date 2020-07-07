@@ -64,7 +64,7 @@ if __name__ == "__main__":
     ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
     # ds_soi = [50000, 1500000]  # dataset size of interest, see the docstring of run_ucr_test for details
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
-    dist_types_to_test = ['eu']
+    dist_types_to_test = ['eu', 'ma', 'ch']
     ex_config = {
         'num_sample': math.inf,
         'query_split': 0.1,
