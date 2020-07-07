@@ -72,7 +72,8 @@ def experiment_BrainEX(mp_args, data: str, output: str, feature_num, num_sample,
             query_train = gxe.get_random_seq_of_len(query_len, seed=i * j)
 
             # normalize the external query on the scale of the train
-            query_test = gxe_test.get_random_seq_of_len(query_len, seed=i * j, with_data=True,
+            # test set may have different max seq len
+            query_test = gxe_test.get_random_seq_of_len(min(query_len, gxe_test.get_max_seq_len()), seed=i * j, with_data=True,
                                                         normalize=False).get_data()
             query_test = gxe.normalize(query_test)
 
