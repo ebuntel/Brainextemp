@@ -165,7 +165,7 @@ def _process_loi(loi, max_len):
     """
     if loi is not None:
         try:
-            assert loi[0] < max_len
+            assert loi[0] <= max_len
         except AssertionError:
             raise Exception('Error: the start of the Length of interest must be smaller than the longest sequence in '
                             'the original dataset. Given ' + str(loi[0]) + '; Max len is ' + str(max_len))
