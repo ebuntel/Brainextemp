@@ -221,3 +221,85 @@ def run_query(gxe, q, best_k, algo, _lb_opt, _radius):
     q_time = time.time() - start
     print(algo + ' query took ' + str(q_time) + ' sec')
     return q_result, q_time
+
+
+def experiment_GENEX(mp_args, dataset: str, queryset: str, output: str, feature_num, dist_type, _lb_opt, _radius, use_spark: bool, st: float):
+    # set up where to save the results
+    result_headers = np.array(
+        [['bx_preprocess_time',
+          'query', 'query_len',  # the query sequence
+          'bf_query_time', 'bx_query_time',
+          'dist_diff_btw_bx_bf',
+          'bf_dist', 'bf_match',  # bf matches
+          'bx_dist', 'bx_match',  # gx matches
+          'data_size'
+        ]])  # meta info about this experiment
+
+    overall_diff_bxbf_list = []
+    q_records = {}
+
+    # load in the test data for getting query sequences outside of the training set, which is the genexengine to query
+    bxe = from_csv(dataset, num_worker=mp_args['num_worker'], driver_mem=mp_args['driver_mem'],
+                   max_result_mem=mp_args['max_result_mem'],
+                   feature_num=feature_num, use_spark=use_spark,
+                   header=None)  # load in the training set as the main brainex to query
+    # generate the query sets
+    query_set = list()
+    query_df = pd.read_csv(queryset, header=None)
+    # get the number of subsequences randomly pick a sequence as the query from the query sequence, make sure the
+    # picked sequence is in the input list this query'id must exist in the database
+    for row in query_df.values:
+        query_set.append(row[1:])
+
+    print('Using dist_type = ' + str(dist_type))
+    print('Building Similarity Threshold is ' + str(st))
+
+    print('Performing Regular clustering ...')
+    cluster_start_time = time.time()
+    # bxe.build(st=st, dist_type=dist_type, loi=[bxe.get_max_seq_len()], _use_dss=False, _use_dynamic=False)
+    bxe.build(st=st, dist_type=dist_type, _use_dss=False, _use_dynamic=False)
+    cluster_time_bx = time.time() - cluster_start_time
+    print('bx cluster took ' + str(cluster_time_bx) + ' sec')
+
+    raise KeyboardInterrupt
+
+    print('Evaluating Query with BF and Bx')
+    for i, q in enumerate(query_set):
+        print('Dataset: ' + dataset + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
+            len(query_set)) + '; query = ' + str(q))
+        query_result_bf, bf_time = run_query(bxe, q, best_k=1, algo='bf', _lb_opt=_lb_opt, _radius=_radius)
+        query_result_bx, bx_time = run_query(bxe, q, best_k=1, algo='bx', _lb_opt=_lb_opt, _radius=_radius)
+        q_records[str(q)] = {'bf_query_time': bf_time, 'bx_query_time': bx_time,
+                             'bf_match': query_result_bf, 'bx_match': query_result_bx}
+
+    result_df = pd.DataFrame(columns=result_headers[0, :])
+    result_df = result_df.append({'bx_preprocess_time': cluster_time_bx,
+                                  'data_size': bxe.get_data_size()}, ignore_index=True)
+    # add the accuracies and time performance
+    overall_diff_bxbf_list = []
+    for i, q in enumerate(query_set):
+        this_record = q_records[str(q)]
+        q_data = str(
+            q.tostring() if type(q) == np.ndarray else np.array(bxe.get_seq_data(q, normalize=False)).tostring())
+        result_df = result_df.append({'query': str(q) + ':' + q_data,
+                                      'query_len': len(q),
+                                      'bf_query_time': this_record['bf_query_time'],
+                                      'bx_query_time': this_record['bx_query_time']},
+                                     ignore_index=True)  # append the query times
+
+        # add the accuracies
+        for bf_r, bx_r in zip(this_record['bf_match'],
+                                                       this_record['bx_match']):  # resolve the query matches
+            diff_bxbf = abs(bx_r[0] - bf_r[0])
+            overall_diff_bxbf_list.append(diff_bxbf)
+            result_df = result_df.append({'dist_diff_btw_bx_bf': diff_bxbf,
+                                          'bf_dist': bf_r[0], 'bf_match': bf_r[1],
+                                          'bx_dist': bx_r[0], 'bx_match': bx_r[1],
+                                          }, ignore_index=True)
+        print('Current BX error for query is ' + str(np.mean(overall_diff_bxbf_list)))
+    result_path = output + '_k=' + str(k) + '.csv'
+    print('Result saved to ' + result_path)
+    result_df.to_csv(result_path)
+
+    bxe.stop()
+    print('Done with ' + data)

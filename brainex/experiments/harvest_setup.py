@@ -13,7 +13,7 @@ import pandas as pd
 # java8_location = '/Library/Java/JavaVirtualMachines/jdk1.8.0_151.jdk/Contents/Home/jre'
 # os.environ['JAVA_HOME'] = java8_location
 # findspark.init(spark_home=spark_location)
-from brainex.experiments.harvests import experiment_BrainEX
+from brainex.experiments.harvests import experiment_BrainEX, experiment_GENEX
 from brainex.utils.gxe_utils import from_csv
 
 
@@ -202,6 +202,42 @@ def generate_exp_set_from_root(root, output, exclude_list, dist_type: str, notes
     return config_list
 
 
+def generate_ex_set_GENEX(root, output, dist_type: str, take=66):
+    today = datetime.now()
+    output_dir_path = os.path.join(output, today.strftime("%b-%d-%Y-") + str(today.hour))
+    if not os.path.exists(output_dir_path):
+        print('Creating output path: ' + output_dir_path)
+        os.mkdir(output_dir_path)
+    else:
+        print('Output folder already exist, overwriting')
+        shutil.rmtree(output_dir_path, ignore_errors=False, onerror=None)
+        os.mkdir(output_dir_path)
+
+    config_list = []
+    data_query_list = get_dataset_GENEX(root)
+
+    for dataset, queryset in data_query_list:
+        d_name = dataset.split('_')[0].split('/')[-1]
+        print('Distance type - ' + dist_type + ', adding ' + d_name)
+        df = pd.read_csv(dataset, header=None)
+        config_list.append((df.size, {  # record the size of the data frame later start with larger ones
+            'dataset': dataset,
+            'queryset': queryset,
+            'output': os.path.join(output_dir_path, d_name + '_' + dist_type),
+            'feature_num': 1,  # IMPORTANT this should be 1 for the UCR archive
+            'dist_type': dist_type
+        }))
+
+    config_list.sort(key=lambda x: x[0])  # sort by dataset size
+    config_list = [x[1] for x in config_list][:take]  # remove the dat size variable
+    config_list.reverse()
+
+    if len(config_list) < 1:
+        raise Exception('No file found in given directory')
+    print('Added ' + str(len(config_list)) + ' datasets with the given soi')
+    return config_list
+
+
 def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
                 _lb_opt, radius, use_spark, loi_range, st, n_segment, best_ks, test_option='BrainEX'):
     options = ['regular', 'DSS', 'dynamic']
@@ -227,6 +263,11 @@ def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
             raise Exception('Unrecognized test option, it must be one of the following: ' + str(options))
 
 
+def run_exp_set(exp_set, mp_args, _lb_opt, radius, use_spark, st):
+    for i, es in enumerate(exp_set):
+        print('$$ Running experiment set: ' + str(i) + ' of ' + str(len(exp_set)))
+        experiment_GENEX(mp_args, **es,  _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, st=st,)
+
 def get_dataset_train_path(root, exclude_list):
     trailing = '_TRAIN.tsv'
     data_path_list = {}
@@ -240,6 +281,16 @@ def get_dataset_train_path(root, exclude_list):
         except AssertionError:
             warning('File not exist: ' + this_path)
         data_path_list[name] = this_path
+    return data_path_list
+
+
+def get_dataset_GENEX(root):
+    data_path_list = []
+    file_list = [f for f in sorted(os.listdir(root)) if '.' not in f]
+    for i, file in enumerate(file_list[::2]):
+        dataset = file
+        queryset = file_list[i * 2 + 1]
+        data_path_list.append((os.path.join(root, dataset), os.path.join(root, queryset)))
     return data_path_list
 
 

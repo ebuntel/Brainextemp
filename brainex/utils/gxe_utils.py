@@ -80,7 +80,8 @@ def from_csv(data, feature_num: int,
         elif data.endswith('.tsv'):
             df = pd.read_csv(data, sep='\t', header=header)
         else:
-            raise Exception('Unrecognized file type, make sure that the data file extension is either csv or tsv.')
+            print('file does not have extension, default treated as csv')
+            df = pd.read_csv(data, header=header)
     elif type(data) is pd.DataFrame:
         df = data
     elif type(data) is np.ndarray:
