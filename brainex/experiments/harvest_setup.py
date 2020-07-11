@@ -230,7 +230,6 @@ def generate_ex_set_GENEX(root, output, dist_type: str, take=66):
 
     config_list.sort(key=lambda x: x[0])  # sort by dataset size
     config_list = [x[1] for x in config_list][:take]  # remove the dat size variable
-    config_list.reverse()
 
     if len(config_list) < 1:
         raise Exception('No file found in given directory')

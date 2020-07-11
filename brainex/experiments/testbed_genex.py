@@ -51,7 +51,7 @@ if __name__ == "__main__":
     dataset = '/home/apocalyvec/data/Genex/datasets85'
     output = '/home/apocalyvec/data/Genex/brainex'
 
-    dist_types_to_test = ['eu']
+    dist_types_to_test = ['eu', 'ma', 'ch']
     ex_config_test = {
         '_lb_opt': False,
         'radius': 1,

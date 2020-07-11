@@ -209,7 +209,6 @@ def experiment_BrainEX(mp_args, data: str, output: str, feature_num, num_sample,
 
 def run_query(gxe, q, best_k, algo, _lb_opt, _radius):
     start = time.time()
-    print('Running Brute Force Query ...')
     if algo == 'bf':
         q_result = gxe.query_brute_force(query=q, best_k=best_k, _use_cache=False)
     elif algo == 'bx':
@@ -256,17 +255,15 @@ def experiment_GENEX(mp_args, dataset: str, queryset: str, output: str, feature_
 
     print('Performing Regular clustering ...')
     cluster_start_time = time.time()
-    # bxe.build(st=st, dist_type=dist_type, loi=[bxe.get_max_seq_len()], _use_dss=False, _use_dynamic=False)
-    bxe.build(st=st, dist_type=dist_type, _use_dss=False, _use_dynamic=False)
+    bxe.build(st=st, dist_type=dist_type, loi=[bxe.get_max_seq_len()], _use_dss=False, _use_dynamic=False)
+    # bxe.build(st=st, dist_type=dist_type, _use_dss=False, _use_dynamic=False)
     cluster_time_bx = time.time() - cluster_start_time
     print('bx cluster took ' + str(cluster_time_bx) + ' sec')
-
-    raise KeyboardInterrupt
 
     print('Evaluating Query with BF and Bx')
     for i, q in enumerate(query_set):
         print('Dataset: ' + dataset + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
-            len(query_set)) + '; query = ' + str(q))
+            len(query_set)) )
         query_result_bf, bf_time = run_query(bxe, q, best_k=1, algo='bf', _lb_opt=_lb_opt, _radius=_radius)
         query_result_bx, bx_time = run_query(bxe, q, best_k=1, algo='bx', _lb_opt=_lb_opt, _radius=_radius)
         q_records[str(q)] = {'bf_query_time': bf_time, 'bx_query_time': bx_time,
@@ -297,9 +294,8 @@ def experiment_GENEX(mp_args, dataset: str, queryset: str, output: str, feature_
                                           'bx_dist': bx_r[0], 'bx_match': bx_r[1],
                                           }, ignore_index=True)
         print('Current BX error for query is ' + str(np.mean(overall_diff_bxbf_list)))
-    result_path = output + '_k=' + str(k) + '.csv'
+    result_path = output + '.csv'
     print('Result saved to ' + result_path)
     result_df.to_csv(result_path)
 
     bxe.stop()
-    print('Done with ' + data)
