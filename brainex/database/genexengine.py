@@ -225,6 +225,7 @@ class GenexEngine:
         rtn = candidate_list[:best_k]
         if _piecewise: # calculate the true DTW distance (not piecewise approximated)
             rtn = [(sim_between_array(self.get_seq_data(x[1]), query.data, pnorm=dt_index), x[1]) for x in rtn]
+            rtn.sort(key=lambda x: x[0])
         return rtn
 
     def _qbf(self, query, dt_index, best_k, use_cache, piecewise: str, _use_built_piecewise):
@@ -234,6 +235,8 @@ class GenexEngine:
 
         if not candidate_list:  # there is no cached brute force result
             if self.is_using_spark():
+                if type(query) == Sequence:
+                    query_data = self.get_seq_data(query)
                 if not piecewise:
                     candidate_list = _query_bf_spark(query, self.subsequences, dt_index, data_list=dn)
                 elif piecewise == 'paa':
@@ -245,7 +248,7 @@ class GenexEngine:
                         candidate_list = _query_paa_spark(query, self.subsequences_paa, dt_index,
                                                           self.build_conf['n_segment'])
                     else:
-                        candidate_list = _query_piecewise_spark(query, self.subsequences, dt_index,  data_list=dn,
+                        candidate_list = _query_piecewise_spark(query_data, self.subsequences, dt_index,  data_list=dn,
                                                                 piecewise=piecewise, n_segment=self.build_conf['n_segment'])
                 elif piecewise == 'sax':
                     if _use_built_piecewise:
@@ -256,7 +259,7 @@ class GenexEngine:
                         candidate_list = _query_sax_spark(query, self.subsequences_sax, dt_index,
                                                           self.build_conf['n_segment'])
                     else:
-                        candidate_list = _query_piecewise_spark(query, self.subsequences, dt_index,  data_list=dn,
+                        candidate_list = _query_piecewise_spark(query_data, self.subsequences, dt_index,  data_list=dn,
                                                                 piecewise=piecewise, n_segment=self.build_conf['n_segment'])
             else:
                 candidate_list = _query_bf_mp(query, self.mp_context, self.subsequences, dt_index, piecewise,

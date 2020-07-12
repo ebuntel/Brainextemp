@@ -2,7 +2,7 @@ import math
 import os
 import numpy as np
 
-from brainex.experiments.harvest_setup import generate_exp_set_from_root, run_exp_set, generate_ex_set_GENEX
+from brainex.experiments.harvest_setup import generate_exp_set_from_root, run_exp_set_GENEX, generate_ex_set_GENEX
 
 
 def run_gx_test(dataset_path, output_dir, dist_types, ex_config, mp_args):
@@ -37,7 +37,7 @@ def run_gx_test(dataset_path, output_dir, dist_types, ex_config, mp_args):
         raise Exception('Assertion failed in checking parameters')
 
     exp_set_list = [generate_ex_set_GENEX(dataset_path, output_dir, dt) for dt in dist_types]
-    return [run_exp_set(es, mp_args, **ex_config) for es in exp_set_list]
+    return [run_exp_set_GENEX(es, mp_args, **ex_config) for es in exp_set_list]
 
 
 '''

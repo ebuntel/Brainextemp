@@ -87,17 +87,22 @@ def _get_dist_sequence(seq1: Sequence, seq2: Sequence, dt_index, data_list):
     return sim_between_array(seq1.get_data(), seq2.fetch_data(data_list), pnorm=dt_index), seq2
 
 
-def _get_dist_sequence_piecewise(seq1: Sequence, seq2: Sequence, dt_index, data_list, piecewise, n_segment):
+def _get_dist_sequence_piecewise(query_com, candidate: Sequence, dt_index, data_list, piecewise, n_segment, fitter):
     """
     the use of paa
     :param seq1:
-    :param seq2:
+    :param candidate:
     :param dt_index:
     :param paa:
     :param data_list:
     :return:
     """
-    return sim_between_array_piecewise(seq1.get_data(), seq2.fetch_data(data_list), dt_index, piecewise, n_segment), seq2
+    if piecewise == 'paa':
+        candidate_com, _ = paa_compress(a=candidate.fetch_data(data_list), paa_seg=n_segment, paa=fitter)
+    else:
+        candidate_com, _ = sax_compress(a=candidate.fetch_data(data_list), sax_seg=n_segment, sax=fitter)
+    return sim_between_array(query_com, candidate_com, dt_index), candidate
+    # return sim_between_array_piecewise(seq1.get_data(), candidate.fetch_data(data_list), dt_index, piecewise, n_segment), candidate
 
 
 def _get_dist_array(a1: np.ndarray, a2: np.ndarray, dt_index):

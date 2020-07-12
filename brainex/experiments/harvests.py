@@ -101,7 +101,7 @@ def experiment_BrainEX(mp_args, data: str, output: str, feature_num, num_sample,
     print('Evaluating Query with BF, PAA, SAX')
     for i, q in enumerate(query_set):
         print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
-            len(query_set)) + '; query = ' + str(q))
+            len(query_set)))
 
         query_result_bf, bf_time = run_query(gxe, q, best_k=max(best_ks), algo='bf', _lb_opt=_lb_opt, _radius=_radius)
         query_result_paa, paa_time = run_query(gxe, q, best_k=max(best_ks), algo='paa', _lb_opt=_lb_opt, _radius=_radius)
@@ -137,7 +137,7 @@ def experiment_BrainEX(mp_args, data: str, output: str, feature_num, num_sample,
         print('Evaluating DSS Bx for k = ' + str(k))
         for i, q in enumerate(query_set):
             print('Dataset: ' + data + ' - dist_type: ' + dist_type + '- Querying #' + str(i) + ' of ' + str(
-                len(query_set)) + '; query = ' + str(q))
+                len(query_set)))
             query_result_dss, dss_time = run_query(gxe, q, best_k=k, algo='bx', _lb_opt=_lb_opt, _radius=_radius)
             q_records[str(q)]['dssgx_query_time'][k] = dss_time
             q_records[str(q)]['dssgx_match'][k] = query_result_dss

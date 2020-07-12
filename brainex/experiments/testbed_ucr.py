@@ -2,7 +2,7 @@ import math
 import os
 import numpy as np
 
-from brainex.experiments.harvest_setup import generate_exp_set_from_root, run_exp_set
+from brainex.experiments.harvest_setup import generate_exp_set_from_root, run_exp_set_GENEX, run_exp_set
 
 
 def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types, ex_config, mp_args):
@@ -64,7 +64,8 @@ if __name__ == "__main__":
     ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
     # ds_soi = [50000, 1500000]  # dataset size of interest, see the docstring of run_ucr_test for details
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
-    dist_types_to_test = ['eu', 'ma', 'ch']
+    # dist_types_to_test = ['eu', 'ma', 'ch']
+    dist_types_to_test = ['eu']
     ex_config = {
         'num_sample': math.inf,
         'query_split': 0.1,

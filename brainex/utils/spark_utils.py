@@ -1,4 +1,5 @@
 from pyspark import SparkContext, SparkConf
+from pyspark.rdd import PipelinedRDD
 from tslearn.piecewise import PiecewiseAggregateApproximation
 
 from brainex.op.query_op import _get_dist_sequence, _get_dist_array, _get_dist_sequence_piecewise
@@ -95,13 +96,16 @@ def _query_bf_spark(query, subsequence_rdd, dt_index, data_list):
     return candidate_list
 
 
-def _query_piecewise_spark(query, subsequence_rdd, dt_index, data_list, piecewise, n_segment):
-    pp_rdd = subsequence_rdd.map(
-        lambda x: _get_dist_sequence_piecewise(query, x, dt_index=dt_index, data_list=data_list.value,
-                                               piecewise=piecewise, n_segment=n_segment))
+def _query_piecewise_spark(query_data, subsequence_rdd: PipelinedRDD, dt_index, data_list, piecewise, n_segment):
+    if piecewise == 'paa':
+        query_com, fitter = paa_compress(a=query_data, paa_seg=n_segment)
+    else:
+        query_com, fitter = sax_compress(a=query_data, sax_seg=n_segment)
+    ss_equal_length_rdd = subsequence_rdd.filter(lambda x: len(x) == len(query_data))
+    pp_rdd = ss_equal_length_rdd.map(
+        lambda x: _get_dist_sequence_piecewise(query_com, x, dt_index=dt_index, data_list=data_list.value,
+                                               piecewise=piecewise, n_segment=n_segment, fitter=fitter))
     candidate_list = pp_rdd.collect()
-    # clear data stored in the candidate list
-
     return candidate_list
 
 
