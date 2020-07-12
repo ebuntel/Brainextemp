@@ -101,8 +101,8 @@ def _query_piecewise_spark(query_data, subsequence_rdd: PipelinedRDD, dt_index, 
         query_com, fitter = paa_compress(a=query_data, paa_seg=n_segment)
     else:
         query_com, fitter = sax_compress(a=query_data, sax_seg=n_segment)
-    ss_equal_length_rdd = subsequence_rdd.filter(lambda x: len(x) == len(query_data))
-    pp_rdd = ss_equal_length_rdd.map(
+    # ss_equal_length_rdd = subsequence_rdd.filter(lambda x: len(x) == len(query_data))
+    pp_rdd = subsequence_rdd.map(
         lambda x: _get_dist_sequence_piecewise(query_com, x, dt_index=dt_index, data_list=data_list.value,
                                                piecewise=piecewise, n_segment=n_segment, fitter=fitter))
     candidate_list = pp_rdd.collect()

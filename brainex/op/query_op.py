@@ -98,7 +98,7 @@ def _get_dist_sequence_piecewise(query_com, candidate: Sequence, dt_index, data_
     :return:
     """
     if piecewise == 'paa':
-        candidate_com, _ = paa_compress(a=candidate.fetch_data(data_list), paa_seg=n_segment, paa=fitter)
+        candidate_com, _ = paa_compress(a=candidate.fetch_data(data_list), paa_seg=n_segment)
     else:
         candidate_com, _ = sax_compress(a=candidate.fetch_data(data_list), sax_seg=n_segment, sax=fitter)
     return sim_between_array(query_com, candidate_com, dt_index), candidate

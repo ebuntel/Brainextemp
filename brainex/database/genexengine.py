@@ -235,7 +235,8 @@ class GenexEngine:
 
         if not candidate_list:  # there is no cached brute force result
             if self.is_using_spark():
-                if type(query) == Sequence:
+                query_data = query.data
+                if query_data is None:
                     query_data = self.get_seq_data(query)
                 if not piecewise:
                     candidate_list = _query_bf_spark(query, self.subsequences, dt_index, data_list=dn)
