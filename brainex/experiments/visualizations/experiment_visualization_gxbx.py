@@ -16,11 +16,16 @@ if __name__ == '__main__':
     matplotlib.rc('font', **font)
 
     root_gx_prep = '/home/apocalyvec/data/Genex/exps_results_summary/preprocess.csv'
+    root_gx_eu = '/home/apocalyvec/data/Genex/exps_results_summary/sim_euclidean.csv'
+    root_gx_ma = '/home/apocalyvec/data/Genex/exps_results_summary/sim_manhattan.csv'
+    root_gx_ch = '/home/apocalyvec/data/Genex/exps_results_summary/sim_minkowski.csv'
+
     root = '/home/apocalyvec/data/Genex/brainex/Jul-10-2020-21'
     file_list = os.listdir(root)
     file_list = [os.path.join(root, x) for x in file_list]
 
     dt_dict = {'eu': 'Euclidean', 'ma': 'Manhattan', 'ch': 'Chebyshev'}
+    dt_gx_path_dict = {'eu': root_gx_eu, 'ma': root_gx_ma, 'ch': root_gx_ch}
     dt_offset_dict = {'eu': 0, 'ma': 1, 'ch': 2}
 
     # dt_dict = {'eu': 'Euclidean'}
@@ -33,6 +38,7 @@ if __name__ == '__main__':
     # End of Initial Variables #########################################################################################
     dt_list = dt_dict.keys()
     title = fig_name
+    df_genex_prep = pd.read_csv(root_gx_prep)
 
     for i, dt in enumerate(dt_list):
         fd = [x for x in file_list if dt in x.strip('.csv').split('_')]
@@ -48,13 +54,11 @@ if __name__ == '__main__':
 
         for result_file in fd:
             df = pd.read_csv(result_file)
-            df_genex = pd.read_csv(root_gx_prep)
             dataset_name = result_file.strip(dt + '_' + '.csv').split('/')[-1]
 
-            if not np.any(df_genex['dataset'] == dataset_name):
+            if not np.any(df_genex_prep['dataset'] == dataset_name):
                 continue
-            gx_prep_tiome = df_genex.loc[df_genex['dataset'] == dataset_name]
-            gx_prep_time = df_genex.loc[df_genex['dataset'] == dataset_name].iloc[dt_offset_dict[dt], 1]
+            gx_prep_time = df_genex_prep.loc[df_genex_prep['dataset'] == dataset_name].iloc[dt_offset_dict[dt], 1]
 
             size = df.iloc[(0, -1)]
             bx_prep_time = df.iloc[(0, 1)]
@@ -68,60 +72,63 @@ if __name__ == '__main__':
             bin_qbx_time.append(np.mean(qbx_time))
             bin_qbx_error.append(np.mean(qbx_error))
 
+            df_gx_query = pd.read_csv(dt_gx_path_dict[dt])
+            df_gx_query_dataset = df_gx_query.loc[(df_gx_query['name'] == dataset_name) & (df_gx_query['method'] == 'genex_0.1')]
+            bin_qgx_error.append(df_gx_query_dataset.values[0][3])
+            bin_qgx_time.append(df_gx_query_dataset.values[0][4])
+
         note = '\n Each dot represents on dataset'
         prep_line = np.linspace(min(bin_size), max(bin_size), 100)
 
-        # Plot the Cluster Time
-        fig, ax = plt.subplots()
-        fig.set_size_inches(15, 8)
-        plt.title('Cluster time across Data Size for Distance Type: ' + dt_dict[dt] + note)
-        # plt.scatter(bin_size, bin_paa_prep_time, c='blue', label='PAA Preparation Time')
-
-        model = np.poly1d(np.polyfit(bin_size, bin_bx_prep_time, 3))
-        plt.plot(prep_line, model(prep_line), label='BrainEx Cluster Time Fitted', c='blue')
-        plt.scatter(bin_size, bin_bx_prep_time, c='cyan', label='BrainEx Cluster Time', marker='x')
-
-        model = np.poly1d(np.polyfit(bin_size, bin_gx_prep_time, 3))
-        plt.plot(prep_line, model(prep_line), label='Genex Cluster Time Fitted', c='orange')
-        plt.scatter(bin_size, bin_gx_prep_time, c='orange', label='Genex Cluster Time', marker='x')
-
-        plt.ylabel('Time (second)')
-        plt.xlabel('Time series length (number of data points)')
-        # plt.ylim(-100, 200)
-        plt.legend()
-        plt.show()
-
-        pass
-        # # Plot the Query Time
+        # # Plot the Cluster Time
         # fig, ax = plt.subplots()
         # fig.set_size_inches(15, 8)
+        # plt.title('Cluster time across Data Size for Distance Type: ' + dt_dict[dt] + note)
+        # # plt.scatter(bin_size, bin_paa_prep_time, c='blue', label='PAA Preparation Time')
         #
-        # plt.title('Query Time across Data Size for Distance Type: ' + dt_dict[dt] + ' k=' + str(k) + note)
-        # # plt.scatter(bin_size, bin_qbf_time, c='red', label='Brute Force Query Time')
-        # # plt.scatter(bin_size, bin_qpaa_time, c='orange', label='PAA Query Time')
+        # model = np.poly1d(np.polyfit(bin_size, bin_bx_prep_time, 3))
+        # plt.plot(prep_line, model(prep_line), label='BrainEx Cluster Time Fitted', c='blue')
+        # plt.scatter(bin_size, bin_bx_prep_time, c='cyan', label='BrainEx Cluster Time', marker='x')
         #
-        # model = np.poly1d(np.polyfit(bin_size, bin_qbf_time, 3))  # change the Y vector in this line
-        # plt.plot(prep_line, model(prep_line), label='Brute Force Query Time Fitted', c='red')
-        # plt.scatter(bin_size, bin_qbf_time, c='red', label='Brute Force Query Time')
-        #
-        # model = np.poly1d(np.polyfit(bin_size, bin_qsax_time, 3))  # change the Y vector in this line
-        # plt.plot(prep_line, model(prep_line), label='SAX Query Time Fitted', c='orange')
-        # plt.scatter(bin_size, bin_qsax_time, c='orange', label='SAX Query Time')
-        #
-        # model = np.poly1d(np.polyfit(bin_size, bin_qpaa_time, 3))  # change the Y vector in this line
-        # plt.plot(prep_line, model(prep_line), label='PAA Query Time Fitted', c='magenta')
-        # plt.scatter(bin_size, bin_qpaa_time, c='magenta', label='PAA Query Time')
-        #
-        # model = np.poly1d(np.polyfit(bin_size, bin_qbx_time, 3))  # change the Y vector in this line
-        # plt.plot(prep_line, model(prep_line), label='BrainEx Query Time Fitted', c='blue')
-        # plt.scatter(bin_size, bin_qbx_time, c='blue', label='BrainEx Query Time')
-        #
-        # model = np.poly1d(np.polyfit(bin_size, bin_qdss_time, 3))  # change the Y vector in this line
-        # plt.plot(prep_line, model(prep_line), label='DSS Cluster Time Fitted', c='green')
-        # plt.scatter(bin_size, bin_qdss_time, c='green', label='DSS Query Time')
+        # model = np.poly1d(np.polyfit(bin_size, bin_gx_prep_time, 3))
+        # plt.plot(prep_line, model(prep_line), label='Genex Cluster Time Fitted', c='orange')
+        # plt.scatter(bin_size, bin_gx_prep_time, c='orange', label='Genex Cluster Time', marker='x')
         #
         # plt.ylabel('Time (second)')
         # plt.xlabel('Time series length (number of data points)')
-        # # plt.ylim(-1, 25)
+        # # plt.ylim(-100, 200)
         # plt.legend()
         # plt.show()
+        #
+        # print('Distance type: ' + dt_dict[dt])
+        # print('Genex average preprocess time is ' + str(np.mean(bin_gx_prep_time)))
+        # print('BrainEx average preprocess time is ' + str(np.mean(bin_bx_prep_time)))
+        # print('BrainEx is ' + str(np.mean(bin_gx_prep_time) / np.mean(bin_bx_prep_time)) + ' times faster.')
+
+        pass
+        # Plot the Query Time
+        fig, ax = plt.subplots()
+        fig.set_size_inches(15, 8)
+
+        plt.title('Query Time across Data Size for Distance Type: ' + dt_dict[dt])
+        # plt.scatter(bin_size, bin_qbf_time, c='red', label='Brute Force Query Time')
+        # plt.scatter(bin_size, bin_qpaa_time, c='orange', label='PAA Query Time')
+
+        model = np.poly1d(np.polyfit(bin_size, bin_qgx_time, 3))  # change the Y vector in this line
+        plt.plot(prep_line, model(prep_line), label='Genex Query Time Fitted', c='orange')
+        plt.scatter(bin_size, bin_qgx_time, c='orange', label='Query Query Time')
+
+        model = np.poly1d(np.polyfit(bin_size, bin_qbx_time, 3))  # change the Y vector in this line
+        plt.plot(prep_line, model(prep_line), label='BrainEx Query Time Fitted', c='blue')
+        plt.scatter(bin_size, bin_qbx_time, c='blue', label='BrainEx Query Time')
+
+        print('Distance type: ' + dt_dict[dt])
+        print('Genex average ERROR is ' + str(np.mean(bin_qgx_error)))
+        print('BrainEx average ERROR is ' + str(np.mean(bin_qbx_error)))
+        # print('BrainEx is ' + str(np.mean(bin_gx_prep_time) / np.mean(bin_bx_prep_time)) + ' times faster.')
+
+        plt.ylabel('Time (second)')
+        plt.xlabel('Time series length (number of data points)')
+        # plt.ylim(-1, 25)
+        plt.legend()
+        plt.show()
