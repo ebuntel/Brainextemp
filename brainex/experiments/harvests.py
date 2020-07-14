@@ -255,8 +255,8 @@ def experiment_GENEX(mp_args, dataset: str, queryset: str, output: str, feature_
 
     print('Performing Regular clustering ...')
     cluster_start_time = time.time()
-    bxe.build(st=st, dist_type=dist_type, loi=[bxe.get_max_seq_len()], _use_dss=False, _use_dynamic=False)
-    # bxe.build(st=st, dist_type=dist_type, _use_dss=False, _use_dynamic=False)
+    # bxe.build(st=st, dist_type=dist_type, loi=[bxe.get_max_seq_len()], _use_dss=False, _use_dynamic=False)
+    bxe.build(st=st, dist_type=dist_type, _use_dss=False, _use_dynamic=False)
     cluster_time_bx = time.time() - cluster_start_time
     print('bx cluster took ' + str(cluster_time_bx) + ' sec')
 

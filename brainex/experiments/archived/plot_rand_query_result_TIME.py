@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import os
 
-from brainex.experiments.plot_rand_query_result_RMSE import autolabel
+from brainex.experiments.archived.plot_rand_query_result_RMSE import autolabel
 
 date = '/ucr_experiment/merged'
 notes = 'UCR0_numSample400'
