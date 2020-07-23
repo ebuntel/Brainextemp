@@ -28,13 +28,14 @@ def load(file_or_path: str, feature_num: int = None, num_worker: int = None, use
             raise TypeError('Please provide a valid worker number.')
         else:
             db = from_csv(data=file_or_path, feature_num=feature_num,
-                          num_worker=num_worker, use_spark=use_spark)
+                          num_worker=num_worker, use_spark=use_spark, header=header, driver_mem=driver_mem, max_result_mem=max_result_mem)
 
     elif os.path.isdir(file_or_path):
         if not isinstance(num_worker, int):
             raise TypeError('Please provide a integer worker number.')
         else:
-            db = from_db(path=file_or_path, num_worker=num_worker)
+            db = from_db(path=file_or_path, num_worker=num_worker,
+                         driver_mem=driver_mem, max_result_mem=max_result_mem)
 
     else:
         raise ValueError('Not a valid file name or directory path, please check it again.')
