@@ -230,7 +230,6 @@ def generate_ex_set_GENEX(root, output, dist_type: str, take=66):
 
     config_list.sort(key=lambda x: x[0])  # sort by dataset size
     config_list = [x[1] for x in config_list][:take]  # remove the dat size variable
-    config_list.reverse()
 
     if len(config_list) < 1:
         raise Exception('No file found in given directory')
@@ -263,7 +262,7 @@ def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
             raise Exception('Unrecognized test option, it must be one of the following: ' + str(options))
 
 
-def run_exp_set(exp_set, mp_args, _lb_opt, radius, use_spark, st):
+def run_exp_set_GENEX(exp_set, mp_args, _lb_opt, radius, use_spark, st):
     for i, es in enumerate(exp_set):
         print('$$ Running experiment set: ' + str(i) + ' of ' + str(len(exp_set)))
         experiment_GENEX(mp_args, **es,  _lb_opt=_lb_opt, _radius=radius, use_spark=use_spark, st=st,)

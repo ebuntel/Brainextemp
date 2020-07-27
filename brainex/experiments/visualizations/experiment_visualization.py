@@ -16,7 +16,7 @@ if __name__ == '__main__':
     matplotlib.rc('font', **font)
 
     notes = ''
-    root = '/home/apocalyvec/data/UCR_BrainEX_test/Jul-02-2020-11-N-UCR_test_eu_soi_0-to-50000'
+    root = '/home/apocalyvec/data/UCR_BrainEX_test/Jul-11-2020-22-N-UCR_test_eu_soi_0-to-50000'
     file_list = os.listdir(root)
     file_list = [os.path.join(root, x) for x in file_list]
 
@@ -184,12 +184,18 @@ if __name__ == '__main__':
             # plt.ylim(-0.0025, 0.14)
             plt.legend()
             plt.show()
+            print('When k is ' + str(k))
 
-            print('BrainEx Clustering on average took: ' + str(np.mean(bin_bx_prep_time)))
-            print('DSS Clustering on average took: ' + str(np.mean(bin_bxdss_prep_time)))
+            print('PAA ERROR on average is: ' + str(np.mean(bin_qpaa_error)))
+            print('SAX ERROR on average is: ' + str(np.mean(bin_qsax_error)))
+            print('BrainEx ERROR on average is: ' + str(np.mean(bin_qgx_error)))
+            print('DSS ERROR on average is: ' + str(np.mean(bin_qdss_error)))
 
-            print('BrainEx error on average is: ' + str(np.mean(bin_qgx_error)))
-            print('DSS error on average is: ' + str(np.mean(bin_qdss_error)))
+            print('PAA query TIME on average is: ' + str(np.mean(bin_qpaa_time)))
+            print('SAX query TIME on average is: ' + str(np.mean(bin_qsax_time)))
+            print('BrainEx query TIME on average is: ' + str(np.mean(bin_qgx_time)))
+            print('DSS query TIME on average is: ' + str(np.mean(bin_qdss_time)))
+            pass
 
-            print('BrainEx query on average took: ' + str(np.mean(bin_qgx_time)))
-            print('DSS query on average took: ' + str(np.mean(bin_qdss_time)))
+        print('BrainEx Clustering on average took: ' + str(np.mean(bin_bx_prep_time)))
+        print('DSS Clustering on average took: ' + str(np.mean(bin_bxdss_prep_time)))

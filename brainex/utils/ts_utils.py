@@ -37,23 +37,29 @@ def lb_kim_sequence(candidate_seq, query_sequence):
     return lb_kim_sim / 2.0  # normalize
 
 
-def paa_compress(a: np.ndarray, paa_seg):
-    paa = PiecewiseAggregateApproximation(min(len(a), paa_seg))
-    compressed = paa.fit_transform(a)
+def paa_compress(a: np.ndarray, paa_seg, paa: PiecewiseAggregateApproximation = None):
+    if not paa:
+        paa = PiecewiseAggregateApproximation(min(len(a), paa_seg))
+        compressed = paa.fit_transform(a)
+    else:
+        compressed = paa.transform(a)
 
     compressed = np.squeeze(compressed, axis=-1)
     # TODO do not squeeze all the dimension if the ts is multi-dimensional
     compressed = np.squeeze(compressed, axis=0)
 
-    return compressed
+    return compressed, paa
 
     # return np.squeeze(compressed)
 
 
-def sax_compress(a: np.ndarray, sax_seg):
-    sax = SymbolicAggregateApproximation(n_segments=min(len(a), sax_seg), alphabet_size_avg=2 ** sax_seg)
-    compressed = sax.fit_transform(a)
+def sax_compress(a: np.ndarray, sax_seg, sax: SymbolicAggregateApproximation = None):
+    if not sax:
+        sax = SymbolicAggregateApproximation(n_segments=min(len(a), sax_seg), alphabet_size_avg=2 ** sax_seg)
+        compressed = sax.fit_transform(a)
+    else:
+        compressed = sax.transform(a)
     compressed = np.squeeze(compressed, axis=-1)
     # TODO do not squeeze all the dimension if the ts is multi-dimensional
     compressed = np.squeeze(compressed, axis=0)
-    return compressed
+    return compressed, sax
