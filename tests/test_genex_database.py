@@ -47,7 +47,7 @@ class TestGenex_database:
         del test_db
 
         # Running test for another dataset including column header
-        data_file = '../brainex/experiments/data_original/SART2018_HbO_altered.csv'
+        data_file = '../brainex/experiments/data_original/fNIRS.csv'
         feature_num = 5
         df = pd.read_csv(data_file, header=0)  # header is only used to avoid duplicate code
 
@@ -62,7 +62,7 @@ class TestGenex_database:
     def test_from_csv_2(self):
         # The provided feature number is incorrect
         # 1. feature_num < the real feature number of the dataset
-        data_file = '../brainex/experiments/data_original/SART2018_HbO_altered.csv'
+        data_file = '../brainex/experiments/data_original/fNIRS.csv'
         feature_num = 2
         df = pd.read_csv(data_file)
 
@@ -83,7 +83,7 @@ class TestGenex_database:
         assert len(id_ls) == len(df)
 
     def test_from_db(self):
-        data_file = '../brainex/experiments/data_original/SART2018_HbO_altered.csv'
+        data_file = '../brainex/experiments/data_original/fNIRS.csv'
         feature_num = 5
         path = '../experiments/unittest/test_db'
 
@@ -191,7 +191,7 @@ class TestGenex_database:
         5. sequence type issue
         :return:
         """
-        data_file = '../brainex/experiments/data_original/SART2018_HbO_altered.csv'
+        data_file = '../brainex/experiments/data_original/fNIRS.csv'
         feature_num = 5
         test_db = gutils.load(data_file, num_worker=self.num_cores, use_spark=False, feature_num=feature_num)
         test_db.build(0.05, loi=(test_db.get_max_seq_len() - 5, test_db.get_max_seq_len()))
