@@ -13,7 +13,7 @@ def memory_test(data_file_path, feature_num, _memory_opt):
     return grouped_sequences
 
 if __name__ == '__main__':
-    data_file_path = 'data_original/SART2018_HbO_altered.csv'
+    data_file_path = 'data_original/fNIRS.csv'
     feature_num = 20
     result = memory_test(data_file_path=data_file_path, feature_num=feature_num, _memory_opt='encoding')
 
