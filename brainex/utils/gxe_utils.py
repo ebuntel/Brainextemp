@@ -163,6 +163,9 @@ def from_db(path: str,
     data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxe'), 'rb'))
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
+    # cast the type to np type so that they can be operated on list
+    conf['global_max'] = np.int64(conf['global_max'])
+    conf['global_min'] = np.int64(conf['global_min'])
 
     mp_context = _multiprocess_backend(is_conf_using_spark(conf), num_worker=num_worker, driver_mem=driver_mem,
                                        max_result_mem=max_result_mem)
