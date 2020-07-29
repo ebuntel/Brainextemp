@@ -16,7 +16,7 @@ from brainex.utils.context_utils import _multiprocess_backend
 
 
 def load(file_or_path: str, feature_num: int = None, num_worker: int = None, use_spark: bool = False, header=0,
-         driver_mem: int = 16, max_result_mem: int = 16):
+         driver_mem: int = 16, max_result_mem: int = 16, _rows_to_consider: int = None):
     db = None
     if num_worker is None:  # the default number of workers is the number of logical cores in the host system
         num_worker = multiprocessing.cpu_count()
@@ -28,7 +28,8 @@ def load(file_or_path: str, feature_num: int = None, num_worker: int = None, use
             raise TypeError('Please provide a valid worker number.')
         else:
             db = from_csv(data=file_or_path, feature_num=feature_num,
-                          num_worker=num_worker, use_spark=use_spark, header=header, driver_mem=driver_mem, max_result_mem=max_result_mem)
+                          num_worker=num_worker, use_spark=use_spark, header=header, driver_mem=driver_mem,
+                          max_result_mem=max_result_mem, _rows_to_consider=_rows_to_consider)
 
     elif os.path.isdir(file_or_path):
         if not isinstance(num_worker, int):
@@ -162,6 +163,9 @@ def from_db(path: str,
     data_normalized = pickle.load(open(os.path.join(path, 'data_normalized.gxe'), 'rb'))
 
     conf = json.load(open(os.path.join(path, 'conf.json'), 'rb'))
+    # cast the type to np type so that they can be operated on list
+    conf['global_max'] = np.int64(conf['global_max'])
+    conf['global_min'] = np.int64(conf['global_min'])
 
     mp_context = _multiprocess_backend(is_conf_using_spark(conf), num_worker=num_worker, driver_mem=driver_mem,
                                        max_result_mem=max_result_mem)

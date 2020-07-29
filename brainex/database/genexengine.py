@@ -405,7 +405,11 @@ class GenexEngine:
 
         # save configs
         with open(path + '/conf.json', 'w') as f:
-            json.dump(self.conf, f, indent=4)
+            conf_ = self.conf.copy()
+            # cast to int to avoid json serialization issue in bxe.save()
+            conf_['global_max'] = int(conf_['global_max'])
+            conf_['global_min'] = int(conf_['global_min'])
+            json.dump(conf_, f, indent=4)
 
     def _save_cluster(self, path):
         if self.is_using_spark():
