@@ -30,7 +30,7 @@ requires = ['Cython',
 
 setuptools.setup(
     name="brainex",  # Replace with your own username
-    version="0.2.5",
+    version="0.2.6",
     author="ApocalyVec",
     author_email="s-vector.lee@hotmail.com",
     description="This package is a General Exploration System that implements DTW in exploring time series",
