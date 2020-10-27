@@ -81,9 +81,9 @@ if __name__ == "__main__":
         'cases_split': 0.01,
         'best_ks': [1, 5, 15]
     }
-    mp_args = {'num_worker': 32,
-               'driver_mem': 24,
-               'max_result_mem': 24}
+    mp_args = {'num_worker': 72,
+               'driver_mem': 72,
+               'max_result_mem': 72}
 
     # End of Config Parameters, Experiment starts here ################################################################
     # at the moment, there are three different experiments
