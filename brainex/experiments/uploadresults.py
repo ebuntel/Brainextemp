@@ -18,7 +18,7 @@ print(response)
 
 s3 = boto3.resource('s3')
 # Upload files to bucket
-mypath = '/BrainExTemp/brainex/data/results/'
+mypath = '../data/UCR_BrainEX_test'
 for (dirpath, dirname, filenames) in walk(mypath):
     for direc in dirname:
         for (dirpath2, _, filenames2) in walk(mypath + direc):
