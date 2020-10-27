@@ -56,9 +56,9 @@ if __name__ == "__main__":
     '''
     check the docstring of the above function - run_ucr_test for details regarding the parameters
     '''
-    dataset = '/BrainExTest/brainex/data/UCRArchive_2018'
+    dataset = '~/BrainExTest/brainex/data/UCRArchive_2018'
     # dataset = '/Users/Leo/Documents/data/UCRArchive_2018'
-    output = '/BrainExTest/brainex/data/UCR_BrainEX_test'
+    output = '~/BrainExTest/brainex/data/UCR_BrainEX_test'
     # output = '/Users/Leo/PycharmProjects/BrainEX/brainex/experiments/results/test'
 
     ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
