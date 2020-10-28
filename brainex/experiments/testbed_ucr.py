@@ -61,7 +61,7 @@ if __name__ == "__main__":
     output = '../data/UCR_BrainEX_test'
     # output = '/Users/Leo/PycharmProjects/BrainEX/brainex/experiments/results/test'
 
-    ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
+    ds_soi = [0, 1500]  # dataset size of interest, see the docstring of run_ucr_test for details
     # ds_soi = [50000, 1500000]  # dataset size of interest, see the docstring of run_ucr_test for details
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
     dist_types_to_test = ['eu', 'ma', 'ch']
@@ -81,9 +81,9 @@ if __name__ == "__main__":
         'cases_split': 0.01,
         'best_ks': [1, 5, 15]
     }
-    mp_args = {'num_worker': 72,
-               'driver_mem': 70,
-               'max_result_mem': 70}
+    mp_args = {'num_worker': 2,
+               'driver_mem': 2,
+               'max_result_mem': 2}
 
     # End of Config Parameters, Experiment starts here ################################################################
     # at the moment, there are three different experiments
