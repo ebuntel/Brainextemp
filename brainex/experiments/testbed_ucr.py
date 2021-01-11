@@ -7,7 +7,7 @@ from datetime import datetime
 from brainex.experiments.harvest_setup import generate_exp_set_from_root, run_exp_set_GENEX, run_exp_set
 
 
-def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types, ex_config, mp_args):
+def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types, ex_config, mp_args, bucket_name):
     """
     The start and end parameter together make an interval that contains the datasets to be included in this experiment
     :param mp_args: the configuration of the multiprocess backend,
@@ -49,7 +49,7 @@ def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types
     print("BEFORE GEN EXP SET")
     exp_set_list = [generate_exp_set_from_root(dataset_path, output_dir, exclude_list, **ea) for ea in exp_arg_list]
     print("AFTER GEN EXP SET")
-    return [run_exp_set(es, mp_args, **ex_config) for es in exp_set_list]
+    return [run_exp_set(es, mp_args, **ex_config, bucket_name = bucket_name) for es in exp_set_list]
 
 
 '''
@@ -98,8 +98,7 @@ if __name__ == "__main__":
         'test_option': 'BrainEX',
 
         'cases_split': 0.01,
-        'best_ks': [1, 5, 15],
-        'bucket_name' : date_time
+        'best_ks': [1, 5, 15]
     }
     mp_args = {'num_worker': 32,
                'driver_mem': 31,
@@ -122,4 +121,4 @@ if __name__ == "__main__":
     # ex_config_test['loi_range'] = 0.9
     # run_ucr_test(dataset, ds_soi, output_dyn, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
     
-    run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config, mp_args=mp_args)
+    run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config, mp_args=mp_args, bucket_name = date_time)
