@@ -46,8 +46,12 @@ def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types
         'soi': dataset_soi,
     } for dt in dist_types]
 
+    print("BEFORE GEN EXP SET")
+
     exp_set_list = [generate_exp_set_from_root(dataset_path, output_dir, exclude_list, **ea) for ea in exp_arg_list]
 
+    print("AFTER GEN EXP SET")
+    
     ret_list = []
 
     client = boto3.client('s3')
