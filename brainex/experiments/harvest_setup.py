@@ -260,7 +260,6 @@ def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
                                n_segment=n_segment, best_ks=best_ks)
         else:
             raise Exception('Unrecognized test option, it must be one of the following: ' + str(options))
-        print("WHHHHHHHHHHHHHHHHAAAAAAAAAAAAAAAAAAAAAAAAAAATTTTTTTTTTTTTT")
         mypath = es['output']
         print(mypath)
 

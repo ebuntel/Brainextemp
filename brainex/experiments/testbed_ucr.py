@@ -74,17 +74,17 @@ if __name__ == "__main__":
 
     
     # Create S3 bucket for results
-    # client = boto3.client('s3')
+    client = boto3.client('s3')
 
     now = datetime.now()
     date_time = now.strftime("%m-%d-small-datasets")
 
-    # response = client.create_bucket(
-    #     Bucket=date_time
-    # )
+    response = client.create_bucket(
+        Bucket=date_time
+    )
 
-    # print(response)
-    #
+    print(response)
+    
 
     ex_config = {
         'num_sample': math.inf,
