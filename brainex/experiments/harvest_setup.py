@@ -263,10 +263,10 @@ def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
         print("WHHHHHHHHHHHHHHHHAAAAAAAAAAAAAAAAAAAAAAAAAAATTTTTTTTTTTTTT")
         mypath = es['output']
         print(mypath)
-        for (dirpath, dirname, filenames) in os.walk(mypath):
-            print(dirname)
-            for files in filenames:
-                s3.meta.client.upload_file(dirpath2 + "/" + files, bucket_name, files)
+
+        s3.meta.client.upload_file(mypath + '_k=1.csv', bucket_name, mypath[mypath.rfind('/'):] + "_k=1.csv")
+        s3.meta.client.upload_file(mypath + '_k=5.csv', bucket_name, mypath[mypath.rfind('/'):] + "_k=5.csv")
+        s3.meta.client.upload_file(mypath + '_k=15.csv', bucket_name, mypath[mypath.rfind('/'):] + "_k=15.csv")
 
 
 def run_exp_set_GENEX(exp_set, mp_args, _lb_opt, radius, use_spark, st):
