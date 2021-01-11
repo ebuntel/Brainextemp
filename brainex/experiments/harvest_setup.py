@@ -264,6 +264,9 @@ def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
         mypath = es['output']
         print(mypath)
 
+        client = boto3.client('s3')
+        s3 = boto3.resource('s3')
+
         s3.meta.client.upload_file(mypath + '_k=1.csv', bucket_name, mypath[mypath.rfind('/'):] + "_k=1.csv")
         s3.meta.client.upload_file(mypath + '_k=5.csv', bucket_name, mypath[mypath.rfind('/'):] + "_k=5.csv")
         s3.meta.client.upload_file(mypath + '_k=15.csv', bucket_name, mypath[mypath.rfind('/'):] + "_k=15.csv")
