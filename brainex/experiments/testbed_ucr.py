@@ -57,24 +57,25 @@ def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types
     #client = boto3.client('s3')
     #s3 = boto3.resource('s3')
 
-    for es in exp_set_list[0]:
-        print(es)
-        ret_list.append(run_exp_set(es, mp_args, **ex_config))
+    for es in exp_set_list:
+        for exps in es:
+            print(es)
+            ret_list.append(run_exp_set(es, mp_args, **ex_config))
 
-        # Upload to S3
-        mypath = es['output'] 
-        print("IN FORRRRRRRRRRRRRRRRRRRRRRRRR")
+            # Upload to S3
+            mypath = es['output'] 
+            print("IN FORRRRRRRRRRRRRRRRRRRRRRRRR")
 
-        if(os.path.isdir(mypath)):
-            for (dirpath, dirname, filenames) in os.walk(mypath):
-                print(dirname)
-                for filename in filenames:
-                    print("LATERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
-                    print(filename)
-                    s3.meta.client.upload_file(dirpath + '/' + filename, bucket_name, filename)
-        else:
-            raise Exception('Failed to upload output to S3')
-        #
+            if(os.path.isdir(mypath)):
+                for (dirpath, dirname, filenames) in os.walk(mypath):
+                    print(dirname)
+                    for filename in filenames:
+                        print("LATERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
+                        print(filename)
+                        s3.meta.client.upload_file(dirpath + '/' + filename, bucket_name, filename)
+            else:
+                raise Exception('Failed to upload output to S3')
+            #
     return ret_list
 
 
