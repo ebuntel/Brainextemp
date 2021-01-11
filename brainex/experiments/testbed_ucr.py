@@ -1,11 +1,13 @@
 import math
 import os
+import boto3
 import numpy as np
 
+from datetime import datetime
 from brainex.experiments.harvest_setup import generate_exp_set_from_root, run_exp_set_GENEX, run_exp_set
 
 
-def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types, ex_config, mp_args):
+def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types, ex_config, mp_args, bucket_name):
     """
     The start and end parameter together make an interval that contains the datasets to be included in this experiment
     :param mp_args: the configuration of the multiprocess backend,
@@ -45,7 +47,25 @@ def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types
     } for dt in dist_types]
 
     exp_set_list = [generate_exp_set_from_root(dataset_path, output_dir, exclude_list, **ea) for ea in exp_arg_list]
-    return [run_exp_set(es, mp_args, **ex_config) for es in exp_set_list]
+
+    ret_list = []
+
+    for es in exp_set_list:
+        ret_list.append(run_exp_set(es, mp_args, **ex_config))
+
+        # Upload to S3
+        client = boto3.client('s3')
+        s3 = boto3.resource('s3')
+        mypath = es['output'] 
+
+        if(os.path.isdir(mypath)):
+            for (dirpath, dirname, filenames) in os.walk(mypath):
+                for filename in filenames:
+                    s3.meta.client.upload_file(dirpath + '/' + filename, bucket_name, filename)
+        else:
+            raise Exception('Failed to upload output to S3')
+        #
+    return ret_list
 
 
 '''
@@ -61,12 +81,27 @@ if __name__ == "__main__":
     output = '../data/UCR_BrainEX_test'
     # output = '/Users/Leo/PycharmProjects/BrainEX/brainex/experiments/results/test'
 
-    ds_soi = [0, 1500]  # dataset size of interest, see the docstring of run_ucr_test for details
+    ds_soi = [0, 50000]  # dataset size of interest, see the docstring of run_ucr_test for details
     # ds_soi = [50000, 1500000]  # dataset size of interest, see the docstring of run_ucr_test for details
     exclude_dataset = ['Missing_value_and_variable_length_datasets_adjusted', '.DS_Store']
     dist_types_to_test = ['eu', 'ma', 'ch']
     # dist_types_to_test = ['ma', 'ch']
     # dist_types_to_test = ['ch']
+
+    
+    # Create S3 bucket for results
+    client = boto3.client('s3')
+
+    now = datetime.now()
+    date_time = now.strftime("%m-%d-small-datasets")
+
+    response = client.create_bucket(
+        Bucket=date_time
+    )
+
+    print(response)
+    #
+
     ex_config = {
         'num_sample': math.inf,
         'query_split': 0.1,
@@ -81,9 +116,9 @@ if __name__ == "__main__":
         'cases_split': 0.01,
         'best_ks': [1, 5, 15]
     }
-    mp_args = {'num_worker': 2,
-               'driver_mem': 2,
-               'max_result_mem': 2}
+    mp_args = {'num_worker': 72,
+               'driver_mem': 70,
+               'max_result_mem': 70}
 
     # End of Config Parameters, Experiment starts here ################################################################
     # at the moment, there are three different experiments
@@ -101,5 +136,5 @@ if __name__ == "__main__":
     # ex_config_test['query_split'] = 0.2
     # ex_config_test['loi_range'] = 0.9
     # run_ucr_test(dataset, ds_soi, output_dyn, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
-
-    run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config, mp_args=mp_args)
+    
+    run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config, mp_args=mp_args, bucket_name = date_time)

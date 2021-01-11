@@ -236,9 +236,8 @@ def generate_ex_set_GENEX(root, output, dist_type: str, take=66):
     print('Added ' + str(len(config_list)) + ' datasets with the given soi')
     return config_list
 
-
 def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
-                _lb_opt, radius, use_spark, loi_range, st, n_segment, best_ks, test_option='BrainEX'):
+                _lb_opt, radius, use_spark, loi_range, st, n_segment, best_ks, test_option='BrainEX', bucket_name = "noname"):
     options = ['regular', 'DSS', 'dynamic']
     for i, es in enumerate(exp_set):
         print('$$ Running experiment set: ' + str(i) + ' of ' + str(len(exp_set)))
