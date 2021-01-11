@@ -7,7 +7,7 @@ from datetime import datetime
 from brainex.experiments.harvest_setup import generate_exp_set_from_root, run_exp_set_GENEX, run_exp_set
 
 
-def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types, ex_config, mp_args, bucket_name):
+def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types, ex_config, mp_args):
     """
     The start and end parameter together make an interval that contains the datasets to be included in this experiment
     :param mp_args: the configuration of the multiprocess backend,
