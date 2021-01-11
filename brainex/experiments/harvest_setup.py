@@ -262,7 +262,7 @@ def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
             raise Exception('Unrecognized test option, it must be one of the following: ' + str(options))
 
         mypath = es['output']
-        for (dirpath, dirname, filenames) in walk(mypath):
+        for (dirpath, dirname, filenames) in os.walk(mypath):
             print(dirname)
             for files in filenames:
                 s3.meta.client.upload_file(dirpath2 + "/" + files, bucket_name, files)
