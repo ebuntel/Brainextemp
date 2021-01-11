@@ -57,7 +57,7 @@ def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types
     #client = boto3.client('s3')
     #s3 = boto3.resource('s3')
 
-    for es in exp_set_list:
+    for es in exp_set_list[0]:
         print(es)
         ret_list.append(run_exp_set(es, mp_args, **ex_config))
 
