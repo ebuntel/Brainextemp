@@ -47,36 +47,9 @@ def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types
     } for dt in dist_types]
 
     print("BEFORE GEN EXP SET")
-
     exp_set_list = [generate_exp_set_from_root(dataset_path, output_dir, exclude_list, **ea) for ea in exp_arg_list]
-
     print("AFTER GEN EXP SET")
-    
-    ret_list = []
-
-    #client = boto3.client('s3')
-    #s3 = boto3.resource('s3')
-
-    for es in exp_set_list:
-        for exps in es:
-            print(exps)
-            ret_list.append(run_exp_set(exps, mp_args, **ex_config))
-
-            # Upload to S3
-            mypath = es['output'] 
-            print("IN FORRRRRRRRRRRRRRRRRRRRRRRRR")
-
-            if(os.path.isdir(mypath)):
-                for (dirpath, dirname, filenames) in os.walk(mypath):
-                    print(dirname)
-                    for filename in filenames:
-                        print("LATERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
-                        print(filename)
-                        s3.meta.client.upload_file(dirpath + '/' + filename, bucket_name, filename)
-            else:
-                raise Exception('Failed to upload output to S3')
-            #
-    return ret_list
+    return [run_exp_set(es, mp_args, **ex_config) for es in exp_set_list]
 
 
 '''
@@ -125,7 +98,8 @@ if __name__ == "__main__":
         'test_option': 'BrainEX',
 
         'cases_split': 0.01,
-        'best_ks': [1, 5, 15]
+        'best_ks': [1, 5, 15],
+        'bucket_name' : date_time
     }
     mp_args = {'num_worker': 32,
                'driver_mem': 31,
@@ -148,4 +122,4 @@ if __name__ == "__main__":
     # ex_config_test['loi_range'] = 0.9
     # run_ucr_test(dataset, ds_soi, output_dyn, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config_test, mp_args=mp_args)
     
-    run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config, mp_args=mp_args, bucket_name = date_time)
+    run_ucr_test(dataset, ds_soi, output, exclude_dataset, dist_types=dist_types_to_test, ex_config=ex_config, mp_args=mp_args)

@@ -3,6 +3,7 @@ import os
 import random
 import shutil
 import time
+import boto3
 from datetime import datetime
 from logging import warning
 
@@ -259,6 +260,12 @@ def run_exp_set(exp_set, mp_args, num_sample, query_split, cases_split,
                                n_segment=n_segment, best_ks=best_ks)
         else:
             raise Exception('Unrecognized test option, it must be one of the following: ' + str(options))
+
+        mypath = es['output']
+        for (dirpath, dirname, filenames) in walk(mypath):
+            print(dirname)
+            for files in filenames:
+                s3.meta.client.upload_file(dirpath2 + "/" + files, bucket_name, files)
 
 
 def run_exp_set_GENEX(exp_set, mp_args, _lb_opt, radius, use_spark, st):
