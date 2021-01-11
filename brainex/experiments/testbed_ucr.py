@@ -62,8 +62,10 @@ def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types
 
         if(os.path.isdir(mypath)):
             for (dirpath, dirname, filenames) in os.walk(mypath):
+                print(dirname)
                 for filename in filenames:
                     print("LATERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
+                    print(filename)
                     s3.meta.client.upload_file(dirpath + '/' + filename, bucket_name, filename)
         else:
             raise Exception('Failed to upload output to S3')
