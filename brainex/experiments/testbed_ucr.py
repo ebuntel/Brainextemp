@@ -59,8 +59,8 @@ def run_ucr_test(dataset_path, dataset_soi, output_dir, exclude_list, dist_types
 
     for es in exp_set_list:
         for exps in es:
-            print(es)
-            ret_list.append(run_exp_set(es, mp_args, **ex_config))
+            print(exps)
+            ret_list.append(run_exp_set(exps, mp_args, **ex_config))
 
             # Upload to S3
             mypath = es['output'] 
